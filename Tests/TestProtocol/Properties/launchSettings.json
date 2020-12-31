@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "TestProtocol": {
+      "commandName": "Project",
+      "commandLineArgs": "COM19 19200",
+      "sqlDebugging": true
+    }
+  }
+}
