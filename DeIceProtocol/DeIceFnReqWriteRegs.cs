@@ -6,12 +6,10 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public class DeIceFnReqWriteRegs : DeIceFnReqBase
+    public record DeIceFnReqWriteRegs : DeIceFnReqBase
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_WRITE_RG;
 
-        public DeIceRegisters Regs { get; }
-
-        public DeIceFnReqWriteRegs(DeIceRegisters regs) => this.Regs = regs;
+        public DeIceRegisters Regs { get; init; }
     }
 }

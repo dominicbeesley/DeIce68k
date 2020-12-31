@@ -54,6 +54,26 @@ current PC and following instructions will be dumped to console.
                 Console.WriteLine("Registers:");
                 Console.WriteLine(regs.Registers.PrettyString());
 
+                byte[] buf = new byte[0x20];
+
+                _proto.ReadMemBlock(regs.Registers.PC, buf, 0, buf.Length);
+
+                uint pc = regs.Registers.PC;
+
+                using (var ms = new MemoryStream(buf))
+                using (var br = new BinaryReader(ms))
+                {
+                    while (ms.Position < ms.Length)
+                    {
+                        var d = Disass68k.Disass68k.Decode(br, pc, null, false);
+                        if (d.Decoded)
+                        {
+                            Console.WriteLine($"{pc:X8} : {d}");
+                            pc += d.Length;
+                        }
+                    }
+                }
+
                 return E_OK;
             } catch (Exception ex)
             {

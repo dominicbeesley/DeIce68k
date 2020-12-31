@@ -6,11 +6,8 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public abstract class DeIceFnReqBase
+    public abstract record DeIceFnReqBase
     {
         public abstract byte FunctionCode { get; }
-        public DeIceFnReqBase()
-        {
-        }
     }
 }

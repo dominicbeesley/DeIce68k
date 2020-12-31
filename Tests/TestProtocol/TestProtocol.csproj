@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\DeIceProtocol\DeIceProtocol.csproj" />
+    <ProjectReference Include="..\..\Disass68k\Disass68k.csproj" />
     <ProjectReference Include="..\..\SerialPort\DossySerialPort.csproj" />
   </ItemGroup>
 

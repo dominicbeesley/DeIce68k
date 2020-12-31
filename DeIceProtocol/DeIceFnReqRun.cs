@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public class DeIceFnReqRun : DeIceFnReqBase
+    public record DeIceFnReqRun : DeIceFnReqBase
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_RUN_TARG;
     }

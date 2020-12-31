@@ -6,12 +6,8 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public class DeIceFnReqReadRegs : DeIceFnReqBase
+    public record DeIceFnReqReadRegs : DeIceFnReqBase
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_READ_RG;
-
-        public DeIceFnReqReadRegs()
-        {
-        }
     }
 }

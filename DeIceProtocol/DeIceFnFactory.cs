@@ -186,9 +186,9 @@ namespace DeIceProtocol
             return ret;
         }
 
-        private static UInt32 ReadBEULong(byte[] data, int index)
+        private static uint ReadBEULong(byte[] data, int index)
         {
-            return (UInt32)(data[index + 3]
+            return (uint)(data[index + 3]
                 + (data[index + 2] << 8)
                 + (data[index + 1] << 16)
                 + (data[index + 0] << 24)

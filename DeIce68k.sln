@@ -5,13 +5,15 @@ VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeIce68k", "DeIce68k\DeIce68k.csproj", "{1830ED4A-F2ED-401D-8821-80F8A9BFE4C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DossySerialPort", "SerialPort\DossySerialPort.csproj", "{D0D0A04F-6F18-498E-A7B4-7C2FCAE1791D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DossySerialPort", "SerialPort\DossySerialPort.csproj", "{D0D0A04F-6F18-498E-A7B4-7C2FCAE1791D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeIceProtocol", "DeIceProtocol\DeIceProtocol.csproj", "{CB8923DD-EFD6-4559-992F-D52C340792B4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeIceProtocol", "DeIceProtocol\DeIceProtocol.csproj", "{CB8923DD-EFD6-4559-992F-D52C340792B4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{80A409CE-7960-43CD-A1B6-FD01312CBCCB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestProtocol", "Tests\TestProtocol\TestProtocol.csproj", "{436A0A94-7ECD-4ACD-95D8-44362BF95654}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestProtocol", "Tests\TestProtocol\TestProtocol.csproj", "{436A0A94-7ECD-4ACD-95D8-44362BF95654}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Disass68k", "Disass68k\Disass68k.csproj", "{0688FFB9-E466-4E7F-B7E0-787911E244B9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,6 +37,10 @@ Global
 		{436A0A94-7ECD-4ACD-95D8-44362BF95654}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{436A0A94-7ECD-4ACD-95D8-44362BF95654}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{436A0A94-7ECD-4ACD-95D8-44362BF95654}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0688FFB9-E466-4E7F-B7E0-787911E244B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0688FFB9-E466-4E7F-B7E0-787911E244B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0688FFB9-E466-4E7F-B7E0-787911E244B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0688FFB9-E466-4E7F-B7E0-787911E244B9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
