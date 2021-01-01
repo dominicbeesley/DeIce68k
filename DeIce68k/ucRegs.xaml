@@ -4,7 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:DeIce68k"
-             d:DesignHeight="200" d:DesignWidth="240"
+             xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
+             d:DesignHeight="240" d:DesignWidth="240"
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
              d:DataContext="{d:DesignInstance sampledata:SampleDataRegisterSetModel,IsDesignTimeCreatable=True}"
              mc:Ignorable="d" 
@@ -27,6 +28,7 @@
             <RowDefinition Height="18" />
             <RowDefinition Height="18" />
             <RowDefinition Height="18" />
+            <RowDefinition Height="28" />
             <RowDefinition Height="18" />
         </Grid.RowDefinitions>
         <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=D0 }"></local:ucReg>
@@ -38,7 +40,33 @@
         <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=D6 }"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="7" DataContext="{Binding Path=D7 }"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=SR }"></local:ucReg>
-        <local:ucTargetStatus Grid.Column="0" Grid.Row="10" DataContext="{Binding Path=TargetStatus }" />
+        <ListView  
+            Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
+            ItemsSource="{Binding Path=StatusBits}" d:ItemsSource="{x:Static viewmodel:RegisterSetModel.TestStatusRegisterBits }"
+            Background="Transparent"  
+            Padding="0"
+            Margin="0"
+            >
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" Margin="0" Width="230">
+
+                    </WrapPanel>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <local:ucStatusBit />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <local:ucTargetStatus Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=TargetStatus }" />
        
         <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=A0 }"></local:ucReg>
         <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=A1 }"></local:ucReg>
@@ -50,7 +78,7 @@
         <local:ucReg Grid.Column="1" Grid.Row="7" DataContext="{Binding Path=A7u }" ></local:ucReg>
         <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=A7s }" ></local:ucReg>
         <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=PC }" ></local:ucReg>
-        <TextBlock Grid.Column="1" Grid.Row="10" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
+        <TextBlock Grid.Column="1" Grid.Row="11" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
 
     </Grid>
 </UserControl>

@@ -63,7 +63,7 @@ namespace DeIce68k.ViewModel
                     Data = d;
                 } catch (Exception)
                 {
-                    Data = 0;
+                    // do nothing!
                 }
             }
         }

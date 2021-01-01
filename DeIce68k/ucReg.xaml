@@ -53,7 +53,7 @@
                     <EventTrigger RoutedEvent="TextBoxBase.TextChanged">
                         <BeginStoryboard>
                             <Storyboard>
-                                <ColorAnimation Duration="0:0:4" From="#800000" To="#008000" Storyboard.TargetName="tbLabel" Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"/>
+                                <ColorAnimation Duration="0:0:2.5" From="#F08000" To="#008000" Storyboard.TargetName="tbLabel" Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"/>
                             </Storyboard>
                         </BeginStoryboard>
                     </EventTrigger>

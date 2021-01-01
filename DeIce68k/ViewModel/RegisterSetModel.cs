@@ -1,6 +1,7 @@
 ﻿using DeIceProtocol;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
@@ -12,7 +13,8 @@ namespace DeIce68k.ViewModel
     {
         byte _targetStatus;
 
-        public byte TargetStatus {
+        public byte TargetStatus
+        {
             get
             {
                 return _targetStatus;
@@ -45,6 +47,7 @@ namespace DeIce68k.ViewModel
         public RegisterModel PC { get; }
         public RegisterModel SR { get; }
 
+        public ReadOnlyObservableCollection<StatusRegisterBitsModel> StatusBits { get; init; }
 
         public RegisterSetModel()
         {
@@ -69,6 +72,48 @@ namespace DeIce68k.ViewModel
 
             PC = new RegisterModel("PC", RegisterSize.Long, 0);
             SR = new RegisterModel("SR", RegisterSize.Word, 0);
+
+            StatusBits = new ReadOnlyObservableCollection<StatusRegisterBitsModel>(
+                new ObservableCollection<StatusRegisterBitsModel>(
+            new StatusRegisterBitsModel[]
+            {
+                new() { BitIndex=15, Label="T", Name="Trace" },
+                new() { BitIndex=14, Label="-", Name="Uk 14" },
+                new() { BitIndex=13, Label="S", Name="Supervisor" },
+                new() { BitIndex=12, Label="-", Name="Uk 12" },
+                new() { BitIndex=11, Label="-", Name="Uk 11" },
+                new() { BitIndex=10, Label="I2", Name="Int.2" },
+                new() { BitIndex=9, Label="I1", Name="Int.1" },
+                new() { BitIndex=8, Label="I0", Name="Int.0" },
+                new() { BitIndex=7, Label="-", Name="Uk 7" },
+                new() { BitIndex=6, Label="-", Name="Uk 6" },
+                new() { BitIndex=5, Label="-", Name="Uk 5" },
+                new() { BitIndex=4, Label="X", Name="Extend" },
+                new() { BitIndex=3, Label="N", Name="Negative" },
+                new() { BitIndex=2, Label="Z", Name="Zero" },
+                new() { BitIndex=1, Label="V", Name="Overflow" },
+                new() { BitIndex=0, Label="C", Name="Carry" }
+            }));
+
+            SR.PropertyChanged += SR_PropertyChanged;
+            UpdateStatusBits();
+        }
+
+        private void SR_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(RegisterModel.Data))
+            {
+                UpdateStatusBits();
+            }
+        }
+
+        private void UpdateStatusBits()
+        {
+            var sr = SR.Data;
+            foreach (var sb in StatusBits)
+            {
+                sb.Data = (sr & 1 << sb.BitIndex) != 0;
+            }
         }
 
         public void FromDeIceRegisters(DeIceRegisters other)
@@ -123,6 +168,7 @@ namespace DeIce68k.ViewModel
         }
 
         public static RegisterSetModel TestRegisterSet = new RegisterSetModel();
+        public static ReadOnlyObservableCollection<StatusRegisterBitsModel> TestStatusRegisterBits = new RegisterSetModel().StatusBits;
 
     }
 }
