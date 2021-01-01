@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Disass68k
 {
-    public static class Disass68k
+    public static class Disass
     {
 
         public static Regex reHint = new Regex(@"\s*\[([^\]]+)]\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);

@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<x:Array 
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:System="clr-namespace:System;assembly=mscorlib"
+    Type="System:String">
+    <System:String>Nam duis praesent</System:String>
+    <System:String>Vestibulum aliquam curae nunc sed</System:String>
+    <System:String>Dis phasellus</System:String>
+    <System:String>Donec adipiscing</System:String>
+    <System:String>Est aenean</System:String>
+    <System:String>Hac leo etiam mauris</System:String>
+    <System:String>Accumsan mus fusce amet ante</System:String>
+    <System:String>Nec bibendum lorem morbi</System:String>
+    <System:String>Dictumst consequat convallis</System:String>
+    <System:String>Integer nulla</System:String>
+</x:Array>

@@ -1,0 +1,54 @@
+﻿<UserControl x:Class="DeIce68k.ucReg"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
+             d:DataContext="{x:Static viewmodel:RegisterModel.TestLong }"
+             mc:Ignorable="d"              
+             x:Name="this"
+             Background="Black"
+             Foreground="#008000"
+             >
+    <Grid Height="16" Width="105">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="30" />
+            <ColumnDefinition Width="70" />
+        </Grid.ColumnDefinitions>
+        <TextBlock 
+            Grid.Column="0" 
+            Text="{Binding Path=Name}" 
+            HorizontalAlignment="Right" 
+            VerticalAlignment="Top" 
+            Width="30" 
+            TextAlignment="Right" 
+            Padding="2,2,2,2" 
+            Height="14" 
+            FontFamily="Lucida Console"/>
+        <Border                
+            Grid.Column="1" 
+            CornerRadius="3"
+            BorderBrush="#008000"
+            BorderThickness="1"
+            >
+            <TextBox 
+                HorizontalAlignment="Left" 
+                Height="12" 
+                Margin="3,1,0,1" 
+                Padding="0,0,0,0"
+                TextWrapping="Wrap" 
+                Text="{Binding Path=DataString, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=X8}" 
+                VerticalAlignment="Top" 
+                Width="62" 
+                FontFamily="Lucida Console"
+                Background="Transparent"
+                Foreground="#008000"            
+                CaretBrush="#800000"
+                BorderThickness="0"
+                TextAlignment="Right"
+                >
+            </TextBox>
+        </Border>
+
+    </Grid>
+</UserControl>

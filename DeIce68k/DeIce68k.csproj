@@ -2,8 +2,18 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="ViewModel\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeIceProtocol\DeIceProtocol.csproj" />
+    <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
+    <ProjectReference Include="..\SerialPort\DossySerialPort.csproj" />
+  </ItemGroup>
 
 </Project>

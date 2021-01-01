@@ -65,7 +65,7 @@ current PC and following instructions will be dumped to console.
                 {
                     while (ms.Position < ms.Length)
                     {
-                        var d = Disass68k.Disass68k.Decode(br, pc, null, false);
+                        var d = Disass68k.Disass.Decode(br, pc, null, false);
                         if (d.Decoded)
                         {
                             Console.WriteLine($"{pc:X8} : {d}");
