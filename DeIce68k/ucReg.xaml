@@ -24,7 +24,9 @@
             TextAlignment="Right" 
             Padding="2,2,2,2" 
             Height="14" 
-            FontFamily="Lucida Console"/>
+            FontFamily="Lucida Console"
+            Name="tbLabel"
+            />
         <Border                
             Grid.Column="1" 
             CornerRadius="3"
@@ -47,6 +49,15 @@
                 BorderThickness="0"
                 TextAlignment="Right"
                 >
+                <TextBox.Triggers>
+                    <EventTrigger RoutedEvent="TextBoxBase.TextChanged">
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <ColorAnimation Duration="0:0:4" From="#800000" To="#008000" Storyboard.TargetName="tbLabel" Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </EventTrigger>
+                </TextBox.Triggers>
             </TextBox>
         </Border>
 
