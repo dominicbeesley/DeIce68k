@@ -5,8 +5,8 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <Color x:Key="Retro_Color_FG">#e88000</Color>
-            <Color x:Key="Retro_Color_BG">#201000</Color>
+            <Color x:Key="Retro_Color_FG">#10D010</Color>
+            <Color x:Key="Retro_Color_BG">#102010</Color>
             <Color x:Key="Retro_Color_FG_Flash">#FFD000</Color>
             <Color x:Key="Retro_Color_FG_Higlight">#FF0000</Color>
             <SolidColorBrush x:Key="Retro_Brush_FG" Color="{StaticResource Retro_Color_FG}"></SolidColorBrush>

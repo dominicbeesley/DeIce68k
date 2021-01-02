@@ -6,7 +6,6 @@
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
              d:DataContext="{x:Static sampledata:DesignTimeSampleData.RegisterModelTestLong }"
              mc:Ignorable="d"              
-             x:Name="this"
              Background="Transparent"
              >
     <Grid Height="16" Width="105">

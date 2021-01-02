@@ -4,7 +4,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:DeIce68k"
-             xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
              d:DesignHeight="240" d:DesignWidth="240"
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }"
@@ -31,15 +30,15 @@
             <RowDefinition Height="28" />
             <RowDefinition Height="18" />
         </Grid.RowDefinitions>
-        <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=D0 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=D1 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=D2 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="3" DataContext="{Binding Path=D3 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=D4 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=D5 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=D6 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="7" DataContext="{Binding Path=D7 }"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=SR }"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=D0}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=D1}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=D2}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="3" DataContext="{Binding Path=D3}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=D4}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=D5}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=D6}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="7" DataContext="{Binding Path=D7}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=SR}"></local:ucReg>
         <ListView  
             Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
             ItemsSource="{Binding Path=StatusBits}" 
@@ -70,16 +69,16 @@
         </ListView>
         <local:ucTargetStatus Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=TargetStatus }" />
        
-        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=A0 }"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=A1 }"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=A2 }" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=A3 }" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=A4 }"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=A5 }"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="6" DataContext="{Binding Path=A6 }"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="7" DataContext="{Binding Path=A7u }" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=A7s }" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=PC }" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=A0}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=A1}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=A2}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=A3}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=A4}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=A5}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="6" DataContext="{Binding Path=A6}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="7" DataContext="{Binding Path=A7u}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=A7s}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=PC}" ></local:ucReg>
         <TextBlock Grid.Column="1" Grid.Row="11" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
 
     </Grid>
