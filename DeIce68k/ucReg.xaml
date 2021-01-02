@@ -7,8 +7,7 @@
              d:DataContext="{x:Static viewmodel:RegisterModel.TestLong }"
              mc:Ignorable="d"              
              x:Name="this"
-             Background="Black"
-             Foreground="#008000"
+             Background="Transparent"
              >
     <Grid Height="16" Width="105">
         <Grid.ColumnDefinitions>
@@ -18,19 +17,13 @@
         <TextBlock 
             Grid.Column="0" 
             Text="{Binding Path=Name}" 
-            HorizontalAlignment="Right" 
-            VerticalAlignment="Top" 
-            Width="30" 
-            TextAlignment="Right" 
-            Padding="2,2,2,2" 
-            Height="14" 
-            FontFamily="Lucida Console"
             Name="tbLabel"
+            Style="{StaticResource Retro_TextBlock_Reg_Label}"
             />
         <Border                
             Grid.Column="1" 
             CornerRadius="3"
-            BorderBrush="#008000"
+            BorderBrush="{StaticResource Retro_Brush_FG}"
             BorderThickness="1"
             >
             <TextBox 
@@ -42,18 +35,18 @@
                 Text="{Binding Path=DataString, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=X8}" 
                 VerticalAlignment="Top" 
                 Width="62" 
-                FontFamily="Lucida Console"
-                Background="Transparent"
-                Foreground="#008000"            
-                CaretBrush="#800000"
-                BorderThickness="0"
-                TextAlignment="Right"
+                Style="{StaticResource Retro_TextBox_Reg}"
                 >
                 <TextBox.Triggers>
                     <EventTrigger RoutedEvent="TextBoxBase.TextChanged">
                         <BeginStoryboard>
                             <Storyboard>
-                                <ColorAnimation Duration="0:0:2.5" From="#F08000" To="#008000" Storyboard.TargetName="tbLabel" Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"/>
+                                <ColorAnimation 
+                                    Duration="0:0:2.5" 
+                                    From="{StaticResource Retro_Color_FG_Flash}" 
+                                    To="{StaticResource Retro_Color_FG}" 
+                                    Storyboard.TargetName="tbLabel" 
+                                    Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"/>
                             </Storyboard>
                         </BeginStoryboard>
                     </EventTrigger>

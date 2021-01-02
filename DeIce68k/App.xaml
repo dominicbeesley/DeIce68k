@@ -4,6 +4,40 @@
              xmlns:local="clr-namespace:DeIce68k"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <Color x:Key="Retro_Color_FG">#e88000</Color>
+            <Color x:Key="Retro_Color_BG">#201000</Color>
+            <Color x:Key="Retro_Color_FG_Flash">#FFD000</Color>
+            <Color x:Key="Retro_Color_FG_Higlight">#FF0000</Color>
+            <SolidColorBrush x:Key="Retro_Brush_FG" Color="{StaticResource Retro_Color_FG}"></SolidColorBrush>
+            <SolidColorBrush x:Key="Retro_Brush_FG_Highlight" Color="{StaticResource Retro_Color_FG_Higlight}"></SolidColorBrush>
+            <SolidColorBrush x:Key="Retro_Brush_BG" Color="{StaticResource Retro_Color_BG}"></SolidColorBrush>
+            <Style TargetType="Button" x:Key="Retro_Button_Borderless">
+                <Setter Property="Background" Value="{StaticResource Retro_Brush_BG}" />
+                <Setter Property="Foreground" Value="{StaticResource Retro_Brush_FG}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+            </Style>
+            <Style TargetType="TextBox" x:Key="Retro_TextBox_Reg">
+                <Setter Property="FontFamily" Value="Lucida Console" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{StaticResource Retro_Brush_FG}" />
+                <Setter Property="CaretBrush" Value="{StaticResource Retro_Brush_FG_Highlight}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="TextAlignment" Value="Right" />
+            </Style>
+            <Style TargetType="TextBlock" x:Key="Retro_TextBlock_Reg_Label">
+                <Setter Property="FontFamily" Value="Lucida Console" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{StaticResource Retro_Brush_FG}" />
+                <Setter Property="TextAlignment" Value="Right" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="VerticalAlignment" Value="Top" />
+                <Setter Property="TextAlignment" Value="Right" />
+                <Setter Property="Padding" Value="2,2,2,2" />
+                <Setter Property="Height" Value="14" />
+                <Setter Property="Width" Value="30" />
+
+            </Style>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

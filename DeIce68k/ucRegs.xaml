@@ -9,8 +9,8 @@
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
              d:DataContext="{d:DesignInstance sampledata:SampleDataRegisterSetModel,IsDesignTimeCreatable=True}"
              mc:Ignorable="d" 
-             Foreground="#008000"
-             Background="Black"
+             Background="{StaticResource Retro_Brush_BG}"
+             Foreground="{StaticResource Retro_Brush_FG}"
              >
     <Grid Width="Auto" Height="Auto">
         <Grid.ColumnDefinitions>
@@ -44,6 +44,7 @@
             Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
             ItemsSource="{Binding Path=StatusBits}" d:ItemsSource="{x:Static viewmodel:RegisterSetModel.TestStatusRegisterBits }"
             Background="Transparent"  
+            BorderBrush="Transparent"
             Padding="0"
             Margin="0"
             >
@@ -51,6 +52,7 @@
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0" />
                     <Setter Property="Margin" Value="0" />
+                    <Setter Property="BorderThickness" Value="0" />
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.ItemsPanel>
@@ -62,7 +64,7 @@
             </ListView.ItemsPanel>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <local:ucStatusBit />
+                    <local:ucStatusBit Width="14"/>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

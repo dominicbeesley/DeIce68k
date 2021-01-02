@@ -7,18 +7,20 @@
              d:DataContext="{x:Static viewmodel:StatusRegisterBitsModel.TestData }"
              mc:Ignorable="d"              
              x:Name="this"
-             Background="Black"
-             Foreground="#008000"
+             Width="14"
+             Height="24"
              >
     <UserControl.Resources>
         <viewmodel:Bool2Opacity_ValueConverter x:Key="bool2opacity" />
     </UserControl.Resources>
-    <Grid Height="20" Width="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="8" />
-            <RowDefinition Height="12" />
-        </Grid.RowDefinitions>
-        <TextBlock 
+    <Button Name="btn" Style="{StaticResource Retro_Button_Borderless}" Padding="0" Margin="0">
+        <Button.Content>
+            <Grid Height="20" Width="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="12" />
+                </Grid.RowDefinitions>
+                <TextBlock 
             Grid.Row="0" 
             Text="{Binding Path=Label}" 
             HorizontalAlignment="Right" 
@@ -28,33 +30,34 @@
             Padding="0,0,0,0" 
             Height="8" 
             FontFamily="Lucida Console"
-            Name="tbLabel"
+            x:Name="tbLabel"
             FontSize="8"
             />
-        <Border                
+                <Border                
             Grid.Row="1" 
             CornerRadius="2"
-            BorderBrush="#008000"
+            BorderBrush="{StaticResource Retro_Brush_FG}"
             BorderThickness="1"
             >
-            <Rectangle DataContext="{Binding Path=Data, NotifyOnTargetUpdated=True}" Fill="#008000" Margin="2,2,2,2" RadiusX="1" RadiusY="1" Opacity="{Binding Converter={ StaticResource bool2opacity}}">
-                <Rectangle.Triggers>
-                    <EventTrigger RoutedEvent="Binding.TargetUpdated">
-                        <BeginStoryboard>
-                            <Storyboard>
-                                <ColorAnimation 
+                    <Rectangle DataContext="{Binding Path=Data, NotifyOnTargetUpdated=True}" Fill="{StaticResource Retro_Brush_FG}" Margin="2,2,2,2" RadiusX="1" RadiusY="1" Opacity="{Binding Converter={ StaticResource bool2opacity}}">
+                        <Rectangle.Triggers>
+                            <EventTrigger RoutedEvent="Binding.TargetUpdated">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation 
                                     Duration="0:0:2.5" 
-                                    From="#F08000" 
-                                    To="#008000" 
+                                    From="{StaticResource Retro_Color_FG_Flash}" 
+                                    To="{StaticResource Retro_Color_FG}" 
                                     Storyboard.TargetName="tbLabel" 
                                     Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"
                                     />
-                            </Storyboard>
-                        </BeginStoryboard>
-                    </EventTrigger>
-                </Rectangle.Triggers>
-            </Rectangle>
-        </Border>
-
-    </Grid>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Rectangle.Triggers>
+                    </Rectangle>
+                </Border>
+            </Grid>
+        </Button.Content>
+    </Button>
 </UserControl>

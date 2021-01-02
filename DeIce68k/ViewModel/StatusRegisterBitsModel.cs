@@ -18,7 +18,7 @@ namespace DeIce68k.ViewModel
             {
                 return _data;
             } 
-            internal set
+            set
             {
                 if (value != _data)
                 {

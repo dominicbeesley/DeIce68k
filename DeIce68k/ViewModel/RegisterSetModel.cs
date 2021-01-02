@@ -96,7 +96,23 @@ namespace DeIce68k.ViewModel
             }));
 
             SR.PropertyChanged += SR_PropertyChanged;
+
+            foreach (var sb in StatusBits)
+            {
+                sb.PropertyChanged += Sb_PropertyChanged;
+            }
+
             UpdateStatusBits();
+        }
+
+        private void Sb_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            StatusRegisterBitsModel sb = sender as StatusRegisterBitsModel;
+            if (sb is not null)
+            {
+                uint mask = (uint)(1 << sb.BitIndex);
+                SR.Data = (SR.Data & ~mask) | ((sb.Data) ? mask : 0);
+            }
         }
 
         private void SR_PropertyChanged(object sender, PropertyChangedEventArgs e)

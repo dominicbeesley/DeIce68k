@@ -6,44 +6,25 @@
         xmlns:local="clr-namespace:DeIce68k"
         mc:Ignorable="d"
         Title="Run Trace To..." 
-        Height="450" 
-        Width="800"
+        Height="150" 
+        Width="400"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner" 
         FocusManager.FocusedElement="{Binding ElementName=leftMarginTextBox}"
         xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
         >
-    <Grid  HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="1*"/>
-            <RowDefinition Height="1*"/>
-        </Grid.RowDefinitions>
+    <Grid Margin="20,20,20,20">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*" />
-            <ColumnDefinition Width="1*" />
+            <ColumnDefinition Width="80" />
+            <ColumnDefinition Width="200" />
         </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20" />
+            <RowDefinition Height="20" />
+            <RowDefinition Height="20" />
+        </Grid.RowDefinitions>
 
-
-        <Label Grid.Column="0" Grid.Row="0">Run To Addr</Label>
-        <TextBox Name="txtAddr" Grid.Column="1" Grid.Row="0">
-            <TextBox.Text>
-                <Binding Path="Left" UpdateSourceTrigger="PropertyChanged">
-                    <Binding.ValidationRules>
-                        <viewmodel:AddrTextValidation>
-                            <viewmodel:AddrTextValidation.Context>
-                                <viewmodel:DeIceAppModelDataContext ViewModel="{Binding Context}" />
-                            </viewmodel:AddrTextValidation.Context>
-                        </viewmodel:AddrTextValidation>
-                    </Binding.ValidationRules>
-                </Binding>
-            </TextBox.Text>
-        </TextBox>
-
-        <!--
-        <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="4">
-            <Button Name="okButton" Click="okButton_Click" IsDefault="True">OK</Button>
-            <Button Name="cancelButton" IsCancel="True">Cancel</Button>
-        </StackPanel>
-        -->
+        <TextBlock Grid.Column="0">Address</TextBlock>
+        <TextBox Grid.Column="1"></TextBox>
     </Grid>
 </Window>
