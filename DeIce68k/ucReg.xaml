@@ -3,8 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
-             d:DataContext="{x:Static viewmodel:RegisterModel.TestLong }"
+             xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.RegisterModelTestLong }"
              mc:Ignorable="d"              
              x:Name="this"
              Background="Transparent"
@@ -28,13 +28,8 @@
             >
             <TextBox 
                 HorizontalAlignment="Left" 
-                Height="12" 
-                Margin="3,1,0,1" 
-                Padding="0,0,0,0"
-                TextWrapping="Wrap" 
+                VerticalAlignment="Top"
                 Text="{Binding Path=DataString, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=X8}" 
-                VerticalAlignment="Top" 
-                Width="62" 
                 Style="{StaticResource Retro_TextBox_Reg}"
                 >
                 <TextBox.Triggers>

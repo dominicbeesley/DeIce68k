@@ -16,9 +16,9 @@ namespace DeIce68k.ViewModel
     /// <summary>
     /// main application model
     /// </summary>
-    public class DeIceAppModel : ObservableObject, IDisposable
+    public class DeIceAppModel : ObservableObject
     {
-        DossySerial _serial;
+        IDossySerial _serial;
         DeIceProtocolMain _deIceProtocol;
 
         public DeIceProtocolMain Serial { get { return _deIceProtocol; } }
@@ -26,7 +26,8 @@ namespace DeIce68k.ViewModel
         ObservableCollection<WatchModel> _watches = new ObservableCollection<WatchModel>();
         public ObservableCollection<WatchModel> Watches { get { return _watches; } }
 
-        RegisterSetModel _regs = new RegisterSetModel();
+        RegisterSetModel _regs;
+
         public RegisterSetModel Regs { get { return _regs; } }
 
         ObservableCollection<string> _messages = new ObservableCollection<string>();
@@ -157,9 +158,13 @@ namespace DeIce68k.ViewModel
 
         }
 
-        public DeIceAppModel(string comPort, int baudRate, MainWindow mainWindow)
+        public DeIceAppModel(IDossySerial serial, MainWindow mainWindow)
         {
             this.MainWindow = mainWindow;
+            this._serial = serial;
+
+            _regs = new RegisterSetModel(this);
+
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
 
@@ -178,7 +183,7 @@ namespace DeIce68k.ViewModel
             },
             o =>
             {
-                return Regs.TargetStatus == 2 || ((Regs.TargetStatus & 0x10) == 0x10);
+                return Regs.IsStopped;
             }
             );
 
@@ -198,7 +203,7 @@ namespace DeIce68k.ViewModel
                 },
                 o=>
                 {
-                    return (Regs.TargetStatus == 2) || ((Regs.TargetStatus & 0x10) == 0x10);
+                    return Regs.IsStopped;
                 }
 
             );
@@ -206,25 +211,21 @@ namespace DeIce68k.ViewModel
             CmdTraceTo = new RelayCommand<object>(
                 o => {
                     var dlg = new DlgTraceTo(this);
-                    dlg.Owner = MainWindow;
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
                     dlg.ShowDialog();
 
                 },
-                o => { return (Regs.TargetStatus == 2) || ((Regs.TargetStatus & 0x10) == 0x10); }
+                o => { return Regs.IsStopped; }
                 );
 
-
-            _serial = new DossySerial(comPort, baudRate);
-
             _deIceProtocol = new DeIceProtocolMain(_serial);
-
-
 
             Task.Factory.StartNew(() =>
             {
                 _deIceProtocol.CommError += (o, e) =>
                 {
-                    MainWindow.Dispatcher.Invoke(new Action(
+                    DoInvoke(new Action(
                     delegate
                     {
                         Messages.Add($"{MessageNo():X4} ERROR:{ e.Exception.ToString() }");
@@ -233,7 +234,7 @@ namespace DeIce68k.ViewModel
                 };
                 _deIceProtocol.OobDataReceived += (o, e) =>
                 {
-                    MainWindow.Dispatcher.Invoke(new Action(
+                    DoInvoke(new Action(
                     delegate
                     {
                         Messages.Add($"{MessageNo():X4} OOB:{ e.Data }");
@@ -242,7 +243,7 @@ namespace DeIce68k.ViewModel
                 };
                 _deIceProtocol.FunctionReceived += (o, e) =>
                 {
-                    MainWindow.Dispatcher.Invoke(new Action(
+                    DoInvoke(new Action(
                     delegate
                     {
                         Messages.Add($"{MessageNo():X4} FN:{ e.Function.FunctionCode } : { e.Function.GetType().Name }");
@@ -264,6 +265,15 @@ namespace DeIce68k.ViewModel
             });
 
 
+        }
+
+        //TODO: Check if there's a better way of doing this
+        void DoInvoke(Action a)
+        {
+            if (MainWindow is not null)
+                MainWindow.Dispatcher.Invoke(a);
+            else
+                a.Invoke();
         }
 
         /// <summary>
@@ -306,45 +316,5 @@ namespace DeIce68k.ViewModel
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
             }
         }
-
-        #region IDisposable Support
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    if (_serial != null)
-                    {
-                        _serial.Dispose();
-                        _serial = null;
-                    }
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
-                disposedValue = true;
-            }
-        }
-
-        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
-        // ~DeIceAppModel() {
-        //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-        //   Dispose(false);
-        // }
-
-        // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-            Dispose(true);
-            // TODO: uncomment the following line if the finalizer is overridden above.
-            // GC.SuppressFinalize(this);
-        }
-        #endregion
-
     }
 }

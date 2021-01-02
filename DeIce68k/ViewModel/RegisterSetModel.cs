@@ -11,6 +11,8 @@ namespace DeIce68k.ViewModel
 {
     public class RegisterSetModel : ObservableObject
     {
+        public DeIceAppModel Parent { get; init; }
+
         byte _targetStatus;
 
         public byte TargetStatus
@@ -23,6 +25,7 @@ namespace DeIce68k.ViewModel
             {
                 _targetStatus = value;
                 RaisePropertyChangedEvent(nameof(TargetStatus));
+                RaisePropertyChangedEvent(nameof(IsStopped));
             }
         }
         public RegisterModel D0 { get; }
@@ -48,9 +51,16 @@ namespace DeIce68k.ViewModel
         public RegisterModel SR { get; }
 
         public ReadOnlyObservableCollection<StatusRegisterBitsModel> StatusBits { get; init; }
+        public bool IsStopped { 
+            get { 
+                return TargetStatus == 2 || ((TargetStatus & 0x10) == 0x10); 
+            } 
+        }
 
-        public RegisterSetModel()
+        public RegisterSetModel(DeIceAppModel _parent)
         {
+            Parent = _parent;
+
             D0 = new RegisterModel("D0", RegisterSize.Long, 0);
             D1 = new RegisterModel("D1", RegisterSize.Long, 0);
             D2 = new RegisterModel("D2", RegisterSize.Long, 0);
@@ -77,22 +87,22 @@ namespace DeIce68k.ViewModel
                 new ObservableCollection<StatusRegisterBitsModel>(
             new StatusRegisterBitsModel[]
             {
-                new() { BitIndex=15, Label="T", Name="Trace" },
-                new() { BitIndex=14, Label="-", Name="Uk 14" },
-                new() { BitIndex=13, Label="S", Name="Supervisor" },
-                new() { BitIndex=12, Label="-", Name="Uk 12" },
-                new() { BitIndex=11, Label="-", Name="Uk 11" },
-                new() { BitIndex=10, Label="I2", Name="Int.2" },
-                new() { BitIndex=9, Label="I1", Name="Int.1" },
-                new() { BitIndex=8, Label="I0", Name="Int.0" },
-                new() { BitIndex=7, Label="-", Name="Uk 7" },
-                new() { BitIndex=6, Label="-", Name="Uk 6" },
-                new() { BitIndex=5, Label="-", Name="Uk 5" },
-                new() { BitIndex=4, Label="X", Name="Extend" },
-                new() { BitIndex=3, Label="N", Name="Negative" },
-                new() { BitIndex=2, Label="Z", Name="Zero" },
-                new() { BitIndex=1, Label="V", Name="Overflow" },
-                new() { BitIndex=0, Label="C", Name="Carry" }
+                new(this) { BitIndex=15, Label="T", Name="Trace" },
+                new(this) { BitIndex=14, Label="-", Name="Uk 14" },
+                new(this) { BitIndex=13, Label="S", Name="Supervisor" },
+                new(this) { BitIndex=12, Label="-", Name="Uk 12" },
+                new(this) { BitIndex=11, Label="-", Name="Uk 11" },
+                new(this) { BitIndex=10, Label="I2", Name="Int.2" },
+                new(this) { BitIndex=9, Label="I1", Name="Int.1" },
+                new(this) { BitIndex=8, Label="I0", Name="Int.0" },
+                new(this) { BitIndex=7, Label="-", Name="Uk 7" },
+                new(this) { BitIndex=6, Label="-", Name="Uk 6" },
+                new(this) { BitIndex=5, Label="-", Name="Uk 5" },
+                new(this) { BitIndex=4, Label="X", Name="Extend" },
+                new(this) { BitIndex=3, Label="N", Name="Negative" },
+                new(this) { BitIndex=2, Label="Z", Name="Zero" },
+                new(this) { BitIndex=1, Label="V", Name="Overflow" },
+                new(this) { BitIndex=0, Label="C", Name="Carry" }
             }));
 
             SR.PropertyChanged += SR_PropertyChanged;
@@ -182,9 +192,6 @@ namespace DeIce68k.ViewModel
                 SR = (ushort)SR.Data
             };
         }
-
-        public static RegisterSetModel TestRegisterSet = new RegisterSetModel();
-        public static ReadOnlyObservableCollection<StatusRegisterBitsModel> TestStatusRegisterBits = new RegisterSetModel().StatusBits;
 
     }
 }

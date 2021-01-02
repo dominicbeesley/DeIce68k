@@ -1,13 +1,17 @@
-﻿using System;
+﻿using DeIce68k.Lib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace DeIce68k.ViewModel
 {
     public class StatusRegisterBitsModel : ObservableObject
     {
+        RegisterSetModel Parent { get; init; }
+
         bool _data = false;
 
         public string Label { get; init; }
@@ -28,6 +32,15 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public static StatusRegisterBitsModel TestData = new StatusRegisterBitsModel() { BitIndex = 0, Label = "XX", Name = "XXXXX", Data=true };
+        public ICommand CmdToggle { get; init; }
+
+        public StatusRegisterBitsModel(RegisterSetModel _parent)
+        {
+            this.Parent = _parent;
+            CmdToggle = new RelayCommand<StatusRegisterBitsModel>(
+                    o => { Data = !Data; },
+                    o => { return Parent.IsStopped; }
+                );
+        }
     }
 }

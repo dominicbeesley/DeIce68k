@@ -15,7 +15,7 @@ namespace DeIce68k.ViewModel
         {
             try
             {
-                byte b = (byte)value;
+                byte b = (byte)(value ?? 0);
                 switch (b)
                 {
                     case 0:

@@ -31,7 +31,7 @@
                 </Grid.ColumnDefinitions>
                 <local:ucRegs Grid.Column="0" 
                               DataContext="{Binding Regs}" 
-                              d:DataContext="{d:DesignInstance sampledata:SampleDataRegisterSetModel,IsDesignTimeCreatable=True}" 
+                              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }" 
                               />
                 <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}"/>
                 <ListBox Grid.Column="2" x:Name="lbWatches" ItemsSource="{Binding Watches}" >

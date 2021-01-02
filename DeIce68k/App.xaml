@@ -16,6 +16,14 @@
                 <Setter Property="Background" Value="{StaticResource Retro_Brush_BG}" />
                 <Setter Property="Foreground" Value="{StaticResource Retro_Brush_FG}" />
                 <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Control.Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <ContentPresenter></ContentPresenter>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
             <Style TargetType="TextBox" x:Key="Retro_TextBox_Reg">
                 <Setter Property="FontFamily" Value="Lucida Console" />
@@ -24,6 +32,24 @@
                 <Setter Property="CaretBrush" Value="{StaticResource Retro_Brush_FG_Highlight}" />
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="TextAlignment" Value="Right" />
+                <Setter Property="Height" Value="12"/>
+                <Setter Property="Margin" Value="3,1,0,1" />
+                <Setter Property="Padding" Value="0,0,0,0"/>
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Width" Value="62" />
+
+            </Style>
+            <Style TargetType="TextBlock" x:Key="Retro_TextBlock_StatusBit">
+                <Setter Property="FontFamily" Value="Lucida Console" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{StaticResource Retro_Brush_FG}" />
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="VerticalAlignment" Value="Top" />
+                <Setter Property="TextAlignment" Value="Center" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Height" Value="8" />
+                <Setter Property="Width" Value="12" />
+                <Setter Property="FontSize" Value="8" />
             </Style>
             <Style TargetType="TextBlock" x:Key="Retro_TextBlock_Reg_Label">
                 <Setter Property="FontFamily" Value="Lucida Console" />

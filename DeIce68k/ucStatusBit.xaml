@@ -4,42 +4,39 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
-             d:DataContext="{x:Static viewmodel:StatusRegisterBitsModel.TestData }"
+             xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleStatusRegisterBit}"
              mc:Ignorable="d"              
              x:Name="this"
              Width="14"
              Height="24"
+             Background="Transparent"
              >
     <UserControl.Resources>
         <viewmodel:Bool2Opacity_ValueConverter x:Key="bool2opacity" />
     </UserControl.Resources>
-    <Button Name="btn" Style="{StaticResource Retro_Button_Borderless}" Padding="0" Margin="0">
+    <Button Name="btn" Style="{StaticResource Retro_Button_Borderless}" Padding="0" Margin="0" Command="{Binding CmdToggle}" >
         <Button.Content>
-            <Grid Height="20" Width="12">
+            <Grid Height="20" Width="12" Background="{StaticResource Retro_Brush_BG}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="8" />
                     <RowDefinition Height="12" />
                 </Grid.RowDefinitions>
                 <TextBlock 
-            Grid.Row="0" 
-            Text="{Binding Path=Label}" 
-            HorizontalAlignment="Right" 
-            VerticalAlignment="Top" 
-            Width="12" 
-            TextAlignment="Center" 
-            Padding="0,0,0,0" 
-            Height="8" 
-            FontFamily="Lucida Console"
-            x:Name="tbLabel"
-            FontSize="8"
-            />
+                    Grid.Row="0" 
+                    Text="{Binding Path=Label}" 
+                    HorizontalAlignment="Right" 
+                    VerticalAlignment="Top" 
+                    Style="{StaticResource Retro_TextBlock_StatusBit}"
+                    x:Name="tbLabel"
+                />
                 <Border                
-            Grid.Row="1" 
-            CornerRadius="2"
-            BorderBrush="{StaticResource Retro_Brush_FG}"
-            BorderThickness="1"
-            >
-                    <Rectangle DataContext="{Binding Path=Data, NotifyOnTargetUpdated=True}" Fill="{StaticResource Retro_Brush_FG}" Margin="2,2,2,2" RadiusX="1" RadiusY="1" Opacity="{Binding Converter={ StaticResource bool2opacity}}">
+                    Grid.Row="1" 
+                    CornerRadius="2"
+                    BorderBrush="{StaticResource Retro_Brush_FG}"
+                    BorderThickness="1"
+                    >
+                        <Rectangle DataContext="{Binding Path=Data, NotifyOnTargetUpdated=True}" Fill="{StaticResource Retro_Brush_FG}" Margin="2,2,2,2" RadiusX="1" RadiusY="1" Opacity="{Binding Converter={ StaticResource bool2opacity}}">
                         <Rectangle.Triggers>
                             <EventTrigger RoutedEvent="Binding.TargetUpdated">
                                 <BeginStoryboard>

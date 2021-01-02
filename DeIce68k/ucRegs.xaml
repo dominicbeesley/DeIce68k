@@ -7,7 +7,7 @@
              xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
              d:DesignHeight="240" d:DesignWidth="240"
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
-             d:DataContext="{d:DesignInstance sampledata:SampleDataRegisterSetModel,IsDesignTimeCreatable=True}"
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }"
              mc:Ignorable="d" 
              Background="{StaticResource Retro_Brush_BG}"
              Foreground="{StaticResource Retro_Brush_FG}"
@@ -42,7 +42,7 @@
         <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=SR }"></local:ucReg>
         <ListView  
             Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
-            ItemsSource="{Binding Path=StatusBits}" d:ItemsSource="{x:Static viewmodel:RegisterSetModel.TestStatusRegisterBits }"
+            ItemsSource="{Binding Path=StatusBits}" 
             Background="Transparent"  
             BorderBrush="Transparent"
             Padding="0"

@@ -21,6 +21,7 @@ namespace DeIce68k
     {
 
         DeIceAppModel appModel;
+        DossySerialPort.DossySerial serialPort;
 
         public MainWindow()
         {
@@ -29,8 +30,9 @@ namespace DeIce68k
 
             try
             {
-                appModel = new DeIceAppModel("COM19", 19200, this);
-                appModel.ReadCommandFile(@"E:\Users\dominic\electronics\bbcmicro\TUBE\68008\mos86k\mos\mos68k.noi");
+                serialPort = new DossySerialPort.DossySerial("COM19", 19200);
+                appModel = new DeIceAppModel(serialPort, this);
+                appModel.ReadCommandFile(@"E:\Users\dominic\programming\68k\mos\mos68k.noi");
                 
             } catch (Exception ex)
             {
@@ -79,10 +81,10 @@ namespace DeIce68k
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            if (appModel != null)
+            if (serialPort != null)
             {
-                appModel.Dispose();
-                appModel = null;
+                serialPort.Dispose();
+                serialPort = null;
             }
         }
 

@@ -75,8 +75,5 @@ namespace DeIce68k.ViewModel
             _data = data;
         }
 
-
-        public static RegisterModel TestWord = new RegisterModel("XX", RegisterSize.Word, 0xBEEF);
-        public static RegisterModel TestLong = new RegisterModel("XX", RegisterSize.Word, 0xDEADBEEF);
     }
 }
