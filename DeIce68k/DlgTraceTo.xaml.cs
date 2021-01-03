@@ -29,6 +29,26 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        
+        public uint Address { get; private set; }
+
+        private void ButtonOK_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Address = Convert.ToUInt32(txtAddress.Text, 16);
+            } catch (Exception)
+            {
+                return;
+            }
+
+            DialogResult = true;
+            Close();
+        }
+
+        private void ButtonCancel_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
+            Close();
+        }
     }
 }

@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using DeIceProtocol;
 using DossySerialPort;
 using DeIce68k.Lib;
+using System.Diagnostics;
 
 namespace DeIce68k.ViewModel
 {
@@ -213,7 +214,12 @@ namespace DeIce68k.ViewModel
                     var dlg = new DlgTraceTo(this);
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
-                    dlg.ShowDialog();
+                    //TODO: use binding and a viewmodel?
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        TraceTo(dlg.Address);
+                    }
 
                 },
                 o => { return Regs.IsStopped; }
@@ -315,6 +321,47 @@ namespace DeIce68k.ViewModel
             {
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
             }
+        }
+
+        public void TraceTo(uint addr)
+        {
+            Task.Run(() => {
+
+                try
+                {
+                    byte lastTargetStatus = Regs.TargetStatus;
+                    try
+                    {
+                        Regs.SR.Data |= 0x8000;
+                        _deIceProtocol.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { Regs = Regs.ToDeIceProtcolRegs() }); //ignore TODO: check?
+
+                        while (Regs.PC.Data != addr)
+                        {
+                            var rr = _deIceProtocol.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+                            lastTargetStatus = rr.Registers.TargetStatus;
+                            var rr_run = rr.Registers with { TargetStatus = 0 };
+
+                            Regs.FromDeIceRegisters(rr_run);
+
+                            //TODO: Move invoke inside runfinish where it is needed
+                            DoInvoke(() => RunFinish());
+                        }
+                    }
+                    finally
+                    {
+                        Regs.TargetStatus = (byte)lastTargetStatus;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DoInvoke(() =>
+                    {
+                        Messages.Add($"TRACE ERROR: {ex.Message}");
+                        Messages.Add(ex.ToString());
+                    });
+
+                }
+            });
         }
     }
 }
