@@ -10,7 +10,7 @@
         Width="400"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner" 
-        FocusManager.FocusedElement="{Binding ElementName=leftMarginTextBox}"
+        FocusManager.FocusedElement="{Binding ElementName=txtAddress}"
         xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
         >
     <Grid Margin="20,20,20,20">

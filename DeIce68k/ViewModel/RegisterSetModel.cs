@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace DeIce68k.ViewModel
 {
@@ -23,9 +24,13 @@ namespace DeIce68k.ViewModel
             }
             set
             {
-                _targetStatus = value;
-                RaisePropertyChangedEvent(nameof(TargetStatus));
-                RaisePropertyChangedEvent(nameof(IsStopped));
+                if (_targetStatus != value)
+                {
+                    _targetStatus = value;
+                    RaisePropertyChangedEvent(nameof(TargetStatus));
+                    RaisePropertyChangedEvent(nameof(IsStopped));
+                    RaisePropertyChangedEvent(nameof(IsRunning));
+                }
             }
         }
         public RegisterModel D0 { get; }
@@ -55,6 +60,14 @@ namespace DeIce68k.ViewModel
             get { 
                 return TargetStatus == 2 || ((TargetStatus & 0x10) == 0x10); 
             } 
+        }
+
+        public bool IsRunning
+        {
+            get
+            {
+                return !IsStopped; //TODO: is this right?
+            }
         }
 
         public RegisterSetModel(DeIceAppModel _parent)

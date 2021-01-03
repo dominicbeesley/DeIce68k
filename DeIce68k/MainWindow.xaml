@@ -13,6 +13,7 @@
                 <Button Command="{Binding CmdNext }" Content="Next" />
                 <Button Command="{Binding CmdCont }" Content="Continue" />
                 <Button Command="{Binding CmdTraceTo }" Content="Trace To..." />
+                <Button Command="{Binding CmdStop}" Content="STOP" />
             </ToolBar>
         </ToolBarTray>
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >

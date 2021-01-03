@@ -1,7 +1,8 @@
 # DeIce68k
  A debugger for the Blitter 68008
 
-
+##PROBLEMS:
+- double click on continue causes odd behaviour in client (looks to resend original regs twice?) and memory error need to block between memory read and regs?
 
 
 ##TODO:
@@ -14,12 +15,5 @@
 - commandline interpreter - using Antlr?
 
 
-Running:
-- set target status to 0 when running
-
-Trace:
- - if returns a timeout set target status to running
-
-TraceTo:
- - speed up - see where the bottleneck is - update ui less frequently?
- - Cancel, cancellation token and a command from the UI somehow
+Refresh:
+ - (auto)refresh disassembly on break/load or if current word looks wrong?

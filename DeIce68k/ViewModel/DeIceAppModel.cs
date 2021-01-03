@@ -43,6 +43,7 @@ namespace DeIce68k.ViewModel
         Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
         Dictionary<uint, string> _address2SymboldDictionary = new Dictionary<uint, string>();
 
+        CancellationTokenSource traceCancelSource = null;
 
         public ReadOnlyDictionary<string, uint> Symbol2AddressDictionary
         {
@@ -79,6 +80,7 @@ namespace DeIce68k.ViewModel
         public ICommand CmdNext { get; }
         public ICommand CmdCont { get; }
         public ICommand CmdTraceTo { get; }
+        public ICommand CmdStop { get; }
         public MainWindow MainWindow { get; init; }
 
         public void ReadCommandFile(string pathname)
@@ -166,6 +168,20 @@ namespace DeIce68k.ViewModel
 
             _regs = new RegisterSetModel(this);
 
+            
+            if (mainWindow != null)
+            {
+                _regs.PropertyChanged += (o, e) =>
+                {
+                    if (e.PropertyName == nameof(RegisterSetModel.TargetStatus))
+                    {
+                        //really? should this be here?
+                        DoInvoke(() => CommandManager.InvalidateRequerySuggested());
+                    }
+                };
+            }
+            
+
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
 
@@ -180,6 +196,7 @@ namespace DeIce68k.ViewModel
                 catch (Exception ex)
                 {
                     Messages.Add($"{MessageNo():X4} ERROR:Executing Next\n{ ex.ToString() } ");
+                    Regs.TargetStatus = 0;
                 }
             },
             o =>
@@ -200,6 +217,7 @@ namespace DeIce68k.ViewModel
                     catch (Exception ex)
                     {
                         Messages.Add($"{MessageNo():X4} ERROR:Executing Continue\n{ ex.ToString() } ");
+                        Regs.TargetStatus = 0;
                     }
                 },
                 o=>
@@ -224,6 +242,32 @@ namespace DeIce68k.ViewModel
                 },
                 o => { return Regs.IsStopped; }
                 );
+
+            CmdStop = new RelayCommand<object>(
+                o =>
+                {
+                    if (traceCancelSource is not null)
+                    {
+                        traceCancelSource.Cancel();
+                        Thread.Sleep(100);
+                    } else
+                    {
+                        try
+                        {
+                            _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
+                        } catch (Exception ex)
+                        {
+                            Messages.Add($"{MessageNo():X4} ERROR:Executing Stop\n{ ex.ToString() } ");
+                            Regs.TargetStatus = 0;
+                        }
+                    }
+
+                },
+                o =>
+                {
+                    return Regs.IsRunning;
+                }
+            );
 
             _deIceProtocol = new DeIceProtocolMain(_serial);
 
@@ -274,7 +318,7 @@ namespace DeIce68k.ViewModel
         }
 
         //TODO: Check if there's a better way of doing this
-        void DoInvoke(Action a)
+        void DoInvoke(Action a) 
         {
             if (MainWindow is not null)
                 MainWindow.Dispatcher.Invoke(a);
@@ -320,12 +364,18 @@ namespace DeIce68k.ViewModel
             catch (Exception ex)
             {
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
+                Regs.TargetStatus = 0;
             }
         }
 
         public void TraceTo(uint addr)
         {
-            Task.Run(() => {
+
+            traceCancelSource = new CancellationTokenSource();            
+            CancellationToken cancellationToken = traceCancelSource.Token;
+
+            Task.Run(() =>
+            {
 
                 try
                 {
@@ -335,16 +385,29 @@ namespace DeIce68k.ViewModel
                         Regs.SR.Data |= 0x8000;
                         _deIceProtocol.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { Regs = Regs.ToDeIceProtcolRegs() }); //ignore TODO: check?
 
-                        while (Regs.PC.Data != addr)
+                        while (Regs.PC.Data != addr && !cancellationToken.IsCancellationRequested)
                         {
+                            Stopwatch sw = new Stopwatch();
+                            sw.Start();
                             var rr = _deIceProtocol.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+                            sw.Stop();
+                            long sw1 = sw.ElapsedMilliseconds;
+                            sw.Start();
                             lastTargetStatus = rr.Registers.TargetStatus;
                             var rr_run = rr.Registers with { TargetStatus = 0 };
 
                             Regs.FromDeIceRegisters(rr_run);
+                            sw.Stop();
+                            long sw2 = sw.ElapsedMilliseconds;
+                            sw.Start();
 
                             //TODO: Move invoke inside runfinish where it is needed
                             DoInvoke(() => RunFinish());
+                            sw.Stop();
+                            long sw3 = sw.ElapsedMilliseconds;
+
+                            DoInvoke(() => { MainWindow.Title = $"{sw1} {sw2} {sw3}"; });
+
                         }
                     }
                     finally
@@ -358,10 +421,13 @@ namespace DeIce68k.ViewModel
                     {
                         Messages.Add($"TRACE ERROR: {ex.Message}");
                         Messages.Add(ex.ToString());
+                        Regs.TargetStatus = 0;
                     });
 
                 }
-            });
+            }).ContinueWith((t) => {
+                traceCancelSource = null;
+            }); ;
         }
     }
 }
