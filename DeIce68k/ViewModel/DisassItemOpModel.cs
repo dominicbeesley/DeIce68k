@@ -25,8 +25,8 @@ namespace DeIce68k.ViewModel
         }
 
 
-        public DisassItemOpModel(uint addr, string hints, byte[] instrBytes, string mnemonic, string operands, ushort length, bool decoded, bool pc)
-            : base(addr, hints, pc)
+        public DisassItemOpModel(DeIceAppModel deIceAppModel, uint addr, string hints, byte[] instrBytes, string mnemonic, string operands, ushort length, bool decoded, bool pc)
+            : base(deIceAppModel, addr, hints, pc)
         {
             Mnemonic = mnemonic;
             Operands = operands;

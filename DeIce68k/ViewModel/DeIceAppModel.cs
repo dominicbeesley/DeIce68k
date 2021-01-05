@@ -351,15 +351,16 @@ namespace DeIce68k.ViewModel
                     _deIceProtocol.ReadMemBlock(Regs.PC.Data, disdat, 0, 128);
 
                     DisassMemBlock = new DisassMemBlock(this, Regs.PC.Data, disdat, _address2SymboldDictionary);
-
-                    foreach (var w in Watches)
-                    {
-                        byte[] buf = new byte[w.DataSize];
-                        _deIceProtocol.ReadMemBlock(w.Address, buf, 0, w.DataSize);
-                        w.Data = buf;
-                    }
                     DisassMemBlock.PC = Regs.PC.Data;
                 }
+
+                foreach (var w in Watches)
+                {
+                    byte[] buf = new byte[w.DataSize];
+                    _deIceProtocol.ReadMemBlock(w.Address, buf, 0, w.DataSize);
+                    w.Data = buf;
+                }
+
             }
             catch (Exception ex)
             {

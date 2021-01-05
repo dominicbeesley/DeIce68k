@@ -66,7 +66,6 @@ namespace DeIceProtocol
 
         private Semaphore _runSemaphore = new(1, 1);
 
-        private static Regex _reLineSplit = new Regex(@"(\r|\n|\r\n|\n\r)", RegexOptions.Compiled);
 
         public DeIceProtocolMain(IDossySerial serial)
         {
@@ -101,10 +100,10 @@ namespace DeIceProtocol
                         else
                         {
                             var str = DoOobRead_int(firstbyte);
-                            foreach (var l in _reLineSplit.Split(str))
+                            _runSemaphore.Release();
+                            claimed = false;
+                            foreach (var l in str.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries))
                             {
-                                _runSemaphore.Release();
-                                claimed = false;
                                 RaiseOobData(l);
                             }
                         }

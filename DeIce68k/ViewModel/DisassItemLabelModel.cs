@@ -10,8 +10,8 @@ namespace DeIce68k.ViewModel
     {
         public string Symbol { get; }
 
-        public DisassItemLabelModel(uint addr, string hints, string sym, bool pc)
-            : base(addr, hints, pc)
+        public DisassItemLabelModel(DeIceAppModel deIceAppModel, uint addr, string hints, string sym, bool pc)
+            : base(deIceAppModel, addr, hints, pc)
         {
             Symbol = sym;
 

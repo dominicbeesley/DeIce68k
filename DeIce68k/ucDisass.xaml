@@ -14,6 +14,11 @@
     <UserControl.Resources>
         <DataTemplate x:Key="OpModelTemplate" DataType="{x:Type viewmodel:DisassItemOpModel}">
             <StackPanel Orientation="Horizontal">
+                <StackPanel.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Trace to here..." Command="{Binding CmdTraceToHere}" />
+                    </ContextMenu>
+                </StackPanel.ContextMenu>
                 <TextBlock Text="{Binding Address, StringFormat=X8}" Foreground="#FF8A9750"/>
                 <TextBlock Text="{Binding InstrBytesString}" Padding="10 0 10 0" TextWrapping="Wrap" Width="90" Foreground="#FF778080"/>
                 <TextBlock Padding="0 0 10 0">

@@ -80,7 +80,7 @@ namespace DeIce68k.ViewModel
                     string label = null;
                     if (Symbols?.TryGetValue(dispc, out label) ?? false)
                     {
-                        _items.Add(new DisassItemLabelModel(dispc, null, $"{label}", dispc == PC));
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
                     }
 
                     var p = ms.Position;
@@ -105,7 +105,7 @@ namespace DeIce68k.ViewModel
 
                         byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
@@ -152,7 +152,7 @@ namespace DeIce68k.ViewModel
             if (nearest != string.Empty)
             {
                 string o = (offset == 0) ? "" : $"+{offset:X2}";
-                _items.Add(new DisassItemLabelModel(dispc, null, $"{nearest}{o}", dispc == PC));
+                _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{nearest}{o}", dispc == PC));
             }
 
 
@@ -171,7 +171,7 @@ namespace DeIce68k.ViewModel
                         string label=null;
                         if (Symbols?.TryGetValue(dispc, out label) ?? false)
                         {
-                            _items.Add(new DisassItemLabelModel(dispc, null, $"{label}", dispc == PC));
+                            _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
                         }
                     }
 
@@ -197,7 +197,7 @@ namespace DeIce68k.ViewModel
 
                         byte [] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
