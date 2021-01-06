@@ -13,6 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Page Update="DlgDumpMem.xaml">
+      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
+    </Page>
     <Page Update="ucStatusBit.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
     </Page>

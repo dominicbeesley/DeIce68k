@@ -102,10 +102,9 @@ namespace DeIceProtocol
                             var str = DoOobRead_int(firstbyte);
                             _runSemaphore.Release();
                             claimed = false;
-                            foreach (var l in str.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries))
-                            {
-                                RaiseOobData(l);
-                            }
+
+                            RaiseOobData(str);
+                            
                         }
                     }
                     catch (Exception) //timeout
@@ -219,7 +218,11 @@ namespace DeIceProtocol
 
         private void RaiseOobData(string data)
         {
-            OobDataReceived?.Invoke(this, new DeIceOobDataReceivedEventArgs(data));
+            foreach (var l in data.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries))
+            {
+
+                OobDataReceived?.Invoke(this, new DeIceOobDataReceivedEventArgs(l));
+            }
         }
 
         private DeIceFnReplyBase DoCommandReadInt(byte first = 0, bool hasFirst = false)
@@ -228,7 +231,15 @@ namespace DeIceProtocol
             int bufptr = 0;
             byte lenctr = 0;
             if (!hasFirst)
-                first = _serial.ReadByte(SHORT_TIMEOUT);
+                while (true)
+                {
+                    first = _serial.ReadByte(SHORT_TIMEOUT);
+                    if (first < DeIceProtoConstants.FN_MIN)
+                        RaiseOobData(DoOobRead_int(first));
+                    else
+                        break;
+
+                }
             bufptr = 0;
             buf[bufptr++] = first;
             byte ck = first;

@@ -14,6 +14,8 @@
                 <Button Command="{Binding CmdCont }" Content="Continue" />
                 <Button Command="{Binding CmdTraceTo }" Content="Trace To..." />
                 <Button Command="{Binding CmdStop}" Content="STOP" />
+                <Button Command="{Binding CmdRefresh}" Content="Refresh" />
+                <Button Command="{Binding CmdDumpMem}" Content="Dump Memory" />
             </ToolBar>
         </ToolBarTray>
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >

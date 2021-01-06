@@ -1243,6 +1243,7 @@ namespace Disass68k
                                         break;
                                     case 76:
                                         opcode_s = "stop";
+                                        operand_s = $"#${r.ReadUInt16BE():X2}";                                        
                                         break;
                                     case 85:
                                         opcode_s = "trapv";

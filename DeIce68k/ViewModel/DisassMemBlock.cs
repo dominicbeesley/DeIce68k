@@ -210,6 +210,5 @@ namespace DeIce68k.ViewModel
             }
 
         }
-
     }
 }

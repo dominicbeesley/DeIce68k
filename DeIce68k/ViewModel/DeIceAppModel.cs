@@ -11,6 +11,7 @@ using DeIceProtocol;
 using DossySerialPort;
 using DeIce68k.Lib;
 using System.Diagnostics;
+using System.Text;
 
 namespace DeIce68k.ViewModel
 {
@@ -80,7 +81,9 @@ namespace DeIce68k.ViewModel
         public ICommand CmdNext { get; }
         public ICommand CmdCont { get; }
         public ICommand CmdTraceTo { get; }
+        public ICommand CmdDumpMem { get; }
         public ICommand CmdStop { get; }
+        public ICommand CmdRefresh { get; }
         public MainWindow MainWindow { get; init; }
 
         public void ReadCommandFile(string pathname)
@@ -168,7 +171,7 @@ namespace DeIce68k.ViewModel
 
             _regs = new RegisterSetModel(this);
 
-            
+
             if (mainWindow != null)
             {
                 _regs.PropertyChanged += (o, e) =>
@@ -180,13 +183,14 @@ namespace DeIce68k.ViewModel
                     }
                 };
             }
-            
+
 
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
 
             CmdNext = new RelayCommand<object>(
-            o => {
+            o =>
+            {
                 try
                 {
                     this.Regs.SR.Data |= 0x8000;
@@ -220,7 +224,7 @@ namespace DeIce68k.ViewModel
                         Regs.TargetStatus = 0;
                     }
                 },
-                o=>
+                o =>
                 {
                     return Regs.IsStopped;
                 }
@@ -228,7 +232,8 @@ namespace DeIce68k.ViewModel
             );
 
             CmdTraceTo = new RelayCommand<object>(
-                o => {
+                o =>
+                {
                     var dlg = new DlgTraceTo(this);
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
@@ -243,6 +248,54 @@ namespace DeIce68k.ViewModel
                 o => { return Regs.IsStopped; }
                 );
 
+            CmdDumpMem = new RelayCommand<object>(
+                o =>
+                {
+                    var dlg = new DlgDumpMem(this);
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
+                    //TODO: use binding and a viewmodel?
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        byte []buf = new byte[256];
+                        _deIceProtocol.ReadMemBlock(dlg.Address, buf, 0, 256);
+
+                        bool first = true;
+                        StringBuilder l = new StringBuilder();
+                        StringBuilder l2 = new StringBuilder();
+                        for (int i = 0; i < 256; i++)
+                        {
+                            uint a = dlg.Address + (uint)i;
+                            if (a % 16 == 0 || first)
+                            {
+                                first = false;
+                                if (l.Length > 0)
+                                    Messages.Add($"{l.ToString()} | {l2.ToString()}");
+                                l.Clear();
+                                l2.Clear();
+                                l.Append($"{(a & ~0xF):X8} : ");
+                                for (int j = 0; j < a % 16; j++)
+                                {
+                                    l.Append("   ");
+                                    l2.Append(" ");
+                                }
+                            }
+                            l.Append($" {buf[i]:X2}");
+                            if (buf[i] > 32 && buf[i] < 128)
+                                l2.Append((char)buf[i]);
+                            else
+                                l2.Append(".");
+                        }
+                        if (l.Length > 0)
+                            Messages.Add($"{l.ToString()} | {l2.ToString()}");
+                    }
+
+                },
+                o => { return Regs.IsStopped; }
+            );
+
+
             CmdStop = new RelayCommand<object>(
                 o =>
                 {
@@ -250,12 +303,14 @@ namespace DeIce68k.ViewModel
                     {
                         traceCancelSource.Cancel();
                         Thread.Sleep(100);
-                    } else
+                    }
+                    else
                     {
                         try
                         {
                             _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
-                        } catch (Exception ex)
+                        }
+                        catch (Exception ex)
                         {
                             Messages.Add($"{MessageNo():X4} ERROR:Executing Stop\n{ ex.ToString() } ");
                             Regs.TargetStatus = 0;
@@ -266,6 +321,27 @@ namespace DeIce68k.ViewModel
                 o =>
                 {
                     return Regs.IsRunning;
+                }
+            );
+            CmdRefresh = new RelayCommand<object>(
+                o =>
+                {
+                    if (Regs.IsStopped)
+                    {
+                        int len = DisassMemBlock?.Data?.Length ?? 128;
+                        uint st = DisassMemBlock?.BaseAddress ?? Regs.PC.Data;
+
+                        var disdat = new byte[len];
+                        _deIceProtocol.ReadMemBlock(st, disdat, 0, len);
+
+                        DisassMemBlock = new DisassMemBlock(this, st, disdat, _address2SymboldDictionary);
+                        DisassMemBlock.PC = Regs.PC.Data;
+                    }
+
+                },
+                o =>
+                {
+                    return Regs.IsStopped;
                 }
             );
 
@@ -318,7 +394,7 @@ namespace DeIce68k.ViewModel
         }
 
         //TODO: Check if there's a better way of doing this
-        void DoInvoke(Action a) 
+        void DoInvoke(Action a)
         {
             if (MainWindow is not null)
                 MainWindow.Dispatcher.Invoke(a);
@@ -372,7 +448,7 @@ namespace DeIce68k.ViewModel
         public void TraceTo(uint addr)
         {
 
-            traceCancelSource = new CancellationTokenSource();            
+            traceCancelSource = new CancellationTokenSource();
             CancellationToken cancellationToken = traceCancelSource.Token;
 
             Task.Run(() =>
@@ -391,6 +467,13 @@ namespace DeIce68k.ViewModel
                             Stopwatch sw = new Stopwatch();
                             sw.Start();
                             var rr = _deIceProtocol.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+                            if (rr.Registers.TargetStatus != 2)
+                            {
+                                Regs.FromDeIceRegisters(rr.Registers);
+                                DoInvoke(() => RunFinish());
+
+                                break;
+                            }
                             sw.Stop();
                             long sw1 = sw.ElapsedMilliseconds;
                             sw.Start();
@@ -409,6 +492,7 @@ namespace DeIce68k.ViewModel
 
                             DoInvoke(() => { MainWindow.Title = $"{sw1} {sw2} {sw3}"; });
 
+
                         }
                     }
                     finally
@@ -426,7 +510,8 @@ namespace DeIce68k.ViewModel
                     });
 
                 }
-            }).ContinueWith((t) => {
+            }).ContinueWith((t) =>
+            {
                 traceCancelSource = null;
             }); ;
         }

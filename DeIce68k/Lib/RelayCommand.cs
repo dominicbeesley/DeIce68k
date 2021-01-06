@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 
 namespace DeIce68k.Lib
@@ -21,12 +22,29 @@ namespace DeIce68k.Lib
 
         public bool CanExecute(object parameter)
         {
-            return canExecute(parameter as T);
+            try
+            {
+                return canExecute(parameter as T);
+            } catch (Exception)
+            {
+                return false;
+            }
         }
 
         public void Execute(object parameter)
         {
-            execute(parameter as T);
+            try
+            {
+                execute(parameter as T);
+            } catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.ToString(),
+                    $"An error occurred:{ex.Message}",
+                    MessageBoxButton.OK
+                    );
+            }
+
         }
 
         public RelayCommand(Action<T> execute, Predicate<T> canExecute) =>
