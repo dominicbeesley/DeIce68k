@@ -58,7 +58,7 @@ namespace DeIce68k.ViewModel
         public ReadOnlyObservableCollection<StatusRegisterBitsModel> StatusBits { get; init; }
         public bool IsStopped { 
             get { 
-                return TargetStatus == 2 || ((TargetStatus & 0x10) == 0x10); 
+                return TargetStatus != DeIceProtoConstants.TS_RUNNING; 
             } 
         }
 
@@ -66,7 +66,7 @@ namespace DeIce68k.ViewModel
         {
             get
             {
-                return !IsStopped; //TODO: is this right?
+                return !IsStopped;
             }
         }
 

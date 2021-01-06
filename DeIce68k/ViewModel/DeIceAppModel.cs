@@ -200,7 +200,7 @@ namespace DeIce68k.ViewModel
                 catch (Exception ex)
                 {
                     Messages.Add($"{MessageNo():X4} ERROR:Executing Next\n{ ex.ToString() } ");
-                    Regs.TargetStatus = 0;
+                    Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                 }
             },
             o =>
@@ -223,7 +223,7 @@ namespace DeIce68k.ViewModel
                     catch (Exception ex)
                     {
                         Messages.Add($"{MessageNo():X4} ERROR:Executing Continue\n{ ex.ToString() } ");
-                        Regs.TargetStatus = 0;
+                        Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                     }
                 },
                 o =>
@@ -321,7 +321,7 @@ namespace DeIce68k.ViewModel
                         catch (Exception ex)
                         {
                             Messages.Add($"{MessageNo():X4} ERROR:Executing Stop\n{ ex.ToString() } ");
-                            Regs.TargetStatus = 0;
+                            Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                         }
                     }
 
@@ -458,7 +458,7 @@ namespace DeIce68k.ViewModel
             catch (Exception ex)
             {
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
-                Regs.TargetStatus = 0;
+                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
             }
         }
 
@@ -484,7 +484,7 @@ namespace DeIce68k.ViewModel
                             Stopwatch sw = new Stopwatch();
                             sw.Start();
                             var rr = _deIceProtocol.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
-                            if (rr.Registers.TargetStatus != 2)
+                            if (rr.Registers.TargetStatus != DeIceProtoConstants.TS_TRACE)
                             {
                                 Regs.FromDeIceRegisters(rr.Registers);
                                 DoInvoke(() => RunFinish());
@@ -495,7 +495,7 @@ namespace DeIce68k.ViewModel
                             long sw1 = sw.ElapsedMilliseconds;
                             sw.Start();
                             lastTargetStatus = rr.Registers.TargetStatus;
-                            var rr_run = rr.Registers with { TargetStatus = 0 };
+                            var rr_run = rr.Registers with { TargetStatus = DeIceProtoConstants.TS_RUNNING };
 
                             Regs.FromDeIceRegisters(rr_run);
                             sw.Stop();
@@ -523,7 +523,7 @@ namespace DeIce68k.ViewModel
                     {
                         Messages.Add($"TRACE ERROR: {ex.Message}");
                         Messages.Add(ex.ToString());
-                        Regs.TargetStatus = 0;
+                        Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                     });
 
                 }

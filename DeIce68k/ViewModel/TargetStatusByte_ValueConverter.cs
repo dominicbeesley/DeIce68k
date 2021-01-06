@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DeIceProtocol;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -18,12 +19,14 @@ namespace DeIce68k.ViewModel
                 byte b = (byte)(value ?? 0);
                 switch (b)
                 {
-                    case 0:
+                    case DeIceProtoConstants.TS_RUNNING:
                         return "run";
-                    case 1:
+                    case DeIceProtoConstants.TS_BP:
                         return "breakpoint";
-                    case 2:
+                    case DeIceProtoConstants.TS_TRACE:
                         return "trace";
+                    case DeIceProtoConstants.TS_ILLEGAL:
+                        return "illegal op";
                     case 0x10:
                     case 0x11:
                     case 0x12:

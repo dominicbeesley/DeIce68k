@@ -14,5 +14,10 @@
 
         public const byte FN_MIN = 0xF7;           // MINIMUM RECOGNIZED FUNCTION CODE
         public const byte FN_ERROR = 0xF0;         // error reply to unknown op-code
+
+        public const byte TS_RUNNING = 0;
+        public const byte TS_BP = 1;
+        public const byte TS_TRACE = 2;
+        public const byte TS_ILLEGAL = 3;
     }
 }

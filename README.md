@@ -7,17 +7,12 @@
 
 ##TODO:
 
-- relay command - log errors
 - fix / remove special ABI
-- stop button for trace
 - icons
 - on branch/jump check for jump to badly disassembled instruction (see BRK_HANDLER) and refresh disassembly view
 - breakpoints (use ILLEGAL op)
 - hardware breakpoints (table of breakpoints in FPGA cause debug NMI?)
-- memory DUMP
 - memory inspector/editor
 - commandline interpreter - using Antlr?
 
 
-Refresh:
- - (auto)refresh disassembly on break/load or if current word looks wrong?
