@@ -37,9 +37,11 @@ namespace DeIce68k.ViewModel
         public StatusRegisterBitsModel(RegisterSetModel _parent)
         {
             this.Parent = _parent;
-            CmdToggle = new RelayCommand<StatusRegisterBitsModel>(
+            CmdToggle = new RelayCommand(
                     o => { Data = !Data; },
-                    o => { return Parent.IsStopped; }
+                    o => { return Parent.IsStopped; },
+                    "Status bit toggle",
+                    _parent.Parent.Command_Exception
                 );
         }
     }

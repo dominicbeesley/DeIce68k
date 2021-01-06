@@ -188,7 +188,7 @@ namespace DeIce68k.ViewModel
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
 
-            CmdNext = new RelayCommand<object>(
+            CmdNext = new RelayCommand(
             o =>
             {
                 try
@@ -206,10 +206,12 @@ namespace DeIce68k.ViewModel
             o =>
             {
                 return Regs.IsStopped;
-            }
+            },
+            "Step Next",
+            Command_Exception
             );
 
-            CmdCont = new RelayCommand<object>(
+            CmdCont = new RelayCommand(
                 o =>
                 {
                     try
@@ -227,11 +229,13 @@ namespace DeIce68k.ViewModel
                 o =>
                 {
                     return Regs.IsStopped;
-                }
+                },
+                "Continue",
+                Command_Exception
 
             );
 
-            CmdTraceTo = new RelayCommand<object>(
+            CmdTraceTo = new RelayCommand(
                 o =>
                 {
                     var dlg = new DlgTraceTo(this);
@@ -245,10 +249,12 @@ namespace DeIce68k.ViewModel
                     }
 
                 },
-                o => { return Regs.IsStopped; }
+                o => { return Regs.IsStopped; },
+                "Trace To...",
+                Command_Exception                
                 );
 
-            CmdDumpMem = new RelayCommand<object>(
+            CmdDumpMem = new RelayCommand(
                 o =>
                 {
                     var dlg = new DlgDumpMem(this);
@@ -258,7 +264,7 @@ namespace DeIce68k.ViewModel
 
                     if (dlg.ShowDialog() == true)
                     {
-                        byte []buf = new byte[256];
+                        byte[] buf = new byte[256];
                         _deIceProtocol.ReadMemBlock(dlg.Address, buf, 0, 256);
 
                         bool first = true;
@@ -292,11 +298,13 @@ namespace DeIce68k.ViewModel
                     }
 
                 },
-                o => { return Regs.IsStopped; }
+                o => { return Regs.IsStopped; },
+                "Dump Memory",
+                Command_Exception
             );
 
 
-            CmdStop = new RelayCommand<object>(
+            CmdStop = new RelayCommand(
                 o =>
                 {
                     if (traceCancelSource is not null)
@@ -321,9 +329,11 @@ namespace DeIce68k.ViewModel
                 o =>
                 {
                     return Regs.IsRunning;
-                }
+                },
+                "Stop",
+                Command_Exception
             );
-            CmdRefresh = new RelayCommand<object>(
+            CmdRefresh = new RelayCommand(
                 o =>
                 {
                     if (Regs.IsStopped)
@@ -342,55 +352,62 @@ namespace DeIce68k.ViewModel
                 o =>
                 {
                     return Regs.IsStopped;
-                }
+                },
+                "Refresh",
+                Command_Exception
             );
 
             _deIceProtocol = new DeIceProtocolMain(_serial);
 
-            Task.Factory.StartNew(() =>
+            _deIceProtocol.CommError += (o, e) =>
             {
-                _deIceProtocol.CommError += (o, e) =>
+                DoInvoke(new Action(
+                delegate
                 {
-                    DoInvoke(new Action(
-                    delegate
-                    {
-                        Messages.Add($"{MessageNo():X4} ERROR:{ e.Exception.ToString() }");
-                    })
-                    );
-                };
-                _deIceProtocol.OobDataReceived += (o, e) =>
+                    Messages.Add($"{MessageNo():X4} ERROR:{ e.Exception.ToString() }");
+                })
+                );
+            };
+            _deIceProtocol.OobDataReceived += (o, e) =>
+            {
+                DoInvoke(new Action(
+                delegate
                 {
-                    DoInvoke(new Action(
-                    delegate
-                    {
-                        Messages.Add($"{MessageNo():X4} OOB:{ e.Data }");
-                    })
-                    );
-                };
-                _deIceProtocol.FunctionReceived += (o, e) =>
+                    Messages.Add($"{MessageNo():X4} OOB:{ e.Data }");
+                })
+                );
+            };
+            _deIceProtocol.FunctionReceived += (o, e) =>
+            {
+                DoInvoke(new Action(
+                delegate
                 {
-                    DoInvoke(new Action(
-                    delegate
+                    Messages.Add($"{MessageNo():X4} FN:{ e.Function.FunctionCode } : { e.Function.GetType().Name }");
+
+                    var x = e.Function as DeIceFnReplyRegsBase;
+                    if (x != null)
                     {
-                        Messages.Add($"{MessageNo():X4} FN:{ e.Function.FunctionCode } : { e.Function.GetType().Name }");
+                        Regs.FromDeIceRegisters(x.Registers);
 
-                        var x = e.Function as DeIceFnReplyRegsBase;
-                        if (x != null)
-                        {
-                            Regs.FromDeIceRegisters(x.Registers);
+                        RunFinish();
+                    }
+                })
+                );
+            };
+            _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
 
-                            RunFinish();
-                        }
-                    })
-                    );
-                };
-                _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
-                Thread.Sleep(100);
-                Thread.Sleep(100);
-                Thread.Sleep(100);
-            });
+        }
 
-
+        public void Command_Exception(object sender, ExceptionEventArgs args)
+        {
+            if (sender is RelayCommand)
+            {
+                Messages.Add($"Error in {(sender as RelayCommand).Name}:{args.Exception.Message}");
+            } else
+            {
+                Messages.Add($"Error {args.Exception.Message}");
+            }
+            Messages.Add(args.Exception.ToString());
         }
 
         //TODO: Check if there's a better way of doing this

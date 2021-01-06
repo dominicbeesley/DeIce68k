@@ -40,9 +40,11 @@ namespace DeIce68k.ViewModel
         public DisassItemModelBase(DeIceAppModel deIceAppModel, uint addr, string hints, bool pc)
         {
             Parent = deIceAppModel;
-            CmdTraceToHere = new RelayCommand<object>(
+            CmdTraceToHere = new RelayCommand(
                 (o) => { Parent.TraceTo(Address); },
-                (o) => { return Parent.Regs.IsStopped; }
+                (o) => { return Parent.Regs.IsStopped; },
+                "Trace To Here",
+                deIceAppModel.Command_Exception
             );
             Address = addr;
             Hints = hints;

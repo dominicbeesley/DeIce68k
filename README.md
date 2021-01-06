@@ -7,6 +7,7 @@
 
 ##TODO:
 
+- relay command - log errors
 - fix / remove special ABI
 - stop button for trace
 - icons

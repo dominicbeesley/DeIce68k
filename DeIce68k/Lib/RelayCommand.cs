@@ -8,11 +8,24 @@ using System.Windows.Input;
 
 namespace DeIce68k.Lib
 {
-    public class RelayCommand<T> : ICommand where T : class
+    public class ExceptionEventArgs : EventArgs
     {
-        private Action<T> execute = null;
-        private Predicate<T> canExecute = null;
+        public Exception Exception { get; init; }
+        public ExceptionEventArgs(Exception ex) { this.Exception = ex; }
+    }
 
+    public delegate void ExceptionEventHandler(object sender, ExceptionEventArgs args);
+
+
+    public class RelayCommand : ICommand
+    {
+
+        private Action<object> execute = null;
+        private Predicate<object> canExecute = null;
+
+        public event ExceptionEventHandler ExceptionInExecute;
+
+        public string Name { get; init; }
 
         public event EventHandler CanExecuteChanged
         {
@@ -24,7 +37,7 @@ namespace DeIce68k.Lib
         {
             try
             {
-                return canExecute(parameter as T);
+                return canExecute(parameter);
             } catch (Exception)
             {
                 return false;
@@ -35,19 +48,27 @@ namespace DeIce68k.Lib
         {
             try
             {
-                execute(parameter as T);
+                execute(parameter);
             } catch (Exception ex)
             {
-                MessageBox.Show(
-                    ex.ToString(),
-                    $"An error occurred:{ex.Message}",
-                    MessageBoxButton.OK
-                    );
+                if (ExceptionInExecute != null)
+                    ExceptionInExecute(this, new(ex));
+                else
+                    MessageBox.Show(
+                        ex.ToString(),
+                        $"An error occurred:{ex.Message}",
+                        MessageBoxButton.OK
+                        );
             }
 
         }
 
-        public RelayCommand(Action<T> execute, Predicate<T> canExecute) =>
-            (this.execute, this.canExecute) = (execute, canExecute);
+        public RelayCommand(Action<object> execute, Predicate<object> canExecute, string name, ExceptionEventHandler onEx = null)
+        {
+            (this.execute, this.canExecute, this.Name) = (execute, canExecute, name);
+
+            if (onEx != null)
+                this.ExceptionInExecute += onEx;
+        }
     }
 }
