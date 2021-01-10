@@ -39,7 +39,7 @@ namespace DeIce68k.ViewModel
         object mnLock = new object();
 
         static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
         Dictionary<uint, string> _address2SymboldDictionary = new Dictionary<uint, string>();
@@ -157,7 +157,17 @@ namespace DeIce68k.ViewModel
                     if (t == WatchType.Empty)
                         throw new ArgumentException($"Unrecognised watch type %{type}");
                 }
-                Watches.Add(new WatchModel(addr, name, t, null));
+
+                int[] dims = null;
+                if (!string.IsNullOrEmpty(mWA.Groups[4].Value))
+                    try
+                    {
+                        dims = new int[] { Convert.ToInt32(mWA.Groups[4].Value) };
+                    } catch (Exception)
+                    {
+                        throw new ArgumentException("Bad array index");
+                    }
+                Watches.Add(new WatchModel(addr, name, t, dims));
                 return;
             }
             throw new ArgumentException("Unrecognised command");
@@ -394,7 +404,12 @@ namespace DeIce68k.ViewModel
                 })
                 );
             };
-            _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
+            try
+            {
+
+                _deIceProtocol.SendReq(new DeIceFnReqReadRegs());
+            }
+            catch (Exception) { }
 
         }
 

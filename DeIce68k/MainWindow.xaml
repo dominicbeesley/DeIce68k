@@ -7,17 +7,31 @@
         xmlns:sampledata="clr-namespace:DeIce68k.SampleData"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800" Closed="Window_Closed" Loaded="Window_Loaded">
+    <!-- look at https://www.codeproject.com/Articles/101881/Executing-Command-Logic-in-a-View-Model -->
+    
     <DockPanel>
-        <ToolBarTray DockPanel.Dock="Top">
-            <ToolBar>
-                <Button Command="{Binding CmdNext }" Content="Next" />
-                <Button Command="{Binding CmdCont }" Content="Continue" />
-                <Button Command="{Binding CmdTraceTo }" Content="Trace To..." />
-                <Button Command="{Binding CmdStop}" Content="STOP" />
-                <Button Command="{Binding CmdRefresh}" Content="Refresh" />
-                <Button Command="{Binding CmdDumpMem}" Content="Dump Memory" />
-            </ToolBar>
-        </ToolBarTray>
+        <StackPanel DockPanel.Dock="Top">
+            <Menu>
+                <MenuItem Header="_Debug">
+                    <MenuItem Command="{Binding CmdNext }" Header="Next" />
+                    <MenuItem Command="{Binding CmdCont }" Header="Continue" />
+                    <MenuItem Command="{Binding CmdTraceTo }" Header="Trace To..." />
+                    <MenuItem Command="{Binding CmdStop}" Header="STOP" />
+                    <MenuItem Command="{Binding CmdRefresh}" Header="Refresh" />
+                    <MenuItem Command="{Binding CmdDumpMem}" Header="Dump Memory" />
+                </MenuItem>
+            </Menu>
+            <ToolBarTray>
+                <ToolBar>
+                    <Button Command="{Binding CmdNext }" Content="Next" />
+                    <Button Command="{Binding CmdCont }" Content="Continue" />
+                    <Button Command="{Binding CmdTraceTo }" Content="Trace To..." />
+                    <Button Command="{Binding CmdStop}" Content="STOP" />
+                    <Button Command="{Binding CmdRefresh}" Content="Refresh" />
+                    <Button Command="{Binding CmdDumpMem}" Content="Dump Memory" />
+                </ToolBar>
+            </ToolBarTray>
+        </StackPanel>
         <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >
             <Grid.RowDefinitions>
                 <RowDefinition Height="1.8*"/>
@@ -37,19 +51,21 @@
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }" 
                               />
                 <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}"/>
-                <ListBox Grid.Column="2" x:Name="lbWatches" ItemsSource="{Binding Watches}" >
+                <ListBox Grid.Column="2" x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" Grid.IsSharedSizeScope="True" >
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid MaxHeight="{Binding ElementName=lbWatches, Path=ActualHeight}" HorizontalAlignment="Stretch">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="1*" SharedSizeGroup="Key" />
+                                    <ColumnDefinition Width="1*" SharedSizeGroup="Key" />
                                     <ColumnDefinition Width="2*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Path=FullName}" Width="auto" FontFamily="Lucida Console" FontSize="10" Padding="0 0 10 0"/>
-                                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <TextBlock Grid.Column="0" Text="{Binding Path=Address, StringFormat={}{0:X8}}" Width="auto" />
+                                <TextBlock Grid.Column="1" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
+                                <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                     <TextBlock Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
                                 </ScrollViewer>
-    </Grid>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

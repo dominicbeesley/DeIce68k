@@ -206,7 +206,8 @@ namespace Disass68k
                     }
                     break;
                 default:
-                    throw new System.Exception($"Mode out of range in sprintmode = {mode}");
+                    s.Append($"Mode out of range in sprintmode = {mode}");
+                    break;
             }
             return s.ToString();
         }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -45,6 +46,10 @@ namespace DeIce68k.SampleData
                 if (_app == null)
                 {
                     _app = new DeIceAppModel(new DummySerial(), null);
+                    _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
+                    _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
+                    _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new int[] { 20 } ));
+
                     Task.Run(async delegate
                     {
                         Random r = new Random();
@@ -126,7 +131,7 @@ namespace DeIce68k.SampleData
         public static RegisterModel RegisterModelTestWord = new RegisterModel("XX", RegisterSize.Word, 0xBEEF);
         public static RegisterModel RegisterModelTestLong = new RegisterModel("XX", RegisterSize.Word, 0xDEADBEEF);
 
-
+        public static ObservableCollection<WatchModel> SamplesWatches { get { return SampleDeIceAppModel.Watches; } }
 
     }
 }

@@ -51,7 +51,13 @@ namespace DeIce68k
                 if ((sv.ScrollableHeight <= sv.VerticalOffset)
                 && (sv.ScrollableHeight != 0.0 && sv.VerticalOffset != 0.0))
                 {
-                    (DataContext as DisassMemBlock)?.MorePlease();
+                    try
+                    {
+                        (DataContext as DisassMemBlock)?.MorePlease();
+                    } catch (Exception ex)
+                    {
+
+                    }
                 }
             }
             else
