@@ -30,7 +30,7 @@ namespace DeIce68k
 
             try
             {
-                serialPort = new DossySerialPort.DossySerial("COM19", 19200);
+                serialPort = new DossySerialPort.DossySerial("COM3", 19200);
                 appModel = new DeIceAppModel(serialPort, this);
                 appModel.ReadCommandFile(@"E:\Users\dominic\programming\68k\mos\mos68k.noi");
                 

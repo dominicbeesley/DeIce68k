@@ -84,6 +84,8 @@ namespace DeIce68k.ViewModel
         public ICommand CmdDumpMem { get; }
         public ICommand CmdStop { get; }
         public ICommand CmdRefresh { get; }
+        public ICommand CmdDisassembleAt { get; }
+
         public MainWindow MainWindow { get; init; }
 
         public void ReadCommandFile(string pathname)
@@ -268,6 +270,7 @@ namespace DeIce68k.ViewModel
                 o =>
                 {
                     var dlg = new DlgDumpMem(this);
+                    dlg.Title = "Dump Memory";
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
                     //TODO: use binding and a viewmodel?
@@ -366,6 +369,28 @@ namespace DeIce68k.ViewModel
                 "Refresh",
                 Command_Exception
             );
+            CmdDisassembleAt = new RelayCommand(
+                o =>
+                {
+                    var dlg = new DlgDumpMem(this);
+                    dlg.Title = "Disassemble At";
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
+                    //TODO: use binding and a viewmodel?
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        DisassembleAt(dlg.Address);
+                    }
+
+                },
+                o =>
+                {
+                    return Regs.IsStopped;
+                },
+                "Disassemble At",
+                Command_Exception
+            );
 
             _deIceProtocol = new DeIceProtocolMain(_serial);
 
@@ -441,26 +466,8 @@ namespace DeIce68k.ViewModel
         {
             try
             {
-                //check to see if pc is in the current DisassMemBlock, if not either extend or load new
-                if (DisassMemBlock != null && DisassMemBlock.BaseAddress < Regs.PC.Data && DisassMemBlock.EndPoint > Regs.PC.Data + 16)
-                {
-                    //in range just update pc
-                    DisassMemBlock.PC = Regs.PC.Data;
-                }
-                else if (DisassMemBlock != null && (Regs.PC.Data - DisassMemBlock.EndPoint) < 256)
-                {
-                    //close just extend until we're in range
-                    DisassMemBlock.MorePlease(Regs.PC.Data + 128 - DisassMemBlock.EndPoint);
-                    DisassMemBlock.PC = Regs.PC.Data;
-                }
-                else
-                {
-                    var disdat = new byte[128];
-                    _deIceProtocol.ReadMemBlock(Regs.PC.Data, disdat, 0, 128);
 
-                    DisassMemBlock = new DisassMemBlock(this, Regs.PC.Data, disdat, _address2SymboldDictionary);
-                    DisassMemBlock.PC = Regs.PC.Data;
-                }
+                DisassembleAt(Regs.PC.Data);
 
                 foreach (var w in Watches)
                 {
@@ -475,6 +482,30 @@ namespace DeIce68k.ViewModel
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
             }
+        }
+
+        public void DisassembleAt(uint addr)
+        {
+            //check to see if pc is in the current DisassMemBlock, if not either extend or load new
+            if (DisassMemBlock == null || DisassMemBlock.BaseAddress > addr || DisassMemBlock.EndPoint <= addr + 64)
+            {
+                if (DisassMemBlock != null && (addr - DisassMemBlock.EndPoint) < 1024)
+                {
+                    //close just extend until we're in range
+                    DisassMemBlock.MorePlease(addr + 512 - DisassMemBlock.EndPoint);
+                }
+                else
+                {
+                    var disdat = new byte[1024];
+                    _deIceProtocol.ReadMemBlock(addr, disdat, 0, 1024);
+
+                    DisassMemBlock = new DisassMemBlock(this, addr, disdat, _address2SymboldDictionary);
+                }
+            }
+
+            //in range just update pc
+            DisassMemBlock.PC = Regs.PC.Data;
+
         }
 
         public void TraceTo(uint addr)

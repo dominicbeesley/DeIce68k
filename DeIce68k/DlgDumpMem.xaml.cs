@@ -35,9 +35,13 @@ namespace DeIce68k
         {
             try
             {
-                Address = Convert.ToUInt32(txtAddress.Text, 16);
+                uint a;
+                if (!Context.Symbol2AddressDictionary.TryGetValue(txtAddress.Text, out a))
+                    a = Convert.ToUInt32(txtAddress.Text, 16);
+                Address = a;
             } catch (Exception)
             {
+                MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
