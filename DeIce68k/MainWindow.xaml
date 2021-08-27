@@ -52,24 +52,86 @@
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }" 
                               />
                 <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}"/>
-                <ListBox Grid.Column="2" x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" Grid.IsSharedSizeScope="True" >
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1*" SharedSizeGroup="Key" />
-                                    <ColumnDefinition Width="1*" SharedSizeGroup="Key" />
-                                    <ColumnDefinition Width="2*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="{Binding Path=Address, StringFormat={}{0:X8}}" Width="auto" />
-                                <TextBlock Grid.Column="1" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
-                                <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                    <TextBlock Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
-                                </ScrollViewer>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+
+                <TabControl Grid.Column="2">
+                    <TabItem Header="Watches">
+                        <ListBox  x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" Grid.IsSharedSizeScope="True">
+
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="{x:Type ListBoxItem}">
+                                    <Setter Property="IsSelected" Value="{Binding Selected}"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="64" SharedSizeGroup="Key" />
+                                            <ColumnDefinition Width="64" SharedSizeGroup="N" />
+                                            <ColumnDefinition Width="2*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.Width>
+                                            <Binding Path="ActualWidth" 
+                                                        RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type ScrollContentPresenter}}" />
+                                        </Grid.Width>
+                                        <TextBlock Grid.Column="0" Text="{Binding Path=Address, StringFormat={}{0:X8}}" Width="auto" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
+                                        <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
+                                        </ScrollViewer>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </TabItem>
+                    <TabItem Header="Breakpoints">
+                        <ListBox  x:Name="lbBreakpoints" 
+                                  ItemsSource="{Binding Breakpoints}" 
+                                  d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesBreakpoints }" 
+                                  SelectionMode="Multiple"
+                                  
+                                  Grid.IsSharedSizeScope="True"
+                                  HorizontalAlignment="Stretch" 
+                                  >
+                            <ListBox.InputBindings>
+                                <KeyBinding Key="Delete" Command="{Binding CmdBreakpoints_Delete}" />
+                            </ListBox.InputBindings>
+                            
+                            <ListBox.ContextMenu>
+                                <ContextMenu >
+                                    <MenuItem Header="Add..." Command="{Binding CmdBreakpoints_Add}" />
+                                    <MenuItem Header="Delete..." Command="{Binding CmdBreakpoints_Delete}" InputGestureText="Del" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="{x:Type ListBoxItem}">
+                                    <Setter Property="IsSelected" Value="{Binding Selected}"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid HorizontalAlignment="Stretch">
+                                        <Grid.RowDefinitions />
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" SharedSizeGroup="Enab" />
+                                            <ColumnDefinition Width="*" SharedSizeGroup="Address" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.Width>
+                                            <Binding Path="ActualWidth" 
+                                                        RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type ScrollContentPresenter}}" />
+                                        </Grid.Width>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding Path=Enabled}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Path=Address, StringFormat={}{0:X8}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </TabItem>
+                </TabControl>
+                
             </Grid>
             <ListBox Grid.Row="2" Grid.Column="0"
                      VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" 

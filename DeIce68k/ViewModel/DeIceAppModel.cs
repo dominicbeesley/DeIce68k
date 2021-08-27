@@ -12,6 +12,7 @@ using DossySerialPort;
 using DeIce68k.Lib;
 using System.Diagnostics;
 using System.Text;
+using System.Linq;
 
 namespace DeIce68k.ViewModel
 {
@@ -28,6 +29,10 @@ namespace DeIce68k.ViewModel
         ObservableCollection<WatchModel> _watches = new ObservableCollection<WatchModel>();
         public ObservableCollection<WatchModel> Watches { get { return _watches; } }
 
+        ObservableCollection<BreakpointModel> _breakpoints = new ObservableCollection<BreakpointModel>();
+        public ObservableCollection<BreakpointModel> Breakpoints { get { return _breakpoints; } }
+
+
         RegisterSetModel _regs;
 
         public RegisterSetModel Regs { get { return _regs; } }
@@ -43,6 +48,8 @@ namespace DeIce68k.ViewModel
 
         Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
         Dictionary<uint, string> _address2SymboldDictionary = new Dictionary<uint, string>();
+
+        
 
         CancellationTokenSource traceCancelSource = null;
 
@@ -85,6 +92,9 @@ namespace DeIce68k.ViewModel
         public ICommand CmdStop { get; }
         public ICommand CmdRefresh { get; }
         public ICommand CmdDisassembleAt { get; }
+
+        public ICommand CmdBreakpoints_Add { get; }
+        public ICommand CmdBreakpoints_Delete { get; }
 
         public MainWindow MainWindow { get; init; }
 
@@ -376,7 +386,6 @@ namespace DeIce68k.ViewModel
                     dlg.Title = "Disassemble At";
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
-                    //TODO: use binding and a viewmodel?
 
                     if (dlg.ShowDialog() == true)
                     {
@@ -391,6 +400,36 @@ namespace DeIce68k.ViewModel
                 "Disassemble At",
                 Command_Exception
             );
+
+            CmdBreakpoints_Add = new RelayCommand(
+                o =>
+                {
+                    var dlg = new DlgDumpMem(this);
+                    dlg.Title = "Add breakpoint at";
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        Breakpoints.Add(new BreakpointModel() { Address = dlg.Address });
+                    }
+
+                },
+                o => true,
+                "Add Breakpoint...",
+                Command_Exception
+                );
+
+            CmdBreakpoints_Delete = new RelayCommand(
+                o =>
+                {
+                    Breakpoints.Where(o => o.Selected).ToList().ForEach(o => Breakpoints.Remove(o));
+                },
+                o => Breakpoints.Where(o => o.Selected).Any(),
+                "Add Breakpoint...",
+                Command_Exception
+            ); ;
+
 
             _deIceProtocol = new DeIceProtocolMain(_serial);
 

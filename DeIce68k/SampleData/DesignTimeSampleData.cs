@@ -49,6 +49,9 @@ namespace DeIce68k.SampleData
                     _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
                     _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
                     _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new int[] { 20 } ));
+                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0xDEADBEEF }) ;
+                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x0B00B135, Enabled = false });
+                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x00154BE7, Enabled = false, Selected = true });
 
                     Task.Run(async delegate
                     {
@@ -132,6 +135,9 @@ namespace DeIce68k.SampleData
         public static RegisterModel RegisterModelTestLong = new RegisterModel("XX", RegisterSize.Word, 0xDEADBEEF);
 
         public static ObservableCollection<WatchModel> SamplesWatches { get { return SampleDeIceAppModel.Watches; } }
+
+        public static ObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel.Breakpoints; } }
+
 
     }
 }
