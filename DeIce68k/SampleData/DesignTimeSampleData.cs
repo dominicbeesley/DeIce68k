@@ -52,6 +52,21 @@ namespace DeIce68k.SampleData
                     _app.Breakpoints.Add(new BreakpointModel() { Address = 0xDEADBEEF }) ;
                     _app.Breakpoints.Add(new BreakpointModel() { Address = 0x0B00B135, Enabled = false });
                     _app.Breakpoints.Add(new BreakpointModel() { Address = 0x00154BE7, Enabled = false, Selected = true });
+                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x008D0812, Enabled = true });
+                    _app.DisassMemBlock = new DisassMemBlock(
+                        _app,
+                        0x8d080c,
+                        new byte[]
+                        {
+                            0x52, 0x01, 0x11, 0xc1, 0xfe, 0x00, 0x11, 0xC0, 0xFE, 0x01, 0x4e, 0x75, 0x99, 0x99, 0x99, 0x99
+                        },
+                        new Dictionary<uint, string>
+                        {
+                            [0x8d080c] = "bob",
+                            [0xFFFFFE00] = "sheila_crtc_reg",
+                            [0xFFFFFE01] = "sheila_crtc_rw",
+                        }
+                    );
 
                     Task.Run(async delegate
                     {
@@ -125,6 +140,8 @@ namespace DeIce68k.SampleData
                 return _app;
             } 
         }
+
+        public static DisassMemBlock DisassMem => SampleDeIceAppModel.DisassMemBlock;
 
         public static RegisterSetModel SampleDataRegisterSetModel { get { return SampleDeIceAppModel.Regs; } }
 

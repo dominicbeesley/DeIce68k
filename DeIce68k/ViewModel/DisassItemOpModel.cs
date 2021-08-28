@@ -24,6 +24,20 @@ namespace DeIce68k.ViewModel
             }
         }
 
+        private bool _isBreakpoint;
+        public bool IsBreakpoint
+        {
+            get => _isBreakpoint;
+            set => Set(ref _isBreakpoint, value);
+        }
+
+        private bool _isBreakpointEnabled;
+        public bool IsBreakpointEnabled
+        {
+            get => _isBreakpointEnabled;
+            set => Set(ref _isBreakpointEnabled, value);
+        }
+
 
         public DisassItemOpModel(DeIceAppModel deIceAppModel, uint addr, string hints, byte[] instrBytes, string mnemonic, string operands, ushort length, bool decoded, bool pc)
             : base(deIceAppModel, addr, hints, pc)
@@ -33,7 +47,13 @@ namespace DeIce68k.ViewModel
             Length = length;
             Decoded = decoded;
             InstrBytes = instrBytes;
+            BreakpointsUpdated();
+        }
 
+        public void BreakpointsUpdated()
+        {
+            IsBreakpoint = Parent.Breakpoints.Where(o => Address == o.Address).Any();
+            IsBreakpointEnabled = Parent.Breakpoints.Where(o => Address == o.Address && o.Enabled).Any();
         }
     }
 }

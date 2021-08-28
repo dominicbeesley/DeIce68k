@@ -210,5 +210,13 @@ namespace DeIce68k.ViewModel
             }
 
         }
+
+        public void BreakpointsUpdated()
+        {
+            foreach (var i in Items.Where(i => i is DisassItemOpModel).Cast<DisassItemOpModel>())
+            {
+                i.BreakpointsUpdated();
+            }
+        }
     }
 }

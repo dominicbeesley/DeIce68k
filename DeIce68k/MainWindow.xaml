@@ -8,7 +8,7 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800" Closed="Window_Closed" Loaded="Window_Loaded">
     <!-- look at https://www.codeproject.com/Articles/101881/Executing-Command-Logic-in-a-View-Model -->
-    
+
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <Menu>
@@ -51,11 +51,11 @@
                               DataContext="{Binding Regs}" 
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }" 
                               />
-                <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}"/>
+                <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}" />
 
                 <TabControl Grid.Column="2">
                     <TabItem Header="Watches">
-                        <ListBox  x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" Grid.IsSharedSizeScope="True">
+                        <ListBox  x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" >
 
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="{x:Type ListBoxItem}">
@@ -67,19 +67,17 @@
                                 <DataTemplate>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="64" SharedSizeGroup="Key" />
-                                            <ColumnDefinition Width="64" SharedSizeGroup="N" />
-                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="64"  />
+                                            <ColumnDefinition Width="100" SharedSizeGroup="N" />
+                                            <ColumnDefinition Width="*" SharedSizeGroup="N" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.Width>
                                             <Binding Path="ActualWidth" 
                                                         RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type ScrollContentPresenter}}" />
                                         </Grid.Width>
                                         <TextBlock Grid.Column="0" Text="{Binding Path=Address, StringFormat={}{0:X8}}" Width="auto" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
-                                        <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
-                                        </ScrollViewer>
+                                        <TextBlock Grid.Column="1" Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -97,7 +95,7 @@
                             <ListBox.InputBindings>
                                 <KeyBinding Key="Delete" Command="{Binding CmdBreakpoints_Delete}" />
                             </ListBox.InputBindings>
-                            
+
                             <ListBox.ContextMenu>
                                 <ContextMenu >
                                     <MenuItem Header="Add..." Command="{Binding CmdBreakpoints_Add}" />
@@ -110,7 +108,7 @@
                                     <Setter Property="IsSelected" Value="{Binding Selected}"/>
                                 </Style>
                             </ListBox.ItemContainerStyle>
-                            
+
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid HorizontalAlignment="Stretch">
@@ -131,7 +129,7 @@
                         </ListBox>
                     </TabItem>
                 </TabControl>
-                
+
             </Grid>
             <ListBox Grid.Row="2" Grid.Column="0"
                      VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" 

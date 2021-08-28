@@ -13,6 +13,8 @@ using DeIce68k.Lib;
 using System.Diagnostics;
 using System.Text;
 using System.Linq;
+using System.ComponentModel;
+using System.Collections.Specialized;
 
 namespace DeIce68k.ViewModel
 {
@@ -186,6 +188,11 @@ namespace DeIce68k.ViewModel
 
         }
 
+        protected void Breakpoint_Changed(object sender, PropertyChangedEventArgs e)
+        {
+            DisassMemBlock?.BreakpointsUpdated();
+        }
+
         public DeIceAppModel(IDossySerial serial, MainWindow mainWindow)
         {
             this.MainWindow = mainWindow;
@@ -209,6 +216,25 @@ namespace DeIce68k.ViewModel
 
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
+            Breakpoints.CollectionChanged += (o, e) => { 
+                DisassMemBlock?.BreakpointsUpdated();
+                if (e.Action == NotifyCollectionChangedAction.Remove)
+                {
+                    foreach (BreakpointModel item in e.OldItems)
+                    {
+                        //Removed items
+                        item.PropertyChanged -= Breakpoint_Changed;
+                    }
+                }
+                else if (e.Action == NotifyCollectionChangedAction.Add)
+                {
+                    foreach (BreakpointModel item in e.NewItems)
+                    {
+                        //Added items
+                        item.PropertyChanged += Breakpoint_Changed;
+                    }
+                }
+            };
 
             CmdNext = new RelayCommand(
             o =>

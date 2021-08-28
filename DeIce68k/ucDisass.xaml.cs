@@ -95,5 +95,21 @@ namespace DeIce68k
         {
             
         }
+
+        private void btnBreakpoint_Click(object sender, RoutedEventArgs e)
+        {
+            var item = (sender as Button)?.DataContext as DisassItemOpModel;
+            if (item == null)
+                return;
+
+            if (item.IsBreakpoint && !item.IsBreakpointEnabled)
+                item.Parent.Breakpoints.Where(o => o.Address == item.Address).ToList().ForEach(b => b.Enabled = true);
+            else if (item.IsBreakpoint)
+                item.Parent.Breakpoints.Where(o => o.Address == item.Address).ToList().ForEach(b => item.Parent.Breakpoints.Remove(b));
+            else
+                item.Parent.Breakpoints.Add(new BreakpointModel() { Address = item.Address, Enabled = true });
+
+
+        }
     }
 }
