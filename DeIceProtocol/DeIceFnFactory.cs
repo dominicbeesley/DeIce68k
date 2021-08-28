@@ -70,17 +70,17 @@ namespace DeIceProtocol
             {
                 DeIceFnReqSetWords sw = (DeIceFnReqSetWords)req;
 
-                if (sw.Words.Length * 6 > 255)
+                if (sw.Words.Length * 5 > 255)
                     throw new ArgumentException($"DeIceFnReqSetWords data too long, > 255 bytes in payload");
 
-                ret = new byte[2 + sw.Words.Length * 6];
+                ret = new byte[2 + sw.Words.Length * 5];
                 ret[0] = req.FunctionCode;
-                ret[1] = (byte)(sw.Words.Length * 6);
+                ret[1] = (byte)(sw.Words.Length * 5);
 
                 for (int i = 0; i < sw.Words.Length; i++)
                 {
-                    WriteBEULong(ret, i * 6, sw.Words[i].Address);
-                    WriteBEUShort(ret, 4+ i * 6, sw.Words[i].Data);
+                    WriteBEULong24(ret, i * 5, sw.Words[i].Address);
+                    WriteBEUShort(ret, 3 + i * 5, sw.Words[i].Data);
                 }
             }
             else
@@ -243,5 +243,13 @@ namespace DeIceProtocol
             data[index + 0] = (byte)(val >> 8);
             data[index + 1] = (byte)val;
         }
+
+        private static void WriteBEULong24(byte[] data, int index, uint val)
+        {
+            data[index + 0] = (byte)(val >> 16);
+            data[index + 1] = (byte)(val >> 8);
+            data[index + 2] = (byte)val;
+        }
+
     }
 }
