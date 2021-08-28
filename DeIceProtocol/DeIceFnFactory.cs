@@ -66,6 +66,23 @@ namespace DeIceProtocol
 
 
             }
+            else if (req is DeIceFnReqSetWords)
+            {
+                DeIceFnReqSetWords sw = (DeIceFnReqSetWords)req;
+
+                if (sw.Words.Length * 6 > 255)
+                    throw new ArgumentException($"DeIceFnReqSetWords data too long, > 255 bytes in payload");
+
+                ret = new byte[2 + sw.Words.Length * 6];
+                ret[0] = req.FunctionCode;
+                ret[1] = (byte)(sw.Words.Length * 6);
+
+                for (int i = 0; i < sw.Words.Length; i++)
+                {
+                    WriteBEULong(ret, i * 6, sw.Words[i].Address);
+                    WriteBEUShort(ret, 4+ i * 6, sw.Words[i].Data);
+                }
+            }
             else
                 throw new NotImplementedException($"Unimplemented Request 0x{req.FunctionCode:X2} in {nameof(CreateDataFromReq)}");
 
@@ -139,6 +156,19 @@ namespace DeIceProtocol
                     else
                         return new DeIceFnReplyRun(regs);
 
+                case DeIceProtoConstants.FN_SET_WORDS:
+                    if ((l & 0x01) != 0)
+                    {
+                        throw new DeIceProtocolException($"Unexpected return from FN_SET_WORDS, odd number of bytes returned");
+                    }
+
+                    ushort[] words = new ushort[l / 2];
+                    for (int i = 0; i < l/2; i++)
+                    {
+                        words[i] = ReadBEUShort(data, i*2);
+                    }
+
+                    return new DeIceFnReplySetWords(words);
                 case DeIceProtoConstants.FN_GET_STAT:
                     {
                         if (l < 8)

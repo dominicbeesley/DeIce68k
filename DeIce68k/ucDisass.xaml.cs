@@ -105,11 +105,9 @@ namespace DeIce68k
             if (item.IsBreakpoint && !item.IsBreakpointEnabled)
                 item.Parent.Breakpoints.Where(o => o.Address == item.Address).ToList().ForEach(b => b.Enabled = true);
             else if (item.IsBreakpoint)
-                item.Parent.Breakpoints.Where(o => o.Address == item.Address).ToList().ForEach(b => item.Parent.Breakpoints.Remove(b));
+                item.Parent.RemoveBreakpoint(item.Address);
             else
-                item.Parent.Breakpoints.Add(new BreakpointModel() { Address = item.Address, Enabled = true });
-
-
+                item.Parent.AddBreakpoint(item.Address);
         }
     }
 }

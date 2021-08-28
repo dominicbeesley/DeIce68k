@@ -8,7 +8,7 @@
         public const byte FN_READ_RG = 0xFC;       // reply with registers
         public const byte FN_WRITE_RG = 0xFB;      // reply with status
         public const byte FN_RUN_TARG = 0xFA;      // reply(delayed) with registers
-        public const byte FN_SET_BYTE = 0xF9;      // reply with data(truncate if error)
+        public const byte FN_SET_WORDS = 0xF9;     // reply with data(truncate if error) - different to NoICE
         public const byte FN_IN = 0xF8;            // input from port
         public const byte FN_OUT = 0xF7;           // output to port
 

@@ -49,10 +49,10 @@ namespace DeIce68k.SampleData
                     _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
                     _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
                     _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new int[] { 20 } ));
-                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0xDEADBEEF }) ;
-                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x0B00B135, Enabled = false });
-                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x00154BE7, Enabled = false, Selected = true });
-                    _app.Breakpoints.Add(new BreakpointModel() { Address = 0x008D0812, Enabled = true });
+                    _app.AddBreakpoint(0xDEADBEEF);
+                    _app.AddBreakpoint(0x0B00B135).Enabled = false;
+                    _app.AddBreakpoint(0x00154BE7).Selected = true;
+                    _app.AddBreakpoint(0x008D0812);
                     _app.DisassMemBlock = new DisassMemBlock(
                         _app,
                         0x8d080c,
@@ -153,7 +153,7 @@ namespace DeIce68k.SampleData
 
         public static ObservableCollection<WatchModel> SamplesWatches { get { return SampleDeIceAppModel.Watches; } }
 
-        public static ObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel.Breakpoints; } }
+        public static ReadOnlyObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel.Breakpoints; } }
 
 
     }

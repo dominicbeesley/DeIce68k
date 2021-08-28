@@ -31,8 +31,9 @@ namespace DeIce68k.ViewModel
         ObservableCollection<WatchModel> _watches = new ObservableCollection<WatchModel>();
         public ObservableCollection<WatchModel> Watches { get { return _watches; } }
 
-        ObservableCollection<BreakpointModel> _breakpoints = new ObservableCollection<BreakpointModel>();
-        public ObservableCollection<BreakpointModel> Breakpoints { get { return _breakpoints; } }
+        ObservableCollection<BreakpointModel> _breakpointsint = new ObservableCollection<BreakpointModel>();
+        ReadOnlyObservableCollection<BreakpointModel> _breakpoints;
+        public ReadOnlyObservableCollection<BreakpointModel> Breakpoints { get { return _breakpoints; } }
 
 
         RegisterSetModel _regs;
@@ -198,6 +199,8 @@ namespace DeIce68k.ViewModel
             this.MainWindow = mainWindow;
             this._serial = serial;
 
+            _breakpoints = new ReadOnlyObservableCollection<BreakpointModel>(_breakpointsint);
+
             _regs = new RegisterSetModel(this);
 
 
@@ -216,7 +219,7 @@ namespace DeIce68k.ViewModel
 
             Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
             Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
-            Breakpoints.CollectionChanged += (o, e) => { 
+            _breakpointsint.CollectionChanged += (o, e) => { 
                 DisassMemBlock?.BreakpointsUpdated();
                 if (e.Action == NotifyCollectionChangedAction.Remove)
                 {
@@ -437,7 +440,7 @@ namespace DeIce68k.ViewModel
 
                     if (dlg.ShowDialog() == true)
                     {
-                        Breakpoints.Add(new BreakpointModel() { Address = dlg.Address });
+                        AddBreakpoint(dlg.Address);
                     }
 
                 },
@@ -448,8 +451,8 @@ namespace DeIce68k.ViewModel
 
             CmdBreakpoints_Delete = new RelayCommand(
                 o =>
-                {
-                    Breakpoints.Where(o => o.Selected).ToList().ForEach(o => Breakpoints.Remove(o));
+                {                    
+                    Breakpoints.Where(o => o.Selected).ToList().ForEach(o => RemoveBreakpoint(o.Address));
                 },
                 o => Breakpoints.Where(o => o.Selected).Any(),
                 "Add Breakpoint...",
@@ -642,6 +645,22 @@ namespace DeIce68k.ViewModel
             {
                 traceCancelSource = null;
             }); ;
+        }
+
+        public BreakpointModel AddBreakpoint(uint address)
+        {
+            int i = 0;
+            while (i < _breakpointsint.Count && _breakpointsint[i].Address < address)
+                i++;
+
+            var ret = new BreakpointModel() { Address = address, Enabled = true };
+            _breakpointsint.Insert(i, ret);
+            return ret;
+        }
+
+        public void RemoveBreakpoint(uint address)
+        {
+            _breakpointsint.Where(o => o.Address == address).ToList().ForEach(o => _breakpointsint.Remove(o));
         }
     }
 }
