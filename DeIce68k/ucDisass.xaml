@@ -9,7 +9,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" 
              d:DesignWidth="800"
-             d:DataContext="{ Binding Source={x:Static local_dd:DesignTimeSampleData.DisassMem }}" DataContextChanged="UserControl_DataContextChanged"
+             d:DataContext="{x:Static local_dd:DesignTimeSampleData.DisassMem }" DataContextChanged="UserControl_DataContextChanged"
              >
     <UserControl.Resources>
         <DataTemplate x:Key="OpModelTemplate" DataType="{x:Type viewmodel:DisassItemOpModel}">
@@ -23,27 +23,26 @@
                     <Button.Template>
                         <ControlTemplate>
                             <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0">
-                            <Ellipse.Style>
-                                <Style TargetType="{x:Type Ellipse}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsBreakpoint}" Value="True">
-                                            <Setter Property="Stroke" Value="Red" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsBreakpoint}" Value="False">
-                                            <Setter Property="Stroke" Value="Transparent" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="True">
-                                            <Setter Property="Fill" Value="Yellow" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="False">
-                                            <Setter Property="Fill" Value="Transparent" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Ellipse.Style>
-                        </Ellipse>
+                                <Ellipse.Style>
+                                    <Style TargetType="{x:Type Ellipse}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBreakpoint}" Value="True">
+                                                <Setter Property="Stroke" Value="Red" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsBreakpoint}" Value="False">
+                                                <Setter Property="Stroke" Value="Transparent" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="True">
+                                                <Setter Property="Fill" Value="Yellow" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="False">
+                                                <Setter Property="Fill" Value="Transparent" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
                         </ControlTemplate>
-
                     </Button.Template>
                 </Button>
                 <TextBlock Text="{Binding Address, StringFormat=X8}" Foreground="#FF8A9750"/>
