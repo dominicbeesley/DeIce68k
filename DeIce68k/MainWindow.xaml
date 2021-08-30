@@ -160,6 +160,25 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </TabItem>
+                    <TabItem Header="Symbols">
+                        <ListBox ItemsSource="{Binding Symbols.SymbolsByAddress}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Address, StringFormat=X08 }" Grid.Column="0"/>
+                                        <ListView Grid.Column="1" ItemsSource="{Binding Symbols}">
+                                            
+                                            
+                                        </ListView>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </TabItem>
                 </TabControl>
 
             </Grid>

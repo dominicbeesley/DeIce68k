@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "DeIce68k": {
+      "commandName": "Project",
+      "commandLineArgs": "/exec \"E:\\Users\\dominic\\programming\\68k\\mos\\mos68k.noi\" COM3",
+      "sqlDebugging": true
+    }
+  }
+}

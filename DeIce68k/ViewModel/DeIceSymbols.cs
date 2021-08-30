@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,6 +12,28 @@ namespace DeIce68k.ViewModel
     public class DeIceSymbols : IDisassSymbols
     {
         private DeIceAppModel _app;
+
+        public class Address2Symbol : ObservableObject
+        {
+
+            internal ObservableCollection<string> _symbols = new ObservableCollection<string>();
+            ReadOnlyObservableCollection<string> _symbolsRO;
+
+            public uint Address { get; init; }
+            public ReadOnlyCollection<string> Symbols { get => _symbolsRO; }
+
+            public Address2Symbol()
+            {
+                _symbolsRO = new ReadOnlyObservableCollection<string>(_symbols);
+            }
+        }
+
+
+        ObservableCollection<Address2Symbol> _symbolsByAddress = new ObservableCollection<Address2Symbol>();
+        ReadOnlyObservableCollection<Address2Symbol> _symbolsByAddressRO;
+
+        public ReadOnlyObservableCollection<Address2Symbol> SymbolsByAddress { get => _symbolsByAddressRO; }
+
         Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
         Dictionary<uint, List<string>> _address2SymbolsdDictionary = new Dictionary<uint, List<string>>();
 
@@ -25,6 +49,27 @@ namespace DeIce68k.ViewModel
             {
                 _address2SymbolsdDictionary[address] = new List<string>(new[] { symbol });
             }
+            int i = 0;
+            while (i < _symbolsByAddress.Count && _symbolsByAddress[i].Address < address)
+                i++;
+
+            if (i >= _symbolsByAddress.Count)
+            {
+                var sa = new Address2Symbol() { Address = address };
+                sa._symbols.Add(symbol);
+                _symbolsByAddress.Add(sa);
+            } 
+            else if (_symbolsByAddress[i].Address == address)
+            {
+                var sa = _symbolsByAddress[i];
+                sa._symbols.Insert(sa._symbols.Where(o => o.CompareTo(symbol) < 0).Count(), symbol);
+            } else
+            {
+                var sa = new Address2Symbol() { Address = address };
+                sa._symbols.Add(symbol);
+                _symbolsByAddress.Insert(i, sa);
+            }
+
         }
 
         public void Remove(string symbol)
@@ -36,6 +81,14 @@ namespace DeIce68k.ViewModel
                 if (_address2SymbolsdDictionary.TryGetValue(addr, out lst))
                 {
                     lst.Remove(symbol);
+                }
+
+                Address2Symbol s = _symbolsByAddress.Where(s => s.Address == addr).FirstOrDefault();
+                if (s != null)
+                {
+                    s._symbols.Remove(symbol);
+                    if (s._symbols.Count == 0)
+                        _symbolsByAddress.Remove(s);
                 }
             }
         }
@@ -89,6 +142,7 @@ namespace DeIce68k.ViewModel
         public DeIceSymbols(DeIceAppModel app)
         {
             _app = app;
+            _symbolsByAddressRO = new ReadOnlyObservableCollection<Address2Symbol>(_symbolsByAddress);
         }
     }
 }
