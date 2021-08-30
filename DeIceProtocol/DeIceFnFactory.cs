@@ -73,15 +73,21 @@ namespace DeIceProtocol
                 if (sw.Words.Length * 5 > 255)
                     throw new ArgumentException($"DeIceFnReqSetWords data too long, > 255 bytes in payload");
 
-                ret = new byte[2 + sw.Words.Length * 5];
+                ret = new byte[3 + sw.Words.Length * 5];
                 ret[0] = req.FunctionCode;
                 ret[1] = (byte)(sw.Words.Length * 5);
 
                 for (int i = 0; i < sw.Words.Length; i++)
                 {
-                    WriteBEULong24(ret, i * 5, sw.Words[i].Address);
-                    WriteBEUShort(ret, 3 + i * 5, sw.Words[i].Data);
+                    WriteBEULong24(ret, 2 + i * 5, sw.Words[i].Address);
+                    WriteBEUShort(ret, 5 + i * 5, sw.Words[i].Data);
                 }
+            }
+            else if (req is DeIceFnReqGetStatus)
+            {
+                ret = new byte[3];
+                ret[0] = req.FunctionCode;
+                ret[1] = 0;
             }
             else
                 throw new NotImplementedException($"Unimplemented Request 0x{req.FunctionCode:X2} in {nameof(CreateDataFromReq)}");
@@ -165,7 +171,7 @@ namespace DeIceProtocol
                     ushort[] words = new ushort[l / 2];
                     for (int i = 0; i < l/2; i++)
                     {
-                        words[i] = ReadBEUShort(data, i*2);
+                        words[i] = ReadBEUShort(data, 2 + i*2);
                     }
 
                     return new DeIceFnReplySetWords(words);
@@ -183,13 +189,14 @@ namespace DeIceProtocol
 
                         if (bpSize == 0)
                             throw new ArgumentException("zero length breakpoint instruction in FN_GET_STAT reply");
+                        if (bpSize != 2)
+                            throw new ArgumentException("Only word length breakpoint instructions are supported");
                         if (8 + bpSize > l)
                             throw new ArgumentException("Out of data in FN_GET_STAT reply");
-                        byte[] bpInst = new byte[bpSize];
-                        int i;
-                        for (i = 0; i < bpSize; i++)
-                            bpInst[i] = data[10 + i];
+                        ushort bpInst;
+                        bpInst = ReadBEUShort(data, 10);
 
+                        int i;
                         i = 10 + bpSize;
                         while (i < data.Length - 1 && data[i] != 0)
                             i++;
@@ -216,7 +223,7 @@ namespace DeIceProtocol
             return ret;
         }
 
-        private static uint ReadBEULong(byte[] data, int index)
+        public static uint ReadBEULong(byte[] data, int index)
         {
             return (uint)(data[index + 3]
                 + (data[index + 2] << 8)
@@ -224,27 +231,27 @@ namespace DeIceProtocol
                 + (data[index + 0] << 24)
                 );
         }
-        private static UInt16 ReadBEUShort(byte[] data, int index)
+        public static UInt16 ReadBEUShort(byte[] data, int index)
         {
             return (UInt16)(data[index + 1]
                 + (data[index + 0] << 8)
                 );
         }
 
-        private static void WriteBEULong(byte[] data, int index, uint val)
+        public static void WriteBEULong(byte[] data, int index, uint val)
         {
             data[index + 0] = (byte)(val >> 24);
             data[index + 1] = (byte)(val >> 16);
             data[index + 2] = (byte)(val >> 8);
             data[index + 3] = (byte)val;
         }
-        private static void WriteBEUShort(byte[] data, int index, ushort val)
+        public static void WriteBEUShort(byte[] data, int index, ushort val)
         {
             data[index + 0] = (byte)(val >> 8);
             data[index + 1] = (byte)val;
         }
 
-        private static void WriteBEULong24(byte[] data, int index, uint val)
+        public static void WriteBEULong24(byte[] data, int index, uint val)
         {
             data[index + 0] = (byte)(val >> 16);
             data[index + 1] = (byte)(val >> 8);

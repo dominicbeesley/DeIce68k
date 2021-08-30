@@ -5,9 +5,20 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DeIce68k"
         xmlns:sampledata="clr-namespace:DeIce68k.SampleData"
+        xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" Closed="Window_Closed" Loaded="Window_Loaded">
+        Title="MainWindow" 
+        Height="450" 
+        Width="800" 
+        Closed="Window_Closed" 
+        Loaded="Window_Loaded"
+        d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel }"
+        >
     <!-- look at https://www.codeproject.com/Articles/101881/Executing-Command-Logic-in-a-View-Model -->
+    <Window.Resources>
+        <viewmodel:TargetStatusByte_ValueConverter x:Key="tsvalconv" />
+    </Window.Resources>
+
 
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
@@ -33,7 +44,28 @@
                 </ToolBar>
             </ToolBarTray>
         </StackPanel>
-        <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" >
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StatusBarItem>
+                <TextBlock Text="{ Binding Regs.TargetStatus, Converter={StaticResource tsvalconv } }" />
+            </StatusBarItem>
+            <Separator Grid.Column="1" />
+            <StatusBarItem Grid.Column="2">
+                <TextBlock Text="{ Binding DebugHostStatus.TargetName }" />
+            </StatusBarItem>
+        </StatusBar>
+
+        <Grid >
             <Grid.RowDefinitions>
                 <RowDefinition Height="1.8*"/>
                 <RowDefinition Height="1*"/>
@@ -68,7 +100,7 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="64"  />
-                                            <ColumnDefinition Width="100" SharedSizeGroup="N" />
+                                            <ColumnDefinition Width="*" SharedSizeGroup="N" />
                                             <ColumnDefinition Width="*" SharedSizeGroup="N" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.Width>
@@ -76,8 +108,8 @@
                                                         RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type ScrollContentPresenter}}" />
                                         </Grid.Width>
                                         <TextBlock Grid.Column="0" Text="{Binding Path=Address, StringFormat={}{0:X8}}" Width="auto" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Path=ValueString}" FontFamily="Lucida Console" FontSize="10" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Path=FullName}" Width="auto" Padding="0 0 10 0" TextWrapping="Wrap"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

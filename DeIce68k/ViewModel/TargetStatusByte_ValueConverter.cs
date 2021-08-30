@@ -20,7 +20,7 @@ namespace DeIce68k.ViewModel
                 switch (b)
                 {
                     case DeIceProtoConstants.TS_RUNNING:
-                        return "run";
+                        return "running";
                     case DeIceProtoConstants.TS_BP:
                         return "breakpoint";
                     case DeIceProtoConstants.TS_TRACE:

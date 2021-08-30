@@ -64,7 +64,7 @@ namespace DeIce68k.ViewModel
             byte [] newData = new byte[Data.Length + howmuch];
             System.Buffer.BlockCopy(Data, 0, newData, 0, Data.Length);
 
-            _app.Serial.ReadMemBlock(BaseAddress + (uint)Data.Length, newData, Data.Length, (int)howmuch);
+            _app.DeIceProto.ReadMemBlock(BaseAddress + (uint)Data.Length, newData, Data.Length, (int)howmuch);
 
             Data = newData;
 

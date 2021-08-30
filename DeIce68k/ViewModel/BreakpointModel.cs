@@ -25,5 +25,12 @@ namespace DeIce68k.ViewModel
             get => _selected;
             set => Set(ref _selected, value);
         }
+
+        private ushort _oldOP;
+        public ushort OldOP
+        {
+            get => _oldOP;
+            set => Set(ref _oldOP, value);
+        }
     }
 }
