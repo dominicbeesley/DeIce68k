@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -96,7 +97,7 @@ namespace Disass68k
 	@param mode 0 to 12, indicating addressing mode.
 	@param size 0 = byte, 1 = word, 2 = long.
 */
-        private static string sprintmode(ushort mode, byte reg, byte size, BEReader r, IReadOnlyDictionary<uint,string> dicSyms)
+        private static string sprintmode(ushort mode, byte reg, byte size, BEReader r, IDisassSymbols symbols)
         {
             StringBuilder s = new StringBuilder();
 
@@ -118,7 +119,7 @@ namespace Disass68k
                         else
                         {
                             uint ldata = (uint)((r.PC - 2) + displacement);
-                            string sym = FindSym(dicSyms, ldata);
+                            string sym = FindSym(symbols, ldata);
                             if (!string.IsNullOrEmpty(sym))
                                 s.Append($"{sym}(PC)[{signedhex(displacement, 4)}=${ldata:X8}]");
                             else
@@ -151,7 +152,7 @@ namespace Disass68k
                         else
                         { /* PC */
                             uint ldata = (uint)((r.PC - 4) + displacement);
-                            string sym = FindSym(dicSyms, ldata);
+                            string sym = FindSym(symbols, ldata);
                             string rt = (itype == 0) ? "D" : "A";
                             if (!string.IsNullOrEmpty(sym))
                                 s.Append($"{sym}(PC,{rt}{ireg}.{ir[isize]})[{signedhex(displacement, 2)}=${ldata:X8}]");
@@ -163,7 +164,7 @@ namespace Disass68k
                 case 7: /* abs short */
                     {                        
                         short ldata = r.ReadInt16BE();
-                        string sym = FindSym(dicSyms, ldata);
+                        string sym = FindSym(symbols, ldata);
                         if (!string.IsNullOrEmpty(sym))
                             s.Append($"{sym}[=${ldata:X4}]");
                         else
@@ -173,7 +174,7 @@ namespace Disass68k
                 case 8:
                     {
                         uint ldata = r.ReadUInt32BE();
-                        string sym = FindSym(dicSyms, ldata);
+                        string sym = FindSym(symbols, ldata);
                         if (!string.IsNullOrEmpty(sym))
                             s.Append($"{sym}[=${ldata:X8}]");
                         else
@@ -262,22 +263,17 @@ namespace Disass68k
             return (byte)((word & 0x3000) >> 12);
         }
 
-        public static string FindSym(IReadOnlyDictionary<uint, string> dicSyms, short addr)
+        public static string FindSym(IDisassSymbols symbols, short addr)
         {
-            return FindSym(dicSyms, (uint)(int)addr);
+            return FindSym(symbols, (uint)addr);
         }
         
-        public static string FindSym(IReadOnlyDictionary<uint, string> dicSyms, uint addr)
+        public static string FindSym(IDisassSymbols symbols, uint addr)
         {
-            string s;
-            if (dicSyms != null && dicSyms.TryGetValue(addr, out s))
-
-                return s;
-            else
-                return null;
+            return symbols.AddressToSymbols(addr).FirstOrDefault();
         }
 
-        public static DisRec Decode(BinaryReader br, uint pc, IReadOnlyDictionary<uint,string> dicSyms = null, bool specialAbi = false)
+        public static DisRec Decode(BinaryReader br, uint pc, IDisassSymbols symbols, bool specialAbi = false)
         {
             var r = new BEReader(br, pc);
 
@@ -366,7 +362,7 @@ namespace Disass68k
                                         break;
                                 }
 
-                                string dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
 
                                 byte sreg = getBits_0E00(word);
                                 string source_s;
@@ -400,7 +396,7 @@ namespace Disass68k
                                         break;
                                 }
                                 string source_s;
-                                source_s = sprintmode(smode, sreg, size, r, dicSyms);
+                                source_s = sprintmode(smode, sreg, size, r, symbols);
                                 operand_s = $"{ source_s },A{ dreg }";
                                 decoded = true;
                             }
@@ -466,7 +462,7 @@ namespace Disass68k
                                 }
                                 else
                                 {
-                                    dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                    dest_s = sprintmode(dmode, dreg, size, r, symbols);
                                 }
                                 operand_s = $"{source_s},{dest_s}";
                                 decoded = true;
@@ -491,7 +487,7 @@ namespace Disass68k
                                 {
                                     opcode_s = $"subq.{size_arr[size]}";
                                 }
-                                string dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
                                 byte count = getBits_0E00(word);
                                 operand_s = $"#{(count == 0 ? 8 : count)},{dest_s}";
                                 decoded = true;
@@ -628,7 +624,7 @@ namespace Disass68k
                                         opcode_s = "roxr";
                                         break;
                                 }
-                                operand_s = sprintmode(dmode, dreg, 0, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -640,7 +636,7 @@ namespace Disass68k
                                 sbyte offset = (sbyte)(word & 0x00FF);
                                 if (offset != 0)
                                 {
-                                    string sym = FindSym(dicSyms, (uint)(r.PC + offset));
+                                    string sym = FindSym(symbols, (uint)(r.PC + offset));
                                     if (!string.IsNullOrEmpty(sym))
                                         operand_s = $"{sym}[{signedhex(offset, 2)}=${(r.PC + offset):X8}]";
                                     else
@@ -650,7 +646,7 @@ namespace Disass68k
                                 else
                                 {
                                     short offsetw = r.ReadInt16BE();
-                                    string sym = FindSym(dicSyms, (uint)(r.PC + offsetw - 2));
+                                    string sym = FindSym(symbols, (uint)(r.PC + offsetw - 2));
                                     if (!string.IsNullOrEmpty(sym)) 
                                         operand_s = $"{sym}[{signedhex(offsetw, 4)}=${(r.PC + offsetw - 2):X8}]";
                                     else
@@ -726,7 +722,7 @@ namespace Disass68k
                                     default:
                                         throw new System.Exception("Unrecognized op in BSET et al");
                                 }
-                                string dest_s = sprintmode(dmode, dreg, 0, r, dicSyms);
+                                string dest_s = sprintmode(dmode, dreg, 0, r, symbols);
                                 operand_s = $"{source_s},{dest_s}";
                                 decoded = true;
                             }
@@ -778,7 +774,7 @@ namespace Disass68k
                                         break;
                                 }
                                 string source_s;
-                                source_s = sprintmode(smode, sreg, size, r, dicSyms);
+                                source_s = sprintmode(smode, sreg, size, r, symbols);
                                 operand_s = $"{source_s},D{dreg}";
                                 decoded = true;
                             }
@@ -793,7 +789,7 @@ namespace Disass68k
                                 if (size == 3) break;
 
                                 opcode_s = $"clr.{size_arr[size]}";
-                                operand_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -805,7 +801,7 @@ namespace Disass68k
                                 byte size = (byte)(getBits_0100(word) + 1);
 
                                 opcode_s = $"cmpa.{size_arr[size]}";
-                                string source_s = sprintmode(smode, sreg, size, r, dicSyms);
+                                string source_s = sprintmode(smode, sreg, size, r, symbols);
                                 operand_s = $"{source_s},A{areg}";
                                 decoded = true;
                             }
@@ -879,7 +875,7 @@ namespace Disass68k
                                         break;
                                 }
 
-                                operand_s = sprintmode(dmode, dreg, 0, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -892,7 +888,7 @@ namespace Disass68k
 
                                 byte sreg = getBits_0007(word);
                                 opcode_s = "lea";
-                                string source_s = sprintmode(smode, sreg, 0, r, dicSyms);
+                                string source_s = sprintmode(smode, sreg, 0, r, symbols);
 
                                 byte dreg = getBits_0E00(word);
                                 operand_s = $"{source_s},A{dreg}";
@@ -947,8 +943,8 @@ namespace Disass68k
                                 opcode_s = $"move.{size_arr[size]}";
 
 
-                                string source_s = sprintmode(smode, sreg, size, r, dicSyms);
-                                string dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                string source_s = sprintmode(smode, sreg, size, r, symbols);
+                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
                                 operand_s = $"{source_s},{dest_s}";
                                 decoded = true;
                             }
@@ -964,7 +960,7 @@ namespace Disass68k
                                 if (smode >= 12) break;
 
                                 opcode_s = "move.w";
-                                string source_s = sprintmode(smode, sreg, size, r, dicSyms);
+                                string source_s = sprintmode(smode, sreg, size, r, symbols);
                                 if (opnum == 44)
                                 {
                                     operand_s = $"{source_s},CCR";
@@ -986,7 +982,7 @@ namespace Disass68k
                                 if (dmode >= 9) break;
 
                                 opcode_s = "move.w";
-                                string dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
                                 operand_s = $"SR,{dest_s}";
                                 decoded = true;
                             }
@@ -1023,7 +1019,7 @@ namespace Disass68k
 
                                 opcode_s = $"movea.{size_arr[size]}";
 
-                                string source_s = sprintmode(smode, sreg, size, r, dicSyms);
+                                string source_s = sprintmode(smode, sreg, size, r, symbols);
                                 operand_s = $"{source_s},A{dreg}";
                                 decoded = true;
                             }
@@ -1142,7 +1138,7 @@ namespace Disass68k
                                 }
 
                                 opcode_s = $"movem.{size_arr[size]}";
-                                dest_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                dest_s = sprintmode(dmode, dreg, size, r, symbols);
                                 if (dir == 0)
                                 {
                                     /* the comma comes from the reglist */
@@ -1213,7 +1209,7 @@ namespace Disass68k
                                         opcode_s = $"not.{size_arr[size]}";
                                         break;
                                 }
-                                operand_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -1262,7 +1258,7 @@ namespace Disass68k
 
                                 opcode_s = "pea";
                                 byte sreg = getBits_0007(word);
-                                operand_s = sprintmode(smode, sreg, 0, r, dicSyms);
+                                operand_s = sprintmode(smode, sreg, 0, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -1276,7 +1272,7 @@ namespace Disass68k
                                 int cc = getBits_0F00(word);
 
                                 opcode_s = scc_tab[cc];
-                                operand_s = sprintmode(dmode, dreg, 0, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -1296,7 +1292,7 @@ namespace Disass68k
                                 if (dmode >= 9) break;
 
                                 opcode_s = "tas ";
-                                operand_s = sprintmode(dmode, dreg, 0, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
                                 decoded = true;
                             }
                             break;
@@ -1342,7 +1338,7 @@ namespace Disass68k
                                 if (size == 3) break;
 
                                 opcode_s = $"tst.{size_arr[size]}";
-                                operand_s = sprintmode(dmode, dreg, size, r, dicSyms);
+                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
                                 decoded = true;
                             }
                             break;

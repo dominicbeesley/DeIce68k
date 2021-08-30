@@ -67,22 +67,10 @@ namespace DeIce68k.ViewModel
         static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
-        Dictionary<uint, string> _address2SymboldDictionary = new Dictionary<uint, string>();
-
+        public DeIceSymbols Symbols { get; }
         
 
         CancellationTokenSource traceCancelSource = null;
-
-        public ReadOnlyDictionary<string, uint> Symbol2AddressDictionary
-        {
-            get;
-        }
-
-        public ReadOnlyDictionary<uint, string> Address2SymboldDictionary
-        {
-            get;
-        }
 
 
         private DisassMemBlock _disassMemBlock;
@@ -151,10 +139,10 @@ namespace DeIce68k.ViewModel
             var mD = reDef.Match(line);
             if (mD.Success)
             {
+                //SYMBOL DEF
                 string sym = mD.Groups[1].Value;
-                uint add = Convert.ToUInt32(mD.Groups[2].Value, 16);
-                _address2SymboldDictionary[add] = sym;
-                _symbol2AddressDictionary[sym] = add;
+                uint addr = Convert.ToUInt32(mD.Groups[2].Value, 16);
+                Symbols.Add(sym, addr);
                 return;
             }
             var mWA = reWatchSym.Match(line);
@@ -164,7 +152,7 @@ namespace DeIce68k.ViewModel
                 string name = null;
                 uint addr;
 
-                if (_symbol2AddressDictionary.TryGetValue(mWA.Groups[1].Value, out addr))
+                if (Symbols.SymbolToAddress(mWA.Groups[1].Value, out addr))
                 {
                     name = mWA.Groups[1].Value;
                 }
@@ -179,7 +167,7 @@ namespace DeIce68k.ViewModel
                     {
                         throw new ArgumentException($"\"{mWA.Groups[1]}\" is not a known symbol or hex number");
                     }
-                    _address2SymboldDictionary.TryGetValue(addr, out name);
+                    name = Symbols.AddressToSymbols(addr).FirstOrDefault();
                 }
 
                 string type = mWA.Groups[2].Value;
@@ -206,7 +194,7 @@ namespace DeIce68k.ViewModel
             throw new ArgumentException("Unrecognised command");
 
         }
-
+        
         protected void Breakpoint_Changed(object sender, PropertyChangedEventArgs e)
         {
             DisassMemBlock?.BreakpointsUpdated();
@@ -234,9 +222,8 @@ namespace DeIce68k.ViewModel
                 };
             }
 
+            Symbols = new DeIceSymbols(this);
 
-            Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
-            Address2SymboldDictionary = new ReadOnlyDictionary<uint, string>(_address2SymboldDictionary);
             _breakpointsint.CollectionChanged += (o, e) => { 
                 DisassMemBlock?.BreakpointsUpdated();
                 if (e.Action == NotifyCollectionChangedAction.Remove)
@@ -425,7 +412,7 @@ namespace DeIce68k.ViewModel
                         var disdat = new byte[len];
                         DeIceProto.ReadMemBlock(st, disdat, 0, len);
 
-                        DisassMemBlock = new DisassMemBlock(this, st, disdat, _address2SymboldDictionary);
+                        DisassMemBlock = new DisassMemBlock(this, st, disdat);
                         DisassMemBlock.PC = Regs.PC.Data;
                     }
 
@@ -748,7 +735,7 @@ namespace DeIce68k.ViewModel
                     var disdat = new byte[1024];
                     DeIceProto.ReadMemBlock(addr, disdat, 0, 1024);
 
-                    DisassMemBlock = new DisassMemBlock(this, addr, disdat, _address2SymboldDictionary);
+                    DisassMemBlock = new DisassMemBlock(this, addr, disdat);
                 }
             }
 

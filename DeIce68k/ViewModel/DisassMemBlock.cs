@@ -16,8 +16,6 @@ namespace DeIce68k.ViewModel
         public uint BaseAddress { get; }
         public byte[] Data { get; protected set; }
 
-        public ReadOnlyDictionary<uint,string> Symbols { get; }
-
         ObservableCollection<DisassItemModelBase> _items;
         public ReadOnlyObservableCollection<DisassItemModelBase> Items { get; }
 
@@ -77,9 +75,7 @@ namespace DeIce68k.ViewModel
                 ms.Position = EndPoint - BaseAddress;
                 while (ok)
                 {
-                    string label = null;
-                    if (Symbols?.TryGetValue(dispc, out label) ?? false)
-                    {
+                    foreach (var label in _app.Symbols.AddressToSymbols(dispc)) { 
                         _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
                     }
 
@@ -89,8 +85,7 @@ namespace DeIce68k.ViewModel
                     Disass.DisRec instr;
                     try
                     {
-
-                        instr = Disass.Decode(br, dispc, Symbols, true);
+                        instr = Disass.Decode(br, dispc, _app.Symbols, true);
                     }
                     catch (EndOfStreamException)
                     {
@@ -122,10 +117,9 @@ namespace DeIce68k.ViewModel
             RaisePropertyChangedEvent(nameof(Items));
         }
 
-        public DisassMemBlock(DeIceAppModel app, uint baseAddr, byte[] data, Dictionary<uint, string> symbols)
+        public DisassMemBlock(DeIceAppModel app, uint baseAddr, byte[] data)
             : base()
         {
-            Symbols = new ReadOnlyDictionary<uint, string>(symbols);
             _items = new ObservableCollection<DisassItemModelBase>();
             Items = new ReadOnlyObservableCollection<DisassItemModelBase>(_items);
 
@@ -136,24 +130,6 @@ namespace DeIce68k.ViewModel
  
             uint dispc = BaseAddress;
 
-            //find nearest symbol
-            string nearest = string.Empty;
-            uint offset = uint.MaxValue;
-
-            foreach (var x in Symbols.Keys)
-            {
-                if ((x <= dispc) && (dispc - x <= 0x100) & ((dispc - x) < offset))
-                {
-                    nearest = Symbols[x];
-                    offset = dispc - x;
-                }
-            }
-
-            if (nearest != string.Empty)
-            {
-                string o = (offset == 0) ? "" : $"+{offset:X2}";
-                _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{nearest}{o}", dispc == PC));
-            }
 
 
             bool ok = true;
@@ -162,17 +138,27 @@ namespace DeIce68k.ViewModel
             {
                 while (ok)
                 {
+                    bool hassym = false;
+                    foreach (var label in _app.Symbols.AddressToSymbols(dispc))
+                    {
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
+                        hassym = true;
+                    }
                     if (first)
                     {
-                        first = false;
-                    }
-                    else
-                    {
-                        string label=null;
-                        if (Symbols?.TryGetValue(dispc, out label) ?? false)
+                        if (!hassym)
                         {
-                            _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
+                            //find nearest symbol
+                            IEnumerable<string> nearest;
+                            uint nearest_addr;
+                            if (_app.Symbols.FindNearest(dispc, out nearest, out nearest_addr))
+                            {
+                                uint offset = dispc - nearest_addr;
+                                string o = (offset == 0) ? "" : $"+{offset:X2}";
+                                _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{nearest.First()}{o}", dispc == PC));
+                            }
                         }
+                        first = false;
                     }
 
                     var p = ms.Position;
@@ -182,7 +168,7 @@ namespace DeIce68k.ViewModel
                     try
                     {
 
-                        instr = Disass.Decode(br, dispc, Symbols, true);
+                        instr = Disass.Decode(br, dispc, _app.Symbols, true);
                     }
                     catch (EndOfStreamException)
                     {

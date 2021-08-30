@@ -36,7 +36,7 @@ namespace DeIce68k
             try
             {
                 uint a;
-                if (!Context.Symbol2AddressDictionary.TryGetValue(txtAddress.Text, out a))
+                if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
                     a = Convert.ToUInt32(txtAddress.Text, 16);
                 Address = a;
             } catch (Exception)
