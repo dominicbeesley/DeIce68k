@@ -29,7 +29,6 @@ namespace DeIce68k.ViewModel
             set
             {
                 _pc = value;
-                RaisePropertyChangedEvent(nameof(PC));
                 foreach (var i in Items)
                 {
                     if (i.Address == PC)
@@ -40,6 +39,7 @@ namespace DeIce68k.ViewModel
                     else if (i.PC)
                         i.PC = false;
                 }
+                RaisePropertyChangedEvent(nameof(PC));
             }
         }
 

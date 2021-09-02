@@ -69,6 +69,10 @@ namespace DeIce68k
 
         private void UserControl_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
+            var om = e.OldValue as DisassMemBlock;
+            if (om != null)
+                om.PropertyChanged -= Dm_PropertyChanged;
+
             var dm = e.NewValue as DisassMemBlock;
             if (dm != null)
                 dm.PropertyChanged += Dm_PropertyChanged;
