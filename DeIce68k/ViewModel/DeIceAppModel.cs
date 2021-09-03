@@ -24,7 +24,7 @@ namespace DeIce68k.ViewModel
     public class DeIceAppModel : ObservableObject
     {
         private DeIceFnReplyGetStatus _debugHostStatus;
-        public DeIceFnReplyGetStatus DebugHostStatus 
+        public DeIceFnReplyGetStatus DebugHostStatus
         {
             get
             {
@@ -68,7 +68,7 @@ namespace DeIce68k.ViewModel
         static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public DeIceSymbols Symbols { get; }
-        
+
 
         CancellationTokenSource traceCancelSource = null;
 
@@ -184,7 +184,8 @@ namespace DeIce68k.ViewModel
                     try
                     {
                         dims = new int[] { Convert.ToInt32(mWA.Groups[4].Value) };
-                    } catch (Exception)
+                    }
+                    catch (Exception)
                     {
                         throw new ArgumentException("Bad array index");
                     }
@@ -194,7 +195,7 @@ namespace DeIce68k.ViewModel
             throw new ArgumentException("Unrecognised command");
 
         }
-        
+
         protected void Breakpoint_Changed(object sender, PropertyChangedEventArgs e)
         {
             DisassMemBlock?.BreakpointsUpdated();
@@ -224,7 +225,8 @@ namespace DeIce68k.ViewModel
 
             Symbols = new DeIceSymbols(this);
 
-            _breakpointsint.CollectionChanged += (o, e) => { 
+            _breakpointsint.CollectionChanged += (o, e) =>
+            {
                 DisassMemBlock?.BreakpointsUpdated();
                 if (e.Action == NotifyCollectionChangedAction.Remove)
                 {
@@ -252,7 +254,7 @@ namespace DeIce68k.ViewModel
                     if (Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                         if (ReExecCurBreakpoint())
                         {
-                            RunFinish();
+                            RunFinish(true);
                             return;
                         }
 
@@ -318,7 +320,7 @@ namespace DeIce68k.ViewModel
                 },
                 o => { return Regs.IsStopped; },
                 "Trace To...",
-                Command_Exception                
+                Command_Exception
                 );
 
             CmdDumpMem = new RelayCommand(
@@ -467,7 +469,7 @@ namespace DeIce68k.ViewModel
 
             CmdBreakpoints_Delete = new RelayCommand(
                 o =>
-                {                    
+                {
                     Breakpoints.Where(o => o.Selected).ToList().ForEach(o => RemoveBreakpoint(o.Address));
                 },
                 o => Breakpoints.Where(o => o.Selected).Any(),
@@ -508,7 +510,18 @@ namespace DeIce68k.ViewModel
                     {
                         Regs.FromDeIceRegisters(x.Registers);
 
-                        RunFinish();
+                        if (!RunFinish(true))
+                        {
+                            // breakpoint hit but it returned false...carry on
+                            ReExecCurBreakpoint();
+
+                            DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { Regs = Regs.ToDeIceProtcolRegs() }); // ignore responese: TODO: check?
+                            ApplyBreakpoints();
+
+                            DeIceProto.SendReq(new DeIceFnReqRun());
+                            Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+
+                        }
                     }
                 })
                 );
@@ -518,7 +531,7 @@ namespace DeIce68k.ViewModel
                 DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
                 DeIceProto.SendReq(new DeIceFnReqReadRegs());
             }
-            catch (Exception) 
+            catch (Exception)
             {
                 // assume running on failuer
                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
@@ -531,7 +544,8 @@ namespace DeIce68k.ViewModel
             if (sender is RelayCommand)
             {
                 Messages.Add($"Error in {(sender as RelayCommand).Name}:{args.Exception.Message}");
-            } else
+            }
+            else
             {
                 Messages.Add($"Error {args.Exception.Message}");
             }
@@ -586,7 +600,7 @@ namespace DeIce68k.ViewModel
                         Regs.SR.Data |= 0x8000;
                         DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { Regs = Regs.ToDeIceProtcolRegs() });
                         var regs = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun() { });
-                        
+
                         Regs.FromDeIceRegisters(regs.Registers);
 
                         // Restore Trace mode - TODO: What to do if the BP instruction affected the SR traceflag
@@ -620,9 +634,10 @@ namespace DeIce68k.ViewModel
                 var req = new DeIceFnReqSetWords()
                 {
                     Words = chunk.Select(
-                        bp => new DeIceFnReqSetWords.DeIceSetWordsWord() { 
-                            Address = bp.Address, 
-                            Data = DebugHostStatus.BreakPointInstruction 
+                        bp => new DeIceFnReqSetWords.DeIceSetWordsWord()
+                        {
+                            Address = bp.Address,
+                            Data = DebugHostStatus.BreakPointInstruction
                         }
                         ).ToArray()
                 };
@@ -690,8 +705,10 @@ namespace DeIce68k.ViewModel
         /// <summary>
         /// Run has finished (or initial read regs reply received) update the display, registers should already have been updated
         /// </summary>
-        public void RunFinish(bool unApplyBreakpoints = true)
+        /// <returns>If this is a breakpoint the condition is checked and returned here</returns>
+        public bool RunFinish(bool unApplyBreakpoints = true)
         {
+            bool ret = true;
             try
             {
                 //undo old breakpoints
@@ -712,12 +729,25 @@ namespace DeIce68k.ViewModel
                     w.Data = buf;
                 }
 
+                if (Regs.TargetStatus == DeIceProtoConstants.TS_BP)
+                {
+                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address == Regs.PC.Data).FirstOrDefault();
+                    if (curbp != null)
+                    {
+                        ret = curbp.ConditionCode?.Execute() ?? true;
+                        Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret)?" - skipped":"")}");
+
+                    }
+                }
+
+
             }
             catch (Exception ex)
             {
                 Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
             }
+            return ret;
         }
 
         public void DisassembleAt(uint addr)
@@ -771,9 +801,12 @@ namespace DeIce68k.ViewModel
                             if (rr.Registers.TargetStatus != DeIceProtoConstants.TS_TRACE)
                             {
                                 Regs.FromDeIceRegisters(rr.Registers);
-                                DoInvoke(() => RunFinish());
-
-                                break;
+                                bool cont = false;
+                                DoInvoke(() => cont = RunFinish(true));
+                                if (!cont)
+                                {
+                                    break;
+                                }
                             }
 
                             lastTargetStatus = rr.Registers.TargetStatus;
@@ -813,7 +846,7 @@ namespace DeIce68k.ViewModel
             while (i < _breakpointsint.Count && _breakpointsint[i].Address < address)
                 i++;
 
-            var ret = new BreakpointModel() { Address = address, Enabled = true };
+            var ret = new BreakpointModel(this) { Address = address, Enabled = true };
             _breakpointsint.Insert(i, ret);
             return ret;
         }
@@ -822,5 +855,25 @@ namespace DeIce68k.ViewModel
         {
             _breakpointsint.Where(o => o.Address == address).ToList().ForEach(o => _breakpointsint.Remove(o));
         }
+
+        public byte GetByte(uint addr)
+        {
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr, Len = 1 });
+            return r.Data[0];
+        }
+
+        public ushort GetWord(uint addr)
+        {
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr, Len = 2 });
+            return (ushort)((r.Data[0] << 8) | r.Data[1]);
+        }
+
+        public uint GetLong(uint addr)
+        {
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr, Len = 4 });
+            return (ushort)((r.Data[0] << 8) | (r.Data[1] << 16) | (r.Data[2] << 8) | r.Data[3]);
+        }
+
+
     }
 }

@@ -121,8 +121,8 @@
                                   d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesBreakpoints }" 
                                   SelectionMode="Multiple"
                                   
-                                  Grid.IsSharedSizeScope="True"
-                                  HorizontalAlignment="Stretch" 
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="stretch"
                                   >
                             <ListBox.InputBindings>
                                 <KeyBinding Key="Delete" Command="{Binding CmdBreakpoints_Delete}" />
@@ -146,15 +146,36 @@
                                     <Grid HorizontalAlignment="Stretch">
                                         <Grid.RowDefinitions />
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="24" SharedSizeGroup="Enab" />
-                                            <ColumnDefinition Width="*" SharedSizeGroup="Address" />
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="64" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="24" />
                                         </Grid.ColumnDefinitions>
-                                        <Grid.Width>
-                                            <Binding Path="ActualWidth" 
-                                                        RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type ScrollContentPresenter}}" />
-                                        </Grid.Width>
                                         <CheckBox Grid.Column="0" IsChecked="{Binding Path=Enabled}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Path=Address, StringFormat={}{0:X8}}" />
+                                        <TextBox Grid.Column="1" Text="{Binding Path=Address, StringFormat={}{0:X8}, Mode=OneWay}" BorderThickness="0" IsReadOnly="True" />
+                                        <TextBox Grid.Column="2" Text="{Binding Path=SymbolStr, Mode=OneWay}" BorderThickness="0" IsReadOnly="True" />
+                                        <Button Grid.Column="3" Command="{Binding CmdEditCode }" x:Name="btnConditional" >
+                                            <Button.Template>
+                                                <ControlTemplate>
+                                                    <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#F0F0F0">
+                                                        <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0" VerticalAlignment="Top">
+                                                            <Ellipse.Style>
+                                                                <Style TargetType="{x:Type Ellipse}">
+                                                                    <Setter Property="ToolTip" Value="Condition/Code" />
+                                                                    <Setter Property="Stroke" Value="#C0E0C0" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding HasCode}" Value="True">
+                                                                            <Setter Property="Stroke" Value="Red" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Ellipse.Style>
+                                                        </Ellipse>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

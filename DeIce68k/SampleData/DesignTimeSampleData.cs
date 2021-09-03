@@ -154,6 +154,6 @@ namespace DeIce68k.SampleData
 
         public static ReadOnlyObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel.Breakpoints; } }
 
-
+        public static List<string> SampleErrors { get { return new List<string>(new[] { "Error 1", "error 2" }); } }
     }
 }
