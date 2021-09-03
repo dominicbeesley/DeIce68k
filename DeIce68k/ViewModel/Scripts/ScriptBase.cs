@@ -7,10 +7,11 @@ using System.IO;
 
 namespace DeIce68k.ViewModel.Scripts
 {
-    public abstract class ScriptBase : IDisposable
+    public abstract class ScriptBase
     {
         private DeIceAppModel _app;
 
+        //TODO: This needs to be disposed of really! Check to see if that is really necessary when there's no stream or replace with a different class
         public class MessagesTextWriter : TextWriter
         {
             ScriptBase _base;
@@ -40,12 +41,14 @@ namespace DeIce68k.ViewModel.Scripts
                 base.Flush();
             }
 
+
             public override Encoding Encoding => Encoding.UTF8;
 
             public MessagesTextWriter(ScriptBase b)
             {
                 _base = b;
             }
+
         }
 
         MessagesTextWriter _messages;
@@ -92,8 +95,7 @@ namespace DeIce68k.ViewModel.Scripts
 
 
         protected RegisterSetModel Registers { get => _app.Regs; }
-
-        protected MessagesTextWriter Messages { get => _messages; }
+        public MessagesTextWriter Messages { get => _messages; }
 
         public ScriptBase(DeIceAppModel app, string orgCode)
         {
@@ -104,29 +106,14 @@ namespace DeIce68k.ViewModel.Scripts
         }
 
         public string OrgCode { get; init; }
-        public abstract bool Execute();
+        public bool Execute()
+        {
+            var ret = DoExecute();
+            Messages.Flush();
+            return ret;
+        }
+
+        public abstract bool DoExecute();
               
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    _messages.Flush();
-                    _messages.Dispose();
-                }
-
-                disposedValue = true;
-            }
-        }
-
-
-        public void Dispose()
-        {
-            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-        }
     }
 }

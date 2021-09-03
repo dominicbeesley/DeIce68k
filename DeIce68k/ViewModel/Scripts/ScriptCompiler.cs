@@ -27,7 +27,7 @@ using DeIce68k.ViewModel;
 
 public class ThisScript : ScriptBase {{
 
-    public override bool Execute() {{
+    public override bool DoExecute() {{
         {myCode};
     }}  
 

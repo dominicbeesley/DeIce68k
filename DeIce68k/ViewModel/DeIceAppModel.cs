@@ -64,9 +64,6 @@ namespace DeIce68k.ViewModel
         int mn = 0;
         object mnLock = new object();
 
-        static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
         public DeIceSymbols Symbols { get; }
 
 
@@ -106,6 +103,11 @@ namespace DeIce68k.ViewModel
         public ICommand CmdBreakpoints_Delete { get; }
 
         public MainWindow MainWindow { get; init; }
+
+
+        static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)(?:\s+%(\w+))?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public void ReadCommandFile(string pathname)
         {
@@ -658,15 +660,21 @@ namespace DeIce68k.ViewModel
                     bp2a = bp2a.Skip(1);
                 }
             }
+
+            //remove any that are now disabled or no longer in the Breakpoints list
+            List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !Breakpoints.Where(b => b.Address == a.Address).Any()).ToList();
+            UnApplyBreakpoints(rembp);
+            rembp.ForEach(a => _activeBreakpoints.Remove(a));
+
         }
 
-        public void UnApplyBreakpoints()
+        public void UnApplyBreakpoints(IEnumerable<BreakpointModel> items)
         {
             // how many breakpoints we can fit in the buffer
             int MAXBP = (DebugHostStatus.ComBufSize / 5) - 1;
-            while (_activeBreakpoints.Any())
+            while (items.Any())
             {
-                var chunk = _activeBreakpoints.Take(MAXBP).ToArray();
+                var chunk = items.Take(MAXBP).ToArray();
                 var req = new DeIceFnReqSetWords()
                 {
                     Words = chunk.Select(
@@ -688,15 +696,15 @@ namespace DeIce68k.ViewModel
                     Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={ret.Data[i]:X04}, expected={DebugHostStatus.BreakPointInstruction:X04}");
                 });
 
-                _activeBreakpoints.RemoveRange(0, ret.Data.Length);
+                items = items.Skip(ret.Data.Length);
 
                 //if we got fewer back than we sent then it was dodgy memory, skip that in the list and set to disabled.
                 if (ret.Data.Length < chunk.Length && _activeBreakpoints.Any())
                 {
-                    var bbad = _activeBreakpoints.First();
+                    var bbad = items.First();
                     bbad.Enabled = false;
                     Messages.Add($"WARNING: breakpoint at {bbad.Address:X08} could not be reset, code is in an unexpected state. The memory was not writeable!");
-                    _activeBreakpoints.RemoveAt(0);
+                    items.Skip(0);
                 }
 
             }
@@ -713,7 +721,10 @@ namespace DeIce68k.ViewModel
             {
                 //undo old breakpoints
                 if (unApplyBreakpoints)
-                    UnApplyBreakpoints();
+                {
+                    UnApplyBreakpoints(_activeBreakpoints);
+                    _activeBreakpoints.Clear();
+                }
 
                 if (_debugHostStatus == null)
                 {
@@ -732,10 +743,11 @@ namespace DeIce68k.ViewModel
                 if (Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
                     BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address == Regs.PC.Data).FirstOrDefault();
-                    if (curbp != null)
+                    if (curbp != null && curbp.ConditionCode != null)
                     {
-                        ret = curbp.ConditionCode?.Execute() ?? true;
+                        ret = curbp.ConditionCode.Execute();
                         Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret)?" - skipped":"")}");
+
 
                     }
                 }
