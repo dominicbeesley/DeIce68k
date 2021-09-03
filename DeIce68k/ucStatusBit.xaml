@@ -8,19 +8,19 @@
              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleStatusRegisterBit}"
              mc:Ignorable="d"              
              x:Name="this"
-             Width="14"
-             Height="24"
              Background="Transparent"
+             Width="18"
+             Height="32"
              >
     <UserControl.Resources>
         <viewmodel:Bool2Opacity_ValueConverter x:Key="bool2opacity" />
     </UserControl.Resources>
     <Button Name="btn" Style="{StaticResource Retro_Button_Borderless}" Padding="0" Margin="0" Command="{Binding CmdToggle}" >
         <Button.Content>
-            <Grid Height="20" Width="12" Background="{StaticResource Retro_Brush_BG}">
+            <Grid Height="32" Width="16" Background="{StaticResource Retro_Brush_BG}">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="8" />
                     <RowDefinition Height="12" />
+                    <RowDefinition Height="16" />
                 </Grid.RowDefinitions>
                 <TextBlock 
                     Grid.Row="0" 

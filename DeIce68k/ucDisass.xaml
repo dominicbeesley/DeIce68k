@@ -19,35 +19,37 @@
                         <MenuItem Header="Trace to here..." Command="{Binding CmdTraceToHere}" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
-                <Button Click="btnBreakpoint_Click" x:Name="btnBreakpoint">
+                <Button Click="btnBreakpoint_Click" x:Name="btnBreakpoint" Width="20" >
                     <Button.Template>
                         <ControlTemplate>
-                            <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0">
-                                <Ellipse.Style>
-                                    <Style TargetType="{x:Type Ellipse}">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsBreakpoint}" Value="True">
-                                                <Setter Property="Stroke" Value="Red" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsBreakpoint}" Value="False">
-                                                <Setter Property="Stroke" Value="Transparent" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="True">
-                                                <Setter Property="Fill" Value="Yellow" />
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="False">
-                                                <Setter Property="Fill" Value="Transparent" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Ellipse.Style>
-                            </Ellipse>
+                            <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#101010">
+                                <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0" VerticalAlignment="Top">
+                                    <Ellipse.Style>
+                                        <Style TargetType="{x:Type Ellipse}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBreakpoint}" Value="True">
+                                                    <Setter Property="Stroke" Value="Red" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsBreakpoint}" Value="False">
+                                                    <Setter Property="Stroke" Value="#203030" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="True">
+                                                    <Setter Property="Fill" Value="Yellow" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="False">
+                                                    <Setter Property="Fill" Value="Transparent" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Border>
                         </ControlTemplate>
                     </Button.Template>
                 </Button>
-                <TextBlock Text="{Binding Address, StringFormat=X8}" Foreground="#FF8A9750"/>
+                <TextBlock Text="{Binding Address, StringFormat=X8}" Foreground="#FF8A9750" Width="64"/>
                 <TextBlock Text="{Binding InstrBytesString}" Padding="10 0 10 0" TextWrapping="Wrap" Width="90" Foreground="#FF778080"/>
-                <TextBlock Padding="0 0 10 0">
+                <TextBlock Padding="0 0 10 0" Width="16">
                     <TextBlock.Style>
                         <Style TargetType="{x:Type TextBlock}">
                             <Style.Triggers>
@@ -62,9 +64,9 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <TextBlock Text="{Binding Mnemonic}" Width="50" Foreground="#FF54A436"/>
+                <TextBlock Text="{Binding Mnemonic}" Width="64" Foreground="#FF54A436"/>
                 <TextBlock Text="{Binding Operands}" Width="140" TextWrapping="Wrap" Foreground="#FFDAFBD8" />
-                <TextBlock Text="{Binding Hints}" Foreground="#FF5D6A76"/>
+                <TextBlock Text="{Binding Hints}" Foreground="#FF5D6A76" TextWrapping="WrapWithOverflow"/>
             </StackPanel>
         </DataTemplate>
         <DataTemplate x:Key="LabelModelTemplate" DataType="{x:Type viewmodel:DisassItemLabelModel}">
@@ -99,7 +101,7 @@
             FontFamily="Lucida Console" 
             ItemsSource="{Binding Items}" 
             HorizontalAlignment="Stretch" 
-            VerticalAlignment="Stretch" FontSize="10"
+            VerticalAlignment="Stretch" FontSize="12"
             ItemTemplateSelector="{StaticResource DisassTemplateSelector}" Loaded="LbLines_Loaded"
             />
 

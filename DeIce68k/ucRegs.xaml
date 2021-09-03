@@ -13,22 +13,22 @@
              >
     <Grid Width="Auto" Height="Auto">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="120" />
-            <ColumnDefinition Width="120" />
+            <ColumnDefinition Width="160" />
+            <ColumnDefinition Width="160" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="18" />
-            <RowDefinition Height="28" />
-            <RowDefinition Height="18" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="32" />
         </Grid.RowDefinitions>
         <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=D0}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=D1}"></local:ucReg>
@@ -44,8 +44,9 @@
             ItemsSource="{Binding Path=StatusBits}" 
             Background="Transparent"  
             BorderBrush="Transparent"
-            Padding="0"
+            Padding="3"
             Margin="0"
+            ScrollViewer.VerticalScrollBarVisibility="Hidden"
             >
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
@@ -56,14 +57,14 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <WrapPanel Orientation="Horizontal" Margin="0" Width="230">
+                    <WrapPanel Orientation="Horizontal" Margin="0" Width="300" >
 
                     </WrapPanel>
                 </ItemsPanelTemplate>
             </ListView.ItemsPanel>
             <ListView.ItemTemplate>
                 <DataTemplate>
-                    <local:ucStatusBit Width="14"/>
+                    <local:ucStatusBit/>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
