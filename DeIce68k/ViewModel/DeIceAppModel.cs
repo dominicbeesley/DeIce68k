@@ -638,6 +638,25 @@ namespace DeIce68k.ViewModel
 
         }
 
+        public bool Init()
+        {
+            //try and give it a tickle to see if its awake!
+            try
+            {
+                DeIceProto.Flush();
+                var r = DeIceProto.SendReqExpectReply<DeIceFnReplyRegsBase>(new DeIceFnReqReadRegs());
+                Regs.FromDeIceRegisters(r.Registers);
+                RunFinish(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+                return false;
+            }
+
+        }
+
         public void Command_Exception(object sender, ExceptionEventArgs args)
         {
             if (sender is RelayCommand)

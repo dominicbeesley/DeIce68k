@@ -276,5 +276,21 @@ namespace DeIceProtocol
             FunctionReceived?.Invoke(this, new DeIceFunctionReceivedEventArgs(deIceFnBase));
         }
 
+
+        /// <summary>
+        /// Flush the input buffer
+        /// </summary>
+        public void Flush()
+        {
+            try
+            {
+                byte[] buf = new byte[256];
+                while (_serial.Available > 0)
+                {
+                    _serial.Read(buf, 256, 1);
+                }
+            }
+            catch (Exception) { }
+        }
     }
 }

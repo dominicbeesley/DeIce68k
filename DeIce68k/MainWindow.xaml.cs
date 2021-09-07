@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using DeIce68k.ViewModel;
+using DeIceProtocol;
 
 namespace DeIce68k
 {
@@ -60,6 +61,8 @@ namespace DeIce68k
 
                 serialPort = new DossySerialPort.DossySerial(comport, 19200);
                 appModel = new DeIceAppModel(serialPort, this);
+                appModel.Init();
+
 
                 foreach (var l in commandFiles)
                     try
