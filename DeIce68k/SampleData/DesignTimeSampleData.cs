@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DeIce68k.ViewModel;
+using DeIce68k.ViewModel.Scripts;
 using DossySerialPort;
 
 namespace DeIce68k.SampleData
@@ -49,7 +50,8 @@ namespace DeIce68k.SampleData
                     _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
                     _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
                     _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new int[] { 20 } ));
-                    _app.AddBreakpoint(0xDEADBEEF);
+                    IEnumerable<string> errorsR;
+                    _app.AddBreakpoint(0xDEADBEEF).ConditionCode = ScriptCompiler.Compile(_app, "return false;", out errorsR);
                     _app.AddBreakpoint(0x0B00B135).Enabled = false;
                     _app.AddBreakpoint(0x00154BE7).Selected = true;
                     _app.AddBreakpoint(0x008D0812);

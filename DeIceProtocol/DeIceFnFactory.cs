@@ -24,6 +24,17 @@ namespace DeIceProtocol
                 ret[4] = (byte)(rm.Address);
                 ret[5] = rm.Len;
             }
+            else if (req is DeIceFnReqWriteMem)
+            {
+                DeIceFnReqWriteMem rm = (DeIceFnReqWriteMem)req;
+                ret = new byte[6 + rm.Data.Length];
+                ret[0] = req.FunctionCode;
+                ret[1] = (byte)(3 + rm.Data.Length);
+                ret[2] = (byte)(rm.Address >> 16);
+                ret[3] = (byte)(rm.Address >> 8);
+                ret[4] = (byte)(rm.Address);
+                rm.Data.CopyTo(ret, 5);
+            }
             else if (req is DeIceFnReqRun)
             {
                 ret = new byte[3];
@@ -121,7 +132,9 @@ namespace DeIceProtocol
                     break;
                 case DeIceProtoConstants.FN_READ_MEM:
                     ret = new DeIceFnReplyReadMem(data.Skip(2).Take(l).ToArray());
-
+                    break;
+                case DeIceProtoConstants.FN_WRITE_MEM:
+                    ret = new DeIceFnReplyWriteMem(data[2] == 0);
                     break;
                 case DeIceProtoConstants.FN_WRITE_RG:
                     ret = new DeIceFnReplyWriteRegs(data[2] == 0);

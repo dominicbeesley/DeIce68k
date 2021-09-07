@@ -31,6 +31,7 @@
                     <MenuItem Command="{Binding CmdRefresh}" Header="Refresh" />
                     <MenuItem Command="{Binding CmdDumpMem}" Header="Dump Memory" />
                     <MenuItem Command="{Binding CmdDisassembleAt}" Header="Disassemble At..." />
+                    <MenuItem Command="{Binding CmdLoadBinary}" Header="LoadBinary..." />
                 </MenuItem>
             </Menu>
             <ToolBarTray>
@@ -51,6 +52,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="64" />
                             <ColumnDefinition Width="auto" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                     </Grid>
@@ -157,7 +159,7 @@
                                         <Button Grid.Column="3" Command="{Binding CmdEditCode }" x:Name="btnConditional" >
                                             <Button.Template>
                                                 <ControlTemplate>
-                                                    <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#F0F0F0">
+                                                    <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#F0F0F0" Background="Transparent">
                                                         <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0" VerticalAlignment="Top">
                                                             <Ellipse.Style>
                                                                 <Style TargetType="{x:Type Ellipse}">

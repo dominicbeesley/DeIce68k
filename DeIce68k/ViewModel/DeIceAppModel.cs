@@ -102,12 +102,33 @@ namespace DeIce68k.ViewModel
         public ICommand CmdBreakpoints_Add { get; }
         public ICommand CmdBreakpoints_Delete { get; }
 
+        public ICommand CmdLoadBinary { get; }
+
         public MainWindow MainWindow { get; init; }
 
 
         static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)(?:\s+%(\w+))?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private bool _busyInt;
+        protected bool BusyInt
+        {
+            get => _busyInt;
+            set {
+                Set(ref _busyInt, value);
+                RaisePropertyChangedEvent(nameof(HostBusy));
+            }
+        }        
+
+        /// <summary>
+        /// This is true if the host is running or there is a long load/read running
+        /// </summary>
+        public bool HostBusy
+        {
+            get => _busyInt || !Regs.IsStopped;            
+        }
+
 
         public void ReadCommandFile(string pathname)
         {
@@ -211,6 +232,13 @@ namespace DeIce68k.ViewModel
             _breakpoints = new ReadOnlyObservableCollection<BreakpointModel>(_breakpointsint);
 
             _regs = new RegisterSetModel(this);
+            Regs.PropertyChanged += (o, e) =>
+            {
+                if (e.PropertyName == nameof(RegisterSetModel.IsStopped))
+                {
+                    RaisePropertyChangedEvent(nameof(HostBusy));
+                }
+            };
 
 
             if (mainWindow != null)
@@ -477,7 +505,76 @@ namespace DeIce68k.ViewModel
                 o => Breakpoints.Where(o => o.Selected).Any(),
                 "Add Breakpoint...",
                 Command_Exception
-            ); ;
+            );
+
+            CmdLoadBinary = new RelayCommand(
+                o =>
+                {
+                    var dlg = new DlgLoadBinary(this);
+                    dlg.Owner = MainWindow;
+                    if (dlg.ShowDialog() == true)
+                    {
+                        BackgroundWorker b = new BackgroundWorker();
+                        var prg = new DlgProgress();
+                        prg.Owner = MainWindow;
+                        prg.Title = "Loading Binary...";
+                        prg.Message = $"Loading file {dlg.FileName}";
+                        prg.Progress = 0;
+                        prg.Show();
+                        prg.Cancel += (o, e) => { b.CancelAsync(); };
+                        BusyInt = true;
+                        string filename = dlg.FileName;
+                        b.DoWork += (o,e) => {
+                            try
+                            {
+                                using (var rd = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                                {
+
+
+                                    int maxlen = DebugHostStatus.ComBufSize - 6;
+                                    byte[] buf = new byte[maxlen];
+                                    long len = rd.Length;
+                                    long done = 0;
+                                    int cur = 0;
+                                    uint addr = dlg.Address;
+                                    do
+                                    {
+                                        cur = rd.Read(buf, 0, maxlen);
+                                        var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
+                                        if (!reply.Success)
+                                            throw new Exception($"Error copying data at {addr:X08}");
+                                        addr += (uint)cur;
+                                        done += cur;
+
+                                        MainWindow.Dispatcher.BeginInvoke(() => {
+                                            prg.Progress = (double)(100 * done) / (double)len;
+                                        });
+
+
+                                    } while (cur > 0 && !b.CancellationPending);
+
+                                }
+                            }
+                            finally
+                            {
+                                DoInvoke(() =>
+                                {
+                                    prg.Close();
+                                    BusyInt = false;
+                                });
+                            }
+                        };
+                        b.RunWorkerAsync();
+
+                    }
+                },
+                o =>
+                {
+                    return Regs.IsStopped;
+                },
+                "Load Binary",
+                Command_Exception
+            );
 
 
             _deIceProto = new DeIceProtocolMain(Serial);
@@ -746,7 +843,7 @@ namespace DeIce68k.ViewModel
                     if (curbp != null && curbp.ConditionCode != null)
                     {
                         ret = curbp.ConditionCode.Execute();
-                        Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret)?" - skipped":"")}");
+                        Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret) ? " - skipped" : "")}");
 
 
                     }

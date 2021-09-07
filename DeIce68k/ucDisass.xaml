@@ -22,7 +22,7 @@
                 <Button Click="btnBreakpoint_Click" x:Name="btnBreakpoint" Width="20" >
                     <Button.Template>
                         <ControlTemplate>
-                            <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#101010">
+                            <Border VerticalAlignment="Stretch" BorderThickness="1" BorderBrush="#101010" HorizontalAlignment="Stretch" Background="Transparent" >
                                 <Ellipse Width="8" Height="8" StrokeThickness="2" Margin="3 0 3 0" VerticalAlignment="Top">
                                     <Ellipse.Style>
                                         <Style TargetType="{x:Type Ellipse}">
@@ -31,7 +31,7 @@
                                                     <Setter Property="Stroke" Value="Red" />
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding IsBreakpoint}" Value="False">
-                                                    <Setter Property="Stroke" Value="#203030" />
+                                                    <Setter Property="Stroke" Value="#304040" />
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding IsBreakpointEnabled}" Value="True">
                                                     <Setter Property="Fill" Value="Yellow" />

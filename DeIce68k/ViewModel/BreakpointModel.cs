@@ -59,8 +59,14 @@ namespace DeIce68k.ViewModel
         public ScriptBase ConditionCode
         {
             get => _conditionCode;
-            set => Set(ref _conditionCode, value);
+            set
+            {
+                Set(ref _conditionCode, value);
+                RaisePropertyChangedEvent(nameof(HasCode));
+            }
         }
+
+        public bool HasCode { get => ConditionCode != null; }
 
 
         public BreakpointModel(DeIceAppModel app)

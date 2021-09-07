@@ -4,7 +4,7 @@
     {
         public const byte FN_GET_STAT = 0xFF;      // reply with device info
         public const byte FN_READ_MEM = 0xFE;      // reply with data
-        public const byte FN_WRITE_M = 0xFD;       // reply with status(+/-)
+        public const byte FN_WRITE_MEM = 0xFD;       // reply with status(+/-)
         public const byte FN_READ_RG = 0xFC;       // reply with registers
         public const byte FN_WRITE_RG = 0xFB;      // reply with status
         public const byte FN_RUN_TARG = 0xFA;      // reply(delayed) with registers
