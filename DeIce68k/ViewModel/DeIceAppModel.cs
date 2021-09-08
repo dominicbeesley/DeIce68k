@@ -527,32 +527,42 @@ namespace DeIce68k.ViewModel
                         b.DoWork += (o,e) => {
                             try
                             {
-                                using (var rd = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                                try
                                 {
-
-
-                                    int maxlen = DebugHostStatus.ComBufSize - 6;
-                                    byte[] buf = new byte[maxlen];
-                                    long len = rd.Length;
-                                    long done = 0;
-                                    int cur = 0;
-                                    uint addr = dlg.Address;
-                                    do
+                                    using (var rd = new FileStream(filename, FileMode.Open, FileAccess.Read))
                                     {
-                                        cur = rd.Read(buf, 0, maxlen);
-                                        var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
-                                        if (!reply.Success)
-                                            throw new Exception($"Error copying data at {addr:X08}");
-                                        addr += (uint)cur;
-                                        done += cur;
-
-                                        MainWindow.Dispatcher.BeginInvoke(() => {
-                                            prg.Progress = (double)(100 * done) / (double)len;
-                                        });
 
 
-                                    } while (cur > 0 && !b.CancellationPending);
+                                        int maxlen = DebugHostStatus.ComBufSize - 6;
+                                        byte[] buf = new byte[maxlen];
+                                        long len = rd.Length;
+                                        long done = 0;
+                                        int cur = 0;
+                                        uint addr = dlg.Address;
+                                        do
+                                        {
+                                            cur = rd.Read(buf, 0, maxlen);
+                                            var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
+                                            if (!reply.Success)
+                                                throw new Exception($"Error copying data at {addr:X08}");
+                                            addr += (uint)cur;
+                                            done += cur;
 
+                                            MainWindow.Dispatcher.BeginInvoke(() =>
+                                            {
+                                                prg.Progress = (double)(100 * done) / (double)len;
+                                            });
+
+
+                                        } while (cur > 0 && !b.CancellationPending);
+
+                                    }
+                                } catch (Exception ex)
+                                {
+                                    DoInvoke(() =>
+                                    {
+                                        Messages.Add($"Error loading binary file {ex.Message}");
+                                    });
                                 }
                             }
                             finally
