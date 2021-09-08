@@ -29,7 +29,8 @@
                 HorizontalAlignment="Left" 
                 VerticalAlignment="Top"
                 Text="{Binding Path=DataString, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=X8}" 
-                Style="{StaticResource Retro_TextBox_Reg}"
+                x:Name="txtValue"
+                Style="{StaticResource Retro_TextBox_Reg}" KeyDown="txtValue_KeyDown"
                 >
                 <TextBox.Triggers>
                     <EventTrigger RoutedEvent="TextBoxBase.TextChanged">

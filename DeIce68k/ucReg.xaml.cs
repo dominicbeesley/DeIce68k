@@ -25,5 +25,16 @@ namespace DeIce68k
         {
             InitializeComponent();
         }
+
+        private void txtValue_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                BindingOperations.GetBindingExpression(txtValue, TextBox.TextProperty)?.UpdateSource();
+            } else if (e.Key == Key.Escape)
+            {
+                BindingOperations.GetBindingExpression(txtValue, TextBox.TextProperty)?.UpdateTarget();
+            }
+        }
     }
 }
