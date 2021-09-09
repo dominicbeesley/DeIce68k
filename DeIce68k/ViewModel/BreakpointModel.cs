@@ -42,15 +42,7 @@ namespace DeIce68k.ViewModel
         {
             get
             {
-                IEnumerable<string> syms;
-                uint near_addr;
-                if (_app.Symbols.FindNearest(Address, out syms, out near_addr))
-                {
-                    uint offset = Address - near_addr;
-                    string o = (offset == 0) ? "" : $"+{offset:X2}";
-                    return $"{syms.First()}{o}";
-                }
-                return "";
+                return _app.Symbols.FindNearest(Address);
             }
         }
 

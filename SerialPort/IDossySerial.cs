@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DossySerialPort
 {
-    public interface IDossySerial
+    public interface IDossySerial : IDisposable
     {
         event EventHandler DataReceived;
 

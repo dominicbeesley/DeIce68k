@@ -38,6 +38,8 @@ namespace DeIce68k.SampleData
             {
                 throw new TimeoutException();
             }
+
+            public void Dispose() { }
         }
 
         static DeIceAppModel _app = null;

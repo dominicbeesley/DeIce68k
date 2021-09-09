@@ -139,7 +139,27 @@ namespace DeIce68k.ViewModel
             return ret;
         }
 
-        public DeIceSymbols(DeIceAppModel app)
+        /// <summary>
+        /// Find closest symbol before given address and return a string in the form sym+offset
+        /// </summary>
+        /// <param name="dispc">The address to match</param>
+        /// <param name="limit">Limit for the search</param>
+        /// <returns>Closest symbol or null if none in range</returns>
+        public string FindNearest(uint dispc, uint limit = 0x100)
+        {
+            IEnumerable<string> syms;
+            uint near_addr;
+            if (_app.Symbols.FindNearest(dispc, out syms, out near_addr, limit))
+            {
+                uint offset = dispc - near_addr;
+                string o = (offset == 0) ? "" : $"+{offset:X2}";
+                return $"{syms.First()}{o}";
+            }
+            return null;
+        }
+
+
+    public DeIceSymbols(DeIceAppModel app)
         {
             _app = app;
             _symbolsByAddressRO = new ReadOnlyObservableCollection<Address2Symbol>(_symbolsByAddress);

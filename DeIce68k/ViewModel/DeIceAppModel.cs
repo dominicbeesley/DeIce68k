@@ -109,7 +109,8 @@ namespace DeIce68k.ViewModel
 
         static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)(?:\s+%(\w+))?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reLoad = new Regex(@"^l(?:oad)?\s+(\w+)\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private bool _busyInt;
         protected bool BusyInt
@@ -143,7 +144,7 @@ namespace DeIce68k.ViewModel
                         lineno++;
                         try
                         {
-                            ParseCommand(l);
+                            ParseCommand(l, Path.GetDirectoryName(pathname));
                         }
                         catch (Exception ex)
                         {
@@ -157,7 +158,7 @@ namespace DeIce68k.ViewModel
 
         }
 
-        public void ParseCommand(string line)
+        public void ParseCommand(string line, string directory)
         {
             var mD = reDef.Match(line);
             if (mD.Success)
@@ -175,23 +176,7 @@ namespace DeIce68k.ViewModel
                 string name = null;
                 uint addr;
 
-                if (Symbols.SymbolToAddress(mWA.Groups[1].Value, out addr))
-                {
-                    name = mWA.Groups[1].Value;
-                }
-                else
-                {
-                    //couldn't find symbol try as address
-                    try
-                    {
-                        addr = Convert.ToUInt32(mWA.Groups[1].Value, 16);
-                    }
-                    catch (Exception)
-                    {
-                        throw new ArgumentException($"\"{mWA.Groups[1]}\" is not a known symbol or hex number");
-                    }
-                    name = Symbols.AddressToSymbols(addr).FirstOrDefault();
-                }
+                ParseSymbolOrAddress(mWA.Groups[1].Value, out name, out addr);
 
                 string type = mWA.Groups[2].Value;
                 WatchType t = WatchType.X08;
@@ -212,10 +197,117 @@ namespace DeIce68k.ViewModel
                     {
                         throw new ArgumentException("Bad array index");
                     }
-                Watches.Add(new WatchModel(addr, name, t, dims));
+                    Watches.Add(new WatchModel(addr, name, t, dims));
                 return;
             }
-            throw new ArgumentException("Unrecognised command");
+            var mBP = reBreakpoint.Match(line);
+            if (mBP.Success)
+            {
+                string name = null;
+                uint addr;
+                ParseSymbolOrAddress(mBP.Groups[1].Value, out name, out addr);
+                AddBreakpoint(addr);
+            }
+            var mLoad = reLoad.Match(line);
+            if (mLoad.Success)
+            {
+                string name = null;
+                uint addr;
+                ParseSymbolOrAddress(mLoad.Groups[1].Value, out name, out addr);
+                string filename = mLoad.Groups[2].Value;
+                LoadBinaryFile(addr, Path.Combine(directory, filename));
+
+            }
+            throw new ArgumentException($"Unrecognised command:{line}");
+
+        }
+
+        public BackgroundWorker LoadBinaryFile(uint addr, string filename)
+        {
+            BackgroundWorker b = new BackgroundWorker();
+            var prg = new DlgProgress();
+            prg.Owner = MainWindow;
+            prg.Title = "Loading Binary...";
+            prg.Message = $"Loading file {filename}";
+            prg.Progress = 0;
+            prg.Show();
+            prg.Cancel += (o, e) => { b.CancelAsync(); };
+            BusyInt = true;
+            b.DoWork += (o, e) => {
+                try
+                {
+                    try
+                    {
+                        using (var rd = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                        {
+
+
+                            int maxlen = DebugHostStatus.ComBufSize - 6;
+                            byte[] buf = new byte[maxlen];
+                            long len = rd.Length;
+                            long done = 0;
+                            int cur = 0;
+                            do
+                            {
+                                cur = rd.Read(buf, 0, maxlen);
+                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
+                                if (!reply.Success)
+                                    throw new Exception($"Error copying data at {addr:X08}");
+                                addr += (uint)cur;
+                                done += cur;
+
+                                MainWindow.Dispatcher.BeginInvoke(() =>
+                                {
+                                    prg.Progress = (double)(100 * done) / (double)len;
+                                });
+
+
+                            } while (cur > 0 && !b.CancellationPending);
+
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DoInvoke(() =>
+                        {
+                            Messages.Add($"Error loading binary file {ex.Message}");
+                        });
+                    }
+                }
+                finally
+                {
+                    DoInvoke(() =>
+                    {
+                        prg.Close();
+                        BusyInt = false;
+                    });
+                }
+            };
+            b.RunWorkerAsync();
+            return b;
+
+        }
+
+        void ParseSymbolOrAddress(string s, out string name, out uint addr)
+        {
+            name = null;
+            if (Symbols.SymbolToAddress(s, out addr))
+            {
+                name = s;
+            }
+            else
+            {
+                //couldn't find symbol try as address
+                try
+                {
+                    addr = Convert.ToUInt32(s, 16);
+                }
+                catch (Exception)
+                {
+                    throw new ArgumentException($"\"{s}\" is not a known symbol or hex number");
+                }
+                name = Symbols.FindNearest(addr);
+            }
 
         }
 
@@ -514,68 +606,7 @@ namespace DeIce68k.ViewModel
                     dlg.Owner = MainWindow;
                     if (dlg.ShowDialog() == true)
                     {
-                        BackgroundWorker b = new BackgroundWorker();
-                        var prg = new DlgProgress();
-                        prg.Owner = MainWindow;
-                        prg.Title = "Loading Binary...";
-                        prg.Message = $"Loading file {dlg.FileName}";
-                        prg.Progress = 0;
-                        prg.Show();
-                        prg.Cancel += (o, e) => { b.CancelAsync(); };
-                        BusyInt = true;
-                        string filename = dlg.FileName;
-                        b.DoWork += (o,e) => {
-                            try
-                            {
-                                try
-                                {
-                                    using (var rd = new FileStream(filename, FileMode.Open, FileAccess.Read))
-                                    {
-
-
-                                        int maxlen = DebugHostStatus.ComBufSize - 6;
-                                        byte[] buf = new byte[maxlen];
-                                        long len = rd.Length;
-                                        long done = 0;
-                                        int cur = 0;
-                                        uint addr = dlg.Address;
-                                        do
-                                        {
-                                            cur = rd.Read(buf, 0, maxlen);
-                                            var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
-                                            if (!reply.Success)
-                                                throw new Exception($"Error copying data at {addr:X08}");
-                                            addr += (uint)cur;
-                                            done += cur;
-
-                                            MainWindow.Dispatcher.BeginInvoke(() =>
-                                            {
-                                                prg.Progress = (double)(100 * done) / (double)len;
-                                            });
-
-
-                                        } while (cur > 0 && !b.CancellationPending);
-
-                                    }
-                                } catch (Exception ex)
-                                {
-                                    DoInvoke(() =>
-                                    {
-                                        Messages.Add($"Error loading binary file {ex.Message}");
-                                    });
-                                }
-                            }
-                            finally
-                            {
-                                DoInvoke(() =>
-                                {
-                                    prg.Close();
-                                    BusyInt = false;
-                                });
-                            }
-                        };
-                        b.RunWorkerAsync();
-
+                        LoadBinaryFile(dlg.Address, dlg.FileName);
                     }
                 },
                 o =>

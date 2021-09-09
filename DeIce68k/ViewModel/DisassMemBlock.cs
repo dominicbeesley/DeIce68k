@@ -148,14 +148,10 @@ namespace DeIce68k.ViewModel
                     {
                         if (!hassym)
                         {
-                            //find nearest symbol
-                            IEnumerable<string> nearest;
-                            uint nearest_addr;
-                            if (_app.Symbols.FindNearest(dispc, out nearest, out nearest_addr))
+                            string nearsym = _app.Symbols.FindNearest(dispc);
+                            if (nearsym != null)
                             {
-                                uint offset = dispc - nearest_addr;
-                                string o = (offset == 0) ? "" : $"+{offset:X2}";
-                                _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{nearest.First()}{o}", dispc == PC));
+                                _items.Add(new DisassItemLabelModel(_app, dispc, null, nearsym, dispc == PC));
                             }
                         }
                         first = false;
