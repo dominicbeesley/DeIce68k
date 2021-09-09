@@ -5,15 +5,15 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DeIce68k"
         mc:Ignorable="d"
-        Title="Progress" Height="160" Width="240">
+        Title="Progress" Height="160" Width="340">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="40" />
             <RowDefinition Height="40" />
             <RowDefinition Height="60" />
         </Grid.RowDefinitions>
-        <TextBlock x:Name="txtMessage" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center">TEXT</TextBlock>
-        <ProgressBar x:Name="prgProgress" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="200" Height="18" Value="50" />
+        <TextBlock x:Name="txtMessage" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Center" TextWrapping="WrapWithOverflow">TEXT asod kapsod apsod kaspod kaspokasp okaspd okapso dapsoka</TextBlock>
+        <ProgressBar x:Name="prgProgress" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="18" Value="50" Margin="10 0 10 0"/>
         <Button Grid.Row="2" x:Name="btnCancel" Click="btnCancel_Click" HorizontalAlignment="Center" VerticalAlignment="Center">Cancel</Button>
     </Grid>
 </Window>
