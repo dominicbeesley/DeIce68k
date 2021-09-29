@@ -247,6 +247,9 @@ namespace DeIce68k.ViewModel
                             long len = rd.Length;
                             long done = 0;
                             int cur = 0;
+                            Stopwatch sw = new Stopwatch();
+                            sw.Start();
+                            long last = sw.ElapsedMilliseconds - 200;
                             do
                             {
                                 cur = rd.Read(buf, 0, maxlen);
@@ -256,10 +259,14 @@ namespace DeIce68k.ViewModel
                                 addr += (uint)cur;
                                 done += cur;
 
-                                MainWindow.Dispatcher.BeginInvoke(() =>
+                                if (cur == 0 || sw.ElapsedMilliseconds - last >= 200)
                                 {
-                                    prg.Progress = (double)(100 * done) / (double)len;
-                                });
+                                    MainWindow.Dispatcher.BeginInvoke(() =>
+                                    {
+                                        prg.Progress = (double)(100 * done) / (double)len;
+                                    });
+                                    last = sw.ElapsedMilliseconds;
+                                }
 
 
                             } while (cur > 0 && !b.CancellationPending);
@@ -662,6 +669,11 @@ namespace DeIce68k.ViewModel
                             Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
 
                         }
+
+                        //this is a horrid bodge for when get stuck it really shouldn't be "running" here!?
+                        if (Regs.TargetStatus == 0)
+                            Regs.TargetStatus = DeIceProtoConstants.TS_TRACE;
+
                     }
                 })
                 );

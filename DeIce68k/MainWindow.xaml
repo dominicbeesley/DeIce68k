@@ -207,8 +207,7 @@
             </Grid>
             <ListBox Grid.Row="2" Grid.Column="0"
                      VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" 
-                     DataContext="{Binding Messages}" 
-                     ItemsSource="{Binding .}" 
+                     ItemsSource="{Binding Messages}" 
                      d:DataContext="{d:DesignData /SampleData/SampleMessages.xaml }" 
                      Background="Navy" Loaded="LbMessages_Loaded"
                      x:Name="lbMessages"

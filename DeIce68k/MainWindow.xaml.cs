@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -26,9 +27,7 @@ namespace DeIce68k
         {
 
             InitializeComponent();
-
         }
-
 
         // Search for ScrollViewer, breadth-first
         private static ScrollViewer FindScrollViewer(DependencyObject root)
@@ -49,18 +48,34 @@ namespace DeIce68k
             return null;
         }
 
+        bool _lbMessagesAtEnd = true;
+        ScrollViewer _lbMessages_scrollViewer;
+
         private void LbMessages_Loaded(object sender, RoutedEventArgs e)
         {
             var listBox = (ListBox)sender;
 
-            var scrollViewer = FindScrollViewer(listBox);
+            _lbMessages_scrollViewer = FindScrollViewer(listBox);
 
-            if (scrollViewer != null)
+            if (_lbMessages_scrollViewer != null)
             {
-                scrollViewer.ScrollChanged += (o, args) =>
+                _lbMessages_scrollViewer.ScrollChanged += (o, args) =>
                 {
-                    if (args.ExtentHeightChange > 0)
-                        scrollViewer.ScrollToBottom();
+                    if (args.ExtentHeightChange == 0)
+                    {   // Caused by user scrolls
+                        if (_lbMessages_scrollViewer.VerticalOffset == _lbMessages_scrollViewer.ScrollableHeight) { 
+                            //we're at then end
+                            _lbMessagesAtEnd = true;
+                        }
+                        else
+                        {   
+                            //we're looking elsewhere
+                            _lbMessagesAtEnd = false;
+                        }
+                    } else if (_lbMessagesAtEnd)  {   
+                        //keep at end
+                        _lbMessages_scrollViewer.ScrollToVerticalOffset(_lbMessages_scrollViewer.ExtentHeight);
+                    }
                 };
             }
         }
