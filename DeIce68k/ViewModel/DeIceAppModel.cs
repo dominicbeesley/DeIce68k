@@ -15,6 +15,7 @@ using System.Text;
 using System.Linq;
 using System.ComponentModel;
 using System.Collections.Specialized;
+using Microsoft.Win32;
 
 namespace DeIce68k.ViewModel
 {
@@ -103,6 +104,8 @@ namespace DeIce68k.ViewModel
         public ICommand CmdBreakpoints_Delete { get; }
 
         public ICommand CmdLoadBinary { get; }
+        public ICommand CmdRunScript { get; }
+        public ICommand CmdOpenAScript { get; }
 
         public MainWindow MainWindow { get; init; }
 
@@ -116,18 +119,19 @@ namespace DeIce68k.ViewModel
         protected bool BusyInt
         {
             get => _busyInt;
-            set {
+            set
+            {
                 Set(ref _busyInt, value);
                 RaisePropertyChangedEvent(nameof(HostBusy));
             }
-        }        
+        }
 
         /// <summary>
         /// This is true if the host is running or there is a long load/read running
         /// </summary>
         public bool HostBusy
         {
-            get => _busyInt || !Regs.IsStopped;            
+            get => _busyInt || !Regs.IsStopped;
         }
 
 
@@ -155,7 +159,29 @@ namespace DeIce68k.ViewModel
 
             }
 
+            AddRecentCommandFile(pathname);
+        }
 
+        private ObservableCollection<string> _recentCommandFiles;
+        public ReadOnlyObservableCollection<string> RecentCommandFiles { get; }
+
+        private void AddRecentCommandFile(string pathname)
+        {
+            int ix = _recentCommandFiles.IndexOf(pathname);
+            if (ix > 0)
+            {
+                _recentCommandFiles.RemoveAt(ix);
+                _recentCommandFiles.Insert(0, pathname);
+            }
+            else if (ix < 0)
+            {
+                _recentCommandFiles.Insert(0, pathname);
+            }
+
+            while (_recentCommandFiles.Count > 10)
+            {
+                _recentCommandFiles.RemoveAt(_recentCommandFiles.Count - 1);
+            }
         }
 
         public void ParseCommand(string line, string directory)
@@ -197,7 +223,7 @@ namespace DeIce68k.ViewModel
                     {
                         throw new ArgumentException("Bad array index");
                     }
-                    Watches.Add(new WatchModel(addr, name, t, dims));
+                Watches.Add(new WatchModel(addr, name, t, dims));
                 return;
             }
             var mBP = reBreakpoint.Match(line);
@@ -233,7 +259,8 @@ namespace DeIce68k.ViewModel
             prg.Show();
             prg.Cancel += (o, e) => { b.CancelAsync(); };
             BusyInt = true;
-            b.DoWork += (o, e) => {
+            b.DoWork += (o, e) =>
+            {
                 try
                 {
                     try
@@ -328,6 +355,8 @@ namespace DeIce68k.ViewModel
             this.MainWindow = mainWindow;
             this.Serial = serial;
 
+            _recentCommandFiles = new ObservableCollection<string>();
+            RecentCommandFiles = new ReadOnlyObservableCollection<string>(_recentCommandFiles);
             _breakpoints = new ReadOnlyObservableCollection<BreakpointModel>(_breakpointsint);
 
             _regs = new RegisterSetModel(this);
@@ -615,6 +644,40 @@ namespace DeIce68k.ViewModel
                     {
                         LoadBinaryFile(dlg.Address, dlg.FileName);
                     }
+                },
+                o =>
+                {
+                    return Regs.IsStopped;
+                },
+                "Load Binary",
+                Command_Exception
+            );
+
+            CmdRunScript = new RelayCommand(
+                o =>
+                {
+                    var dlg = new OpenFileDialog();
+                    dlg.Filter = "Script files|*.noi|All files|*.*";
+                    dlg.CheckFileExists = true;
+                    dlg.CheckPathExists = true;
+                    dlg.FilterIndex = 1;
+                    if (dlg.ShowDialog(MainWindow) == true)
+                    {
+                        ReadCommandFile(dlg.FileName);
+                    }
+                },
+                o =>
+                {
+                    return Regs.IsStopped;
+                },
+                "Load Binary",
+                Command_Exception
+            );
+
+            CmdOpenAScript = new RelayCommand(
+                o =>
+                {
+                    ReadCommandFile((string)o);
                 },
                 o =>
                 {

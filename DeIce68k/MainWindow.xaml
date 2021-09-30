@@ -23,6 +23,19 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <Menu>
+                <MenuItem Header="_File">
+                    <MenuItem Command="{Binding CmdLoadBinary}" Header="LoadBinary..." />
+                    <MenuItem Command="{Binding CmdRunScript}" Header="RunScript..." />
+                    <MenuItem Header="Recent scripts" ItemsSource="{ Binding RecentCommandFiles}">
+                        <MenuItem.ItemContainerStyle>
+                            <Style TargetType="{x:Type MenuItem}">
+                                <Setter Property="Header" Value="{Binding .}" />
+                                <Setter Property="Command" Value="{Binding DataContext.CmdOpenAScript, RelativeSource={RelativeSource AncestorType=Menu}}" />
+                                <Setter Property="CommandParameter" Value="{Binding .}" />
+                            </Style>
+                        </MenuItem.ItemContainerStyle>
+                    </MenuItem>
+                </MenuItem>
                 <MenuItem Header="_Debug">
                     <MenuItem Command="{Binding CmdNext }" Header="Next" />
                     <MenuItem Command="{Binding CmdCont }" Header="Continue" />
@@ -31,7 +44,6 @@
                     <MenuItem Command="{Binding CmdRefresh}" Header="Refresh" />
                     <MenuItem Command="{Binding CmdDumpMem}" Header="Dump Memory" />
                     <MenuItem Command="{Binding CmdDisassembleAt}" Header="Disassemble At..." />
-                    <MenuItem Command="{Binding CmdLoadBinary}" Header="LoadBinary..." />
                 </MenuItem>
             </Menu>
             <ToolBarTray>
