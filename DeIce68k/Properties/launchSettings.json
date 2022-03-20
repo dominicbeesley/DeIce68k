@@ -2,7 +2,7 @@
   "profiles": {
     "DeIce68k": {
       "commandName": "Project",
-      "commandLineArgs": "/exec \"E:\\Users\\dominic\\programming\\68k\\mos\\mos68k.noi\" /exec \"E:\\Users\\dominic\\programming\\68k\\BASIC_ELK\\obj\\68kBasic.mine.noi\" COM3",
+      "commandLineArgs": "/exec \"E:\\Users\\dominic\\programming\\68k\\mos\\mos68k.noi\" /exec \"E:\\Users\\dominic\\programming\\68k\\BASIC_ELK\\obj\\68kBasic.mine.noi\" COM7",
       "sqlDebugging": true
     }
   }

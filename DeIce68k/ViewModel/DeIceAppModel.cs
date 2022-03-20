@@ -102,6 +102,9 @@ namespace DeIce68k.ViewModel
 
         public ICommand CmdBreakpoints_Add { get; }
         public ICommand CmdBreakpoints_Delete { get; }
+        public ICommand CmdWatches_Add { get; }
+        public ICommand CmdWatches_Delete { get; }
+
 
         public ICommand CmdLoadBinary { get; }
         public ICommand CmdRunScript { get; }
@@ -111,9 +114,10 @@ namespace DeIce68k.ViewModel
 
 
         static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex reLoad = new Regex(@"^l(?:oad)?\s+(\w+)\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex reRemark = new Regex(@"(;|REM)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private bool _busyInt;
         protected bool BusyInt
@@ -186,6 +190,10 @@ namespace DeIce68k.ViewModel
 
         public void ParseCommand(string line, string directory)
         {
+            var mRem = reRemark.Match(line);
+            if (mRem.Success)
+                return;
+
             var mD = reDef.Match(line);
             if (mD.Success)
             {
@@ -195,6 +203,7 @@ namespace DeIce68k.ViewModel
                 Symbols.Add(sym, addr);
                 return;
             }
+
             var mWA = reWatchSym.Match(line);
             if (mWA.Success)
             {
@@ -213,19 +222,19 @@ namespace DeIce68k.ViewModel
                         throw new ArgumentException($"Unrecognised watch type %{type}");
                 }
 
-                int[] dims = null;
-                if (!string.IsNullOrEmpty(mWA.Groups[4].Value))
-                    try
-                    {
-                        dims = new int[] { Convert.ToInt32(mWA.Groups[4].Value) };
-                    }
-                    catch (Exception)
-                    {
-                        throw new ArgumentException("Bad array index");
-                    }
+                uint[] dims;
+                try
+                {
+                    dims = mWA.Groups[4].Captures.Select(o => Convert.ToUInt32(o)).ToArray(); ;
+                }
+                catch (Exception)
+                {
+                    throw new ArgumentException("Bad array index");
+                }
                 Watches.Add(new WatchModel(addr, name, t, dims));
                 return;
             }
+
             var mBP = reBreakpoint.Match(line);
             if (mBP.Success)
             {
@@ -233,7 +242,9 @@ namespace DeIce68k.ViewModel
                 uint addr;
                 ParseSymbolOrAddress(mBP.Groups[1].Value, out name, out addr);
                 AddBreakpoint(addr);
+                return;
             }
+
             var mLoad = reLoad.Match(line);
             if (mLoad.Success)
             {
@@ -242,11 +253,28 @@ namespace DeIce68k.ViewModel
                 ParseSymbolOrAddress(mLoad.Groups[1].Value, out name, out addr);
                 string filename = mLoad.Groups[2].Value;
                 LoadBinaryFile(addr, Path.Combine(directory, filename));
+                return;
 
             }
             throw new ArgumentException($"Unrecognised command:{line}");
 
         }
+
+        private uint _loadBinaryAddr_last = 0x8000;
+        public uint LoadBinaryAddr_last
+        {
+            get => _loadBinaryAddr_last;
+            set => Set(ref _loadBinaryAddr_last, value);
+        }
+
+        private string _loadBinaryFilename_last = "";
+        public string LoadBinaryFilename_last
+        {
+            get => _loadBinaryFilename_last;
+            set => Set(ref _loadBinaryFilename_last, value);
+        }
+
+
 
         public BackgroundWorker LoadBinaryFile(uint addr, string filename)
         {
@@ -317,6 +345,10 @@ namespace DeIce68k.ViewModel
                     });
                 }
             };
+
+            LoadBinaryAddr_last = addr;
+            LoadBinaryFilename_last = filename;
+
             b.RunWorkerAsync();
             return b;
 
@@ -635,11 +667,42 @@ namespace DeIce68k.ViewModel
                 Command_Exception
             );
 
+            CmdWatches_Add = new RelayCommand(
+                o =>
+                {
+                    var dlg = new DlgAddWatch(this);
+                    dlg.Title = "Add watch";
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
+
+                    if (dlg.ShowDialog() == true)
+                    {
+                        Watches.Add(new WatchModel(dlg.Address, dlg.Symbol, dlg.WatchType, dlg.Indices));
+                    }
+
+                },
+                o => true,
+                "Add Breakpoint...",
+                Command_Exception
+                );
+
+            CmdWatches_Delete = new RelayCommand(
+                o =>
+                {
+                    Watches.Where(o => o.Selected).ToList().ForEach(o => RemoveWatch(o.Address));
+                },
+                o => Watches.Where(o => o.Selected).Any(),
+                "Add Breakpoint...",
+                Command_Exception
+            );
+
             CmdLoadBinary = new RelayCommand(
                 o =>
                 {
                     var dlg = new DlgLoadBinary(this);
                     dlg.Owner = MainWindow;
+                    dlg.Address = LoadBinaryAddr_last;
+                    dlg.FileName = LoadBinaryFilename_last;
                     if (dlg.ShowDialog() == true)
                     {
                         LoadBinaryFile(dlg.Address, dlg.FileName);
@@ -968,7 +1031,7 @@ namespace DeIce68k.ViewModel
                 foreach (var w in Watches)
                 {
                     byte[] buf = new byte[w.DataSize];
-                    DeIceProto.ReadMemBlock(w.Address, buf, 0, w.DataSize);
+                    DeIceProto.ReadMemBlock(w.Address, buf, 0, (int)w.DataSize);
                     w.Data = buf;
                 }
 
@@ -1098,6 +1161,11 @@ namespace DeIce68k.ViewModel
         public void RemoveBreakpoint(uint address)
         {
             _breakpointsint.Where(o => o.Address == address).ToList().ForEach(o => _breakpointsint.Remove(o));
+        }
+
+        public void RemoveWatch(uint address)
+        {
+            _watches.Where(o => o.Address == address).ToList().ForEach(o => _watches.Remove(o));
         }
 
         public byte GetByte(uint addr)

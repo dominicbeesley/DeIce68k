@@ -1,0 +1,16 @@
+﻿<UserControl x:Class="DeIce68k.ucAddressOrSymbol"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:DeIce68k"
+             mc:Ignorable="d" 
+             d:DesignHeight="32" d:DesignWidth="100"
+             xmlns:sampledata="clr-namespace:DeIce68k.SampleData"
+             xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel }"
+             >
+    <Grid>
+        <TextBox x:Name="txtAddr" KeyUp="txtAddr_KeyUp"></TextBox>
+    </Grid>
+</UserControl>

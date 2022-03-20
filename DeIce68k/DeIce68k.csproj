@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Page Update="DlgAddWatch.xaml">
+      <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Update="DlgLoadBinary.xaml">
       <XamlRuntime>$(DefaultXamlRuntime)</XamlRuntime>
       <SubType>Designer</SubType>

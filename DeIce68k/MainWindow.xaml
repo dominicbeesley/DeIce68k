@@ -101,7 +101,22 @@
 
                 <TabControl Grid.Column="2">
                     <TabItem Header="Watches">
-                        <ListBox  x:Name="lbWatches" ItemsSource="{Binding Watches}" d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" >
+                        <ListBox  
+                            x:Name="lbWatches" 
+                            ItemsSource="{Binding Watches}" 
+                            d:ItemsSource="{x:Static sampledata:DesignTimeSampleData.SamplesWatches }" 
+                            SelectionMode="Multiple"
+                            >
+                            <ListBox.InputBindings>
+                                <KeyBinding Key="Delete" Command="{Binding CmdWatches_Delete}" />
+                            </ListBox.InputBindings>
+
+                            <ListBox.ContextMenu>
+                                <ContextMenu >
+                                    <MenuItem Header="Add..." Command="{Binding CmdWatches_Add}" />
+                                    <MenuItem Header="Delete..." Command="{Binding CmdWatches_Delete}" InputGestureText="Del" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
 
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="{x:Type ListBoxItem}">

@@ -37,6 +37,11 @@ namespace DeIce68k.ViewModel
         Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
         Dictionary<uint, List<string>> _address2SymbolsdDictionary = new Dictionary<uint, List<string>>();
 
+        public ReadOnlyDictionary<string, uint> Symbol2AddressDictionary
+        {
+            get;           
+        }
+
         public void Add(string symbol, uint address)
         {
             Remove(symbol);
@@ -163,6 +168,7 @@ namespace DeIce68k.ViewModel
         {
             _app = app;
             _symbolsByAddressRO = new ReadOnlyObservableCollection<Address2Symbol>(_symbolsByAddress);
+            Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
         }
     }
 }

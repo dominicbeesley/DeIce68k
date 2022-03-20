@@ -26,6 +26,7 @@ namespace DeIce68k
         public DlgDumpMem(DeIceAppModel context)
         {
             this.Context = context;
+            this.DataContext = context;
             InitializeComponent();
         }
 
@@ -33,20 +34,16 @@ namespace DeIce68k
 
         private void ButtonOK_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                uint a;
-                if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
-                    a = Convert.ToUInt32(txtAddress.Text, 16);
-                Address = a;
-            } catch (Exception)
+            if (!ucAddr.Valid)
             {
                 MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
+            } else
+            {
+                Address = ucAddr.Address;
+                DialogResult = true;
+                Close();
             }
-
-            DialogResult = true;
-            Close();
         }
 
         private void ButtonCancel_Click(object sender, RoutedEventArgs e)

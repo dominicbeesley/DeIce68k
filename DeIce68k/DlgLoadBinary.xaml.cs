@@ -29,7 +29,29 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        public uint Address { get; private set; }
+        public uint Address {
+            get
+            {
+
+                uint a = 0;
+                try
+                {
+                    if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
+                        a = Convert.ToUInt32(txtAddress.Text, 16);
+                }
+                catch (Exception ex) { }
+                return a;
+            }
+            set
+            {
+                var sym = Context?.Symbols?.AddressToSymbols(value).FirstOrDefault();
+                if (sym != null)
+                    txtAddress.Text = sym;
+                else
+                    txtAddress.Text = $"{value:X08}";
+            }
+        }
+
         public string FileName { 
             get => txtFilename.Text;
             set => txtFilename.Text = value;
@@ -42,7 +64,6 @@ namespace DeIce68k
                 uint a;
                 if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
                     a = Convert.ToUInt32(txtAddress.Text, 16);
-                Address = a;
             } catch (Exception)
             {
                 MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);

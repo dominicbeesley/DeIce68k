@@ -19,9 +19,9 @@ namespace DeIce68k.ViewModel
 
     public static class WatchType_Ext
     {
-        public static int Size(this WatchType w)
+        public static uint Size(this WatchType w)
         {
-            return (int)w & 0x0F;
+            return (uint)w & 0x0F;
         }
 
         public static string ValueString(this WatchType w, BinaryReader b)
@@ -45,10 +45,24 @@ namespace DeIce68k.ViewModel
             }
             return WatchType.Empty; 
         }
+
+        public static IEnumerable<string> WatchTypes
+        {
+            get => Enum.GetValues(typeof(WatchType)).Cast<WatchType>().Where(x => x != WatchType.Empty).Select(x => Enum.GetName(typeof(WatchType), x));
+        }
+
     }
 
     public class WatchModel : ObservableObject
     {
+
+        private bool _selected;
+        public bool Selected
+        {
+            get => _selected;
+            set => Set(ref _selected, value);
+        }
+
         private string _name;
         public string Name
         {
@@ -78,7 +92,7 @@ namespace DeIce68k.ViewModel
 
         public WatchType WatchType { get; }
 
-        public int[] Dimensions { get; }
+        public uint[] Dimensions { get; }
 
         private byte[] _data;
         public byte[] Data
@@ -94,7 +108,7 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public WatchModel(uint address, string name, WatchType type, int [] dimensions)
+        public WatchModel(uint address, string name, WatchType type, uint [] dimensions)
         {
             Address = address;
             Name = name;
@@ -113,7 +127,7 @@ namespace DeIce68k.ViewModel
                 throw new ArgumentException($"Error setting watch expected {DataSize} bytes got {data.Length}");
         }
 
-        public int DataSize {
+        public uint DataSize {
             get
             {
                 return (Dimensions == null || Dimensions.Length == 0)
@@ -141,22 +155,22 @@ namespace DeIce68k.ViewModel
                         }
                         else if (Dimensions.Length > 2)
                         {
-                            int[] indeces = new int[Dimensions.Length - 2];
+                            int[] indices = new int[Dimensions.Length - 2];
 
                             bool ok = true;
                             while (ok)
                             {
-                                for (int i = 0; i < indeces.Length; i++)
-                                    sb.Append($"[{indeces[i]}]");
+                                for (int i = 0; i < indices.Length; i++)
+                                    sb.Append($"[{indices[i]}]");
                                 sb.AppendLine("[][]={");
                                 Do2Dim(sb, b);
                                 sb.AppendLine("}");
 
-                                int j = indeces.Length - 1;
+                                int j = indices.Length - 1;
                                 while (j >= 0)
                                 {
-                                    indeces[j]++;
-                                    if (indeces[j] < Dimensions[j])
+                                    indices[j]++;
+                                    if (indices[j] < Dimensions[j])
                                         break;
                                     j--;
                                 }

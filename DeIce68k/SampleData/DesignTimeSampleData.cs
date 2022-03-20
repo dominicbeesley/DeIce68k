@@ -51,7 +51,7 @@ namespace DeIce68k.SampleData
                     _app = new DeIceAppModel(new DummySerial(), null);
                     _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
                     _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
-                    _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new int[] { 20 } ));
+                    _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new uint[] { 20 } ));
                     IEnumerable<string> errorsR;
                     _app.AddBreakpoint(0xDEADBEEF).ConditionCode = ScriptCompiler.Compile(_app, "return false;", out errorsR);
                     _app.AddBreakpoint(0x0B00B135).Enabled = false;
