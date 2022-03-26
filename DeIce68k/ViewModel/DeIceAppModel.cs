@@ -1,21 +1,21 @@
-﻿using System;
+﻿using DeIce68k.Lib;
+using DeIceProtocol;
+using DossySerialPort;
+using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
-using DeIceProtocol;
-using DossySerialPort;
-using DeIce68k.Lib;
-using System.Diagnostics;
-using System.Text;
-using System.Linq;
-using System.ComponentModel;
-using System.Collections.Specialized;
-using Microsoft.Win32;
 
 namespace DeIce68k.ViewModel
 {
@@ -881,16 +881,12 @@ namespace DeIce68k.ViewModel
                         DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(
                             new DeIceFnReqSetBytes()
                             {
-                                Items = new[] {
+                                Items = curbp.OldOP.Select((b, i) =>
                                     new DeIceFnReqSetBytes.DeIceSetBytesItem()
                                     {
-                                        Address = curbp.Address, Data = (byte)(curbp.OldOP >> 8)
-                                    },
-                                    new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                                    {
-                                        Address = curbp.Address + 1, Data = (byte)curbp.OldOP
-                                    },
-                                }
+                                        Address = (uint)(curbp.Address + i), Data = b
+                                    }
+                                ).ToArray()
                             }
                         );
 
@@ -924,6 +920,8 @@ namespace DeIce68k.ViewModel
 
         public void ApplyBreakpoints()
         {
+            var bpl = DebugHostStatus.BreakPointInstruction.Length;
+
             ReExecCurBreakpoint();
 
             // how many breakpoints we can fit in the buffer
@@ -935,9 +933,11 @@ namespace DeIce68k.ViewModel
                 var chunk = bp2a.Take(MAXBP).ToArray();
                 var req = Breakpoints2Req(chunk, true);
                 var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
-                for (int i = 0; i < ret.Data.Length / 2; i++)
+                for (int i = 0; i < ret.Data.Length / bpl; i++)
                 {
-                    chunk[i].OldOP = (ushort)((ret.Data[i * 2] << 8) | ret.Data[1 + i * 2]);
+                    var ob = new byte[bpl];
+                    Array.Copy(ret.Data, i * bpl, ob, 0, bpl);
+                    chunk[i].OldOP = ob;
                 }
                 _activeBreakpoints.AddRange(bp2a.Take(ret.Data.Length));
                 bp2a = bp2a.Skip(ret.Data.Length);
@@ -960,25 +960,20 @@ namespace DeIce68k.ViewModel
 
         }
 
-        DeIceFnReqSetBytes Breakpoints2Req(IEnumerable<BreakpointModel> bp, bool apply)
+        DeIceFnReqSetBytes Breakpoints2Req(IEnumerable<BreakpointModel> breakpoints, bool apply)
         {
             if (apply)
             {
                 return new DeIceFnReqSetBytes()
                 {
-                    Items = bp.Select(
-                    bp => new DeIceFnReqSetBytes.DeIceSetBytesItem[] {
-                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                        {
-                            Address = bp.Address,
-                            Data = (byte)(DebugHostStatus.BreakPointInstruction >> 8)
-                        },
-                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                        {
-                            Address = bp.Address + 1,
-                            Data = (byte)DebugHostStatus.BreakPointInstruction
-                        }
-}
+                    Items = breakpoints.Select(
+                    bp => DebugHostStatus.BreakPointInstruction.Select( (b,i) =>
+                            new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                            {
+                                Address = (uint)(bp.Address + i),
+                                Data = b
+                            }
+                        )
                     ).SelectMany(o => o).ToArray()
                 };
             }
@@ -986,19 +981,14 @@ namespace DeIce68k.ViewModel
             {
                 return new DeIceFnReqSetBytes()
                 {
-                    Items = bp.Select(
-                        bp => new DeIceFnReqSetBytes.DeIceSetBytesItem[] {
-                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                        {
-                            Address = bp.Address,
-                            Data = (byte)(bp.OldOP >> 8)
-                        },
-                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                        {
-                            Address = bp.Address + 1,
-                            Data = (byte)bp.OldOP
-                        }
-}
+                    Items = breakpoints.Select(
+                        bp => bp.OldOP.Select( (b, i) =>
+                            new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                            {
+                                Address = (uint)(bp.Address + i),
+                                Data = b
+                            }
+                        )
                     ).SelectMany(o => o).ToArray()
                 };
 
@@ -1016,13 +1006,16 @@ namespace DeIce68k.ViewModel
                 var req = Breakpoints2Req(chunk, false);
                 var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
 
-                for (int i = 0; i < chunk.Length && 2 * i < ret.Data.Length; i++)
+                var bpl = DebugHostStatus.BreakPointInstruction.Length;
+
+                for (int i = 0; i < chunk.Length && bpl * i < ret.Data.Length; i++)
                 {
-                    ushort r = (ushort)((ret.Data[i * 2] << 8) | ret.Data[1 + i * 2]);
+                    byte[] r = new byte[bpl];
+                    Array.Copy(ret.Data, i * bpl, r, 0, bpl);
                     if (r != DebugHostStatus.BreakPointInstruction)
                     {
                         var bb = chunk[i];
-                        Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={ret.Data[i * 2]:X02}{ret.Data[1 + i * 2]:X02}, expected={DebugHostStatus.BreakPointInstruction:X04}");
+                        Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={BitConverter.ToString(r)}, expected={BitConverter.ToString(DebugHostStatus.BreakPointInstruction)}");
                     }
                 }
 

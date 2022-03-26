@@ -200,12 +200,10 @@ namespace DeIceProtocol
 
                         if (bpSize == 0)
                             throw new ArgumentException("zero length breakpoint instruction in FN_GET_STAT reply");
-                        if (bpSize != 2)
-                            throw new ArgumentException("Only word length breakpoint instructions are supported");
                         if (8 + bpSize > l)
                             throw new ArgumentException("Out of data in FN_GET_STAT reply");
-                        ushort bpInst;
-                        bpInst = ReadBEUShort(data, 10);
+                        byte [] bpInst = new byte[bpSize];
+                        Array.Copy(data, 10, bpInst, 0, bpSize); // ReadBEUShort(data, 10);
 
                         int i;
                         i = 10 + bpSize;

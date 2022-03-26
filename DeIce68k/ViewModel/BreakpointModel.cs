@@ -31,8 +31,8 @@ namespace DeIce68k.ViewModel
             set => Set(ref _selected, value);
         }
 
-        private ushort _oldOP;
-        public ushort OldOP
+        private byte[] _oldOP;
+        public byte[] OldOP
         {
             get => _oldOP;
             set => Set(ref _oldOP, value);

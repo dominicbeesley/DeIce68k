@@ -9,7 +9,7 @@ namespace DeIceProtocol
     public class DeIceFnReplyGetStatus : DeIceFnReplyBase
     {
         private static DeIceFnReplyGetStatus _default = new DeIceFnReplyGetStatus(
-            68, 0x80, 0, 0, 0xFFFF, 0x4E4F, "Unknown 68K", 0, 0 
+            68, 0x80, 0, 0, 0xFFFF, new byte[] { 0x4E, 0x4F }, "Unknown 68K", 0, 0 
             );
         
         public static DeIceFnReplyGetStatus Default { get => _default; }
@@ -22,12 +22,12 @@ namespace DeIceProtocol
         public DeIceTargetOptionFlags TargetOptions { get; }
         public ushort MappedAreaLow { get; }
         public ushort MappedAreaHigh { get; }
-        public ushort BreakPointInstruction { get; }
+        public byte[] BreakPointInstruction { get; }
         public string TargetName { get; }
         public byte CallBouncePage { get; }
         public ushort CallBounceAddr { get; }
 
-        public DeIceFnReplyGetStatus(byte procType, byte comBufSize, DeIceTargetOptionFlags opt, ushort lowMap, ushort hiMap, ushort bpInst, string targetName, byte callPage, ushort callAddr)
+        public DeIceFnReplyGetStatus(byte procType, byte comBufSize, DeIceTargetOptionFlags opt, ushort lowMap, ushort hiMap, byte [] bpInst, string targetName, byte callPage, ushort callAddr)
         {
             this.ProcessorType = procType;
             this.ComBufSize = comBufSize;
