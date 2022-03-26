@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public class DeIceFnReplySetWords : DeIceFnReplyBase
+    public class DeIceFnReplySetBytes : DeIceFnReplyBase
     {
-        public override byte FunctionCode => DeIceProtoConstants.FN_SET_WORDS;
+        public override byte FunctionCode => DeIceProtoConstants.FN_SET_BYTES;
 
-        public ushort[] Data { get; }
+        public byte[] Data { get; }
 
-        public DeIceFnReplySetWords(ushort[] data) => this.Data = data;
+        public DeIceFnReplySetBytes(byte[] data) => this.Data = data;
 
     }
 }

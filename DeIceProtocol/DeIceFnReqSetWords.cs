@@ -6,17 +6,17 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public record DeIceFnReqSetWords : DeIceFnReqBase
+    public record DeIceFnReqSetBytes : DeIceFnReqBase
     {
-        public struct DeIceSetWordsWord
+        public struct DeIceSetBytesItem
         {
             public uint Address { get; init; }
-            public ushort Data { get; init; }
+            public byte Data { get; init; }
         }
 
-        public override byte FunctionCode => DeIceProtoConstants.FN_SET_WORDS;
+        public override byte FunctionCode => DeIceProtoConstants.FN_SET_BYTES;
 
-        public DeIceSetWordsWord[] Words {get; set; }
+        public DeIceSetBytesItem[] Items {get; set; }
 
     }
 }

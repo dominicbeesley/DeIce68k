@@ -279,6 +279,7 @@ namespace DeIce68k.ViewModel
         public BackgroundWorker LoadBinaryFile(uint addr, string filename)
         {
             BackgroundWorker b = new BackgroundWorker();
+            b.WorkerSupportsCancellation = true;
             var prg = new DlgProgress();
             prg.Owner = MainWindow;
             prg.Title = "Loading Binary...";
@@ -877,14 +878,18 @@ namespace DeIce68k.ViewModel
                         _activeBreakpoints.Remove(curbp);
 
                         //restore the original instruction
-                        DeIceProto.SendReqExpectReply<DeIceFnReplySetWords>(
-                            new DeIceFnReqSetWords()
+                        DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(
+                            new DeIceFnReqSetBytes()
                             {
-                                Words = new[] {
-                                    new DeIceFnReqSetWords.DeIceSetWordsWord()
+                                Items = new[] {
+                                    new DeIceFnReqSetBytes.DeIceSetBytesItem()
                                     {
-                                        Address = curbp.Address, Data = curbp.OldOP
-                                    }
+                                        Address = curbp.Address, Data = (byte)(curbp.OldOP >> 8)
+                                    },
+                                    new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                                    {
+                                        Address = curbp.Address + 1, Data = (byte)curbp.OldOP
+                                    },
                                 }
                             }
                         );
@@ -922,26 +927,17 @@ namespace DeIce68k.ViewModel
             ReExecCurBreakpoint();
 
             // how many breakpoints we can fit in the buffer
-            int MAXBP = (DebugHostStatus.ComBufSize / 5) - 1;
+            int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
             var bp2a = Breakpoints.Where(o => o.Enabled && !_activeBreakpoints.Where(a => a.Address == o.Address).Any());
 
             while (bp2a.Any())
             {
                 var chunk = bp2a.Take(MAXBP).ToArray();
-                var req = new DeIceFnReqSetWords()
+                var req = Breakpoints2Req(chunk, true);
+                var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
+                for (int i = 0; i < ret.Data.Length / 2; i++)
                 {
-                    Words = chunk.Select(
-                        bp => new DeIceFnReqSetWords.DeIceSetWordsWord()
-                        {
-                            Address = bp.Address,
-                            Data = DebugHostStatus.BreakPointInstruction
-                        }
-                        ).ToArray()
-                };
-                var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetWords>(req);
-                for (int i = 0; i < ret.Data.Length; i++)
-                {
-                    chunk[i].OldOP = ret.Data[i];
+                    chunk[i].OldOP = (ushort)((ret.Data[i * 2] << 8) | ret.Data[1 + i * 2]);
                 }
                 _activeBreakpoints.AddRange(bp2a.Take(ret.Data.Length));
                 bp2a = bp2a.Skip(ret.Data.Length);
@@ -956,6 +952,7 @@ namespace DeIce68k.ViewModel
                 }
             }
 
+
             //remove any that are now disabled or no longer in the Breakpoints list
             List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !Breakpoints.Where(b => b.Address == a.Address).Any()).ToList();
             UnApplyBreakpoints(rembp);
@@ -963,35 +960,73 @@ namespace DeIce68k.ViewModel
 
         }
 
+        DeIceFnReqSetBytes Breakpoints2Req(IEnumerable<BreakpointModel> bp, bool apply)
+        {
+            if (apply)
+            {
+                return new DeIceFnReqSetBytes()
+                {
+                    Items = bp.Select(
+                    bp => new DeIceFnReqSetBytes.DeIceSetBytesItem[] {
+                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                        {
+                            Address = bp.Address,
+                            Data = (byte)(DebugHostStatus.BreakPointInstruction >> 8)
+                        },
+                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                        {
+                            Address = bp.Address + 1,
+                            Data = (byte)DebugHostStatus.BreakPointInstruction
+                        }
+}
+                    ).SelectMany(o => o).ToArray()
+                };
+            }
+            else
+            {
+                return new DeIceFnReqSetBytes()
+                {
+                    Items = bp.Select(
+                        bp => new DeIceFnReqSetBytes.DeIceSetBytesItem[] {
+                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                        {
+                            Address = bp.Address,
+                            Data = (byte)(bp.OldOP >> 8)
+                        },
+                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                        {
+                            Address = bp.Address + 1,
+                            Data = (byte)bp.OldOP
+                        }
+}
+                    ).SelectMany(o => o).ToArray()
+                };
+
+            }
+        }
+
+
         public void UnApplyBreakpoints(IEnumerable<BreakpointModel> items)
         {
             // how many breakpoints we can fit in the buffer
-            int MAXBP = (DebugHostStatus.ComBufSize / 5) - 1;
+            int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
             while (items.Any())
             {
                 var chunk = items.Take(MAXBP).ToArray();
-                var req = new DeIceFnReqSetWords()
-                {
-                    Words = chunk.Select(
-                        bp => new DeIceFnReqSetWords.DeIceSetWordsWord()
-                        {
-                            Address = bp.Address,
-                            Data = bp.OldOP
-                        }
-                    ).ToArray()
-                };
-                var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetWords>(req);
+                var req = Breakpoints2Req(chunk, false);
+                var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
 
-                ret.Data.Where(o => o != DebugHostStatus.BreakPointInstruction).
-                Select((o, i) => i).
-                ToList().
-                ForEach(i =>
+                for (int i = 0; i < chunk.Length && 2 * i < ret.Data.Length; i++)
                 {
-                    var bb = chunk[i];
-                    Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={ret.Data[i]:X04}, expected={DebugHostStatus.BreakPointInstruction:X04}");
-                });
+                    ushort r = (ushort)((ret.Data[i * 2] << 8) | ret.Data[1 + i * 2]);
+                    if (r != DebugHostStatus.BreakPointInstruction)
+                    {
+                        var bb = chunk[i];
+                        Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={ret.Data[i * 2]:X02}{ret.Data[1 + i * 2]:X02}, expected={DebugHostStatus.BreakPointInstruction:X04}");
+                    }
+                }
 
-                items = items.Skip(ret.Data.Length);
+                items = items.Skip(ret.Data.Length / 2);
 
                 //if we got fewer back than we sent then it was dodgy memory, skip that in the list and set to disabled.
                 if (ret.Data.Length < chunk.Length && _activeBreakpoints.Any())

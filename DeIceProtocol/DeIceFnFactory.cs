@@ -77,21 +77,23 @@ namespace DeIceProtocol
 
 
             }
-            else if (req is DeIceFnReqSetWords)
+            else if (req is DeIceFnReqSetBytes)
             {
-                DeIceFnReqSetWords sw = (DeIceFnReqSetWords)req;
+                var sb = (DeIceFnReqSetBytes)req;
 
-                if (sw.Words.Length * 5 > 255)
-                    throw new ArgumentException($"DeIceFnReqSetWords data too long, > 255 bytes in payload");
+                int ll = sb.Items.Length * 4;
 
-                ret = new byte[3 + sw.Words.Length * 5];
+                if (ll > 255)
+                    throw new ArgumentException($"DeIceFnReqSetBytes data too long, > 255 bytes in payload");
+
+                ret = new byte[3 + ll];
                 ret[0] = req.FunctionCode;
-                ret[1] = (byte)(sw.Words.Length * 5);
+                ret[1] = (byte)(ll);
 
-                for (int i = 0; i < sw.Words.Length; i++)
+                for (int i = 0; i < sb.Items.Length; i++)
                 {
-                    WriteBEULong24(ret, 2 + i * 5, sw.Words[i].Address);
-                    WriteBEUShort(ret, 5 + i * 5, sw.Words[i].Data);
+                    WriteBEULong24(ret, 2 + i * 4, sb.Items[i].Address);
+                    ret[5 + i * 4] = sb.Items[i].Data;
                 }
             }
             else if (req is DeIceFnReqGetStatus)
@@ -175,19 +177,15 @@ namespace DeIceProtocol
                     else
                         return new DeIceFnReplyRun(regs);
 
-                case DeIceProtoConstants.FN_SET_WORDS:
-                    if ((l & 0x01) != 0)
+                case DeIceProtoConstants.FN_SET_BYTES:
+
+                    var bytes = new byte[l];
+                    for (int i = 0; i < l; i++)
                     {
-                        throw new DeIceProtocolException($"Unexpected return from FN_SET_WORDS, odd number of bytes returned");
+                        bytes[i] = data[2 + i];
                     }
 
-                    ushort[] words = new ushort[l / 2];
-                    for (int i = 0; i < l/2; i++)
-                    {
-                        words[i] = ReadBEUShort(data, 2 + i*2);
-                    }
-
-                    return new DeIceFnReplySetWords(words);
+                    return new DeIceFnReplySetBytes(bytes);
                 case DeIceProtoConstants.FN_GET_STAT:
                     {
                         if (l < 8)
