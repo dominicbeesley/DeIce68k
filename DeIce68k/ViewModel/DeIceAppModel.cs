@@ -918,6 +918,8 @@ namespace DeIce68k.ViewModel
             return false;
         }
 
+
+        //TODO: we should skip and mark invalid breakpoints that can't be set (SetBytes returns an unexpectedly low count)
         public void ApplyBreakpoints()
         {
             var bpl = DebugHostStatus.BreakPointInstruction.Length;
