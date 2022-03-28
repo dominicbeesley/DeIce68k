@@ -90,7 +90,7 @@ namespace DeIce68k.SampleData
                                 {
                                     regs[r.Next(regs.Length)] = (byte)r.Next(255);
                                 }
-                                _app.Regs.FromDeIceRegisterData(regs);
+                                _app.Regs.FromDeIceProtocolRegData(regs);
                             }
                         }
                     });

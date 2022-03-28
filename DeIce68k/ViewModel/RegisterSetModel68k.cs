@@ -96,8 +96,11 @@ namespace DeIce68k.ViewModel
             UpdateStatusBits();
         }
 
-        public override void FromDeIceRegisterData(byte[] deiceData)
+        public override void FromDeIceProtocolRegData(byte[] deiceData)
         {
+            if (deiceData.Length < 0x4C)
+                throw new ArgumentException("data too short FN_READ_RG/FN_RUN_TARG reply");
+
             TargetStatus = deiceData[0x00];
             A7u.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x02);
             A7s.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x06);

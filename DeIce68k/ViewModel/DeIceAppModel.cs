@@ -772,7 +772,7 @@ namespace DeIce68k.ViewModel
                     var x = e.Function as DeIceFnReplyRegsBase;
                     if (x != null && Regs != null)
                     {
-                        Regs.FromDeIceRegisterData(x.RegisterData);
+                        Regs.FromDeIceProtocolRegData(x.RegisterData);
 
                         if (!RunFinish(true))
                         {
@@ -809,7 +809,7 @@ namespace DeIce68k.ViewModel
                 DeIceProto.Flush();
                 DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
                 var r = DeIceProto.SendReqExpectReply<DeIceFnReplyRegsBase>(new DeIceFnReqReadRegs());
-                Regs.FromDeIceRegisterData(r.RegisterData);
+                Regs.FromDeIceProtocolRegData(r.RegisterData);
                 RunFinish(false);
                 return true;
             }
@@ -887,7 +887,7 @@ namespace DeIce68k.ViewModel
                         DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() });
                         var regs = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun() { });
 
-                        Regs.FromDeIceRegisterData(regs.RegisterData);
+                        Regs.FromDeIceProtocolRegData(regs.RegisterData);
 
                         // Restore Trace mode - TODO: What to do if the BP instruction affected the SR traceflag
                         Regs.SetTrace(old);
@@ -1123,7 +1123,7 @@ namespace DeIce68k.ViewModel
                         while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
                         {
                             var rr = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
-                            Regs.FromDeIceRegisterData(rr.RegisterData);
+                            Regs.FromDeIceProtocolRegData(rr.RegisterData);
                             if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                             {
                                 bool cont = false;

@@ -46,7 +46,7 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public abstract void FromDeIceRegisterData(byte[] deiceData);
+        public abstract void FromDeIceProtocolRegData(byte[] deiceData);
         public abstract byte[] ToDeIceProtcolRegData();
 
         /// <summary>
