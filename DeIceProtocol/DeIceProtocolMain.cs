@@ -107,9 +107,13 @@ namespace DeIceProtocol
                             
                         }
                     }
-                    catch (Exception) //timeout
+                    catch (TimeoutException) //timeout
                     {
                         return;
+                    }
+                    catch (Exception ex)
+                    {
+                        CommError?.Invoke(this, new DeIceComErrorEventArgs(ex));
                     }
                 }
                 finally
