@@ -1224,15 +1224,32 @@ namespace DeIce68k.ViewModel
             _debugHostStatus = hostStatus;
             RaisePropertyChangedEvent(nameof(DebugHostStatus));
 
+            bool changed = false;
+
             // check the right sort of register model is present
-            if (DebugHostStatus.ProcessorType == 68 && Regs?.GetType() != typeof(RegisterSetModel68k))
+            if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_68k && Regs?.GetType() != typeof(RegisterSetModel68k))
             {
                 if (Regs != null)
                     Regs.PropertyChanged -= Regs_PropertyChanged;
 
                 _regs = new RegisterSetModel68k(this);
+                changed = true;
+            } 
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_16 && Regs?.GetType() != typeof(RegisterSetModel68k))
+            {
+                if (_regs != null)
+                    _regs.PropertyChanged -= Regs_PropertyChanged;
+
+                _regs = new RegisterSetModel68k(this);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                _regs.PropertyChanged += Regs_PropertyChanged;
                 DeIceProto.SendReq(new DeIceFnReqReadRegs());
                 RaisePropertyChangedEvent(nameof(Regs));
+
             }
         }
 

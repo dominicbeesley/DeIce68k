@@ -191,6 +191,19 @@ namespace DeIceProtocol
             return ret;
         }
 
+        public static void WriteUShort(byte[] data, int index, uint val)
+        {
+            data[index + 0] = (byte)(val >> 8);
+            data[index + 1] = (byte)val;
+        }
+
+        public static uint ReadUShort(byte[] data, int index)
+        {
+            return (UInt16)(data[index + 0]
+                + (data[index + 1] << 8)
+                );
+        }
+
         public static uint ReadBEULong(byte[] data, int index)
         {
             return (uint)(data[index + 3]
