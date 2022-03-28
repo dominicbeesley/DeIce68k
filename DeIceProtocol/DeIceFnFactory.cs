@@ -51,30 +51,13 @@ namespace DeIceProtocol
             {
                 DeIceFnReqWriteRegs wr = (DeIceFnReqWriteRegs)req;
 
-                ret = new byte[0x4C + 3];
-                ret[0] = req.FunctionCode;
-                ret[1] = 0x4C;
-                ret[2] = wr.Regs.TargetStatus;
-                WriteBEULong(ret, 0x04, wr.Regs.A7u);
-                WriteBEULong(ret, 0x08, wr.Regs.A7s);
-                WriteBEULong(ret, 0x0C, wr.Regs.D0);
-                WriteBEULong(ret, 0x10, wr.Regs.D1);
-                WriteBEULong(ret, 0x14, wr.Regs.D2);
-                WriteBEULong(ret, 0x18, wr.Regs.D3);
-                WriteBEULong(ret, 0x1C, wr.Regs.D4);
-                WriteBEULong(ret, 0x20, wr.Regs.D5);
-                WriteBEULong(ret, 0x24, wr.Regs.D6);
-                WriteBEULong(ret, 0x28, wr.Regs.D7);
-                WriteBEULong(ret, 0x2C, wr.Regs.A0);
-                WriteBEULong(ret, 0x30, wr.Regs.A1);
-                WriteBEULong(ret, 0x34, wr.Regs.A2);
-                WriteBEULong(ret, 0x38, wr.Regs.A3);
-                WriteBEULong(ret, 0x3C, wr.Regs.A4);
-                WriteBEULong(ret, 0x40, wr.Regs.A5);
-                WriteBEULong(ret, 0x44, wr.Regs.A6);
-                WriteBEUShort(ret, 0x48, (ushort)wr.Regs.SR);
-                WriteBEULong(ret, 0x4A, wr.Regs.PC);
+                var ll = (byte)wr.RegData.Length;
 
+                ret = new byte[ll + 3];
+                ret[0] = wr.FunctionCode;
+                ret[1] = ll;
+
+                Array.Copy(wr.RegData, 0, ret, 2, ll);
 
             }
             else if (req is DeIceFnReqSetBytes)
@@ -144,38 +127,14 @@ namespace DeIceProtocol
                 case DeIceProtoConstants.FN_READ_RG:
                 case DeIceProtoConstants.FN_RUN_TARG:
 
-                    if (l < 0x4C)
-                        throw new ArgumentException("data too short FN_READ_RG/FN_RUN_TARG reply");
-
-                    DeIceRegisters regs = new() {
-
-
-                        TargetStatus = data[2],
-                        A7u = ReadBEULong(data, 0x04),
-                        A7s = ReadBEULong(data, 0x08),
-                        D0 = ReadBEULong(data, 0x0C),
-                        D1 = ReadBEULong(data, 0x10),
-                        D2 = ReadBEULong(data, 0x14),
-                        D3 = ReadBEULong(data, 0x18),
-                        D4 = ReadBEULong(data, 0x1C),
-                        D5 = ReadBEULong(data, 0x20),
-                        D6 = ReadBEULong(data, 0x24),
-                        D7 = ReadBEULong(data, 0x28),
-                        A0 = ReadBEULong(data, 0x2C),
-                        A1 = ReadBEULong(data, 0x30),
-                        A2 = ReadBEULong(data, 0x34),
-                        A3 = ReadBEULong(data, 0x38),
-                        A4 = ReadBEULong(data, 0x3C),
-                        A5 = ReadBEULong(data, 0x40),
-                        A6 = ReadBEULong(data, 0x44),
-                        SR = ReadBEUShort(data, 0x48),
-                        PC = ReadBEULong(data, 0x4A)
-                    };
+                    int ll = data.Length - 3;
+                    byte [] dat2 = new byte[ll];
+                    Array.Copy(data, 2, dat2, 0, ll);
 
                     if (fc == DeIceProtoConstants.FN_READ_RG)
-                        return new DeIceFnReplyReadRegs(regs);
+                        return new DeIceFnReplyReadRegs(dat2);
                     else
-                        return new DeIceFnReplyRun(regs);
+                        return new DeIceFnReplyRun(dat2);
 
                 case DeIceProtoConstants.FN_SET_BYTES:
 

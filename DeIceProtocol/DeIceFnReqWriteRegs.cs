@@ -10,6 +10,6 @@ namespace DeIceProtocol
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_WRITE_RG;
 
-        public DeIceRegisters Regs { get; init; }
+        public byte[] RegData { get; init; }
     }
 }

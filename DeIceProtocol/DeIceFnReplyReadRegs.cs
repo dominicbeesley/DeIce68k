@@ -10,7 +10,7 @@ namespace DeIceProtocol
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_READ_RG;
 
-        public DeIceFnReplyReadRegs(DeIceRegisters regs) : base(regs) { }
+        public DeIceFnReplyReadRegs(byte[] regsdat) : base(regsdat) { }
 
     }
 }

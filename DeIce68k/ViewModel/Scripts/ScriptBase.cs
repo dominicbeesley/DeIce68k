@@ -7,6 +7,8 @@ using System.IO;
 
 namespace DeIce68k.ViewModel.Scripts
 {
+
+    
     public abstract class ScriptBase
     {
         private DeIceAppModel _app;
@@ -94,7 +96,7 @@ namespace DeIce68k.ViewModel.Scripts
         }
 
 
-        protected RegisterSetModel Registers { get => _app.Regs; }
+        protected RegisterSetModelBase Registers { get => _app.Regs; }
         public MessagesTextWriter Messages { get => _messages; }
 
         public ScriptBase(DeIceAppModel app, string orgCode)

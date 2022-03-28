@@ -10,7 +10,7 @@ namespace DeIce68k.ViewModel
 {
     public class StatusRegisterBitsModel : ObservableObject
     {
-        RegisterSetModel Parent { get; init; }
+        RegisterSetModel68k Parent { get; init; }
 
         bool _data = false;
 
@@ -34,7 +34,7 @@ namespace DeIce68k.ViewModel
 
         public ICommand CmdToggle { get; init; }
 
-        public StatusRegisterBitsModel(RegisterSetModel _parent)
+        public StatusRegisterBitsModel(RegisterSetModel68k _parent)
         {
             this.Parent = _parent;
             CmdToggle = new RelayCommand(

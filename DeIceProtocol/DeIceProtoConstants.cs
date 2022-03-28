@@ -19,5 +19,8 @@
         public const byte TS_BP = 1;
         public const byte TS_TRACE = 2;
         public const byte TS_ILLEGAL = 3;
+
+        public const byte HOST_68k = 68;
+        public const byte HOST_x86_16 = 86;
     }
 }

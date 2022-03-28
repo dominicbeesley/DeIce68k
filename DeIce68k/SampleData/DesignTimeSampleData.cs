@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DeIce68k.ViewModel;
 using DeIce68k.ViewModel.Scripts;
+using DeIceProtocol;
 using DossySerialPort;
 
 namespace DeIce68k.SampleData
@@ -48,7 +49,12 @@ namespace DeIce68k.SampleData
             get {
                 if (_app == null)
                 {
-                    _app = new DeIceAppModel(new DummySerial(), null);
+                    _app = new DeIceAppModel(new DummySerial(), null, new DeIceFnReplyGetStatus(
+                        DeIceProtoConstants.HOST_68k, 0x80, 
+                        DeIceTargetOptionFlags.HasFNCall | DeIceTargetOptionFlags.HasFNResetTarget | DeIceTargetOptionFlags.HasFNStep | DeIceTargetOptionFlags.HasFNStopTarget,
+                        0,0x8000, new byte [] { 0x4E, 0x4F }, "TEST 68k", 0, 0)
+                        );
+                    
                     _app.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
                     _app.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
                     _app.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new uint[] { 20 } ));
@@ -77,65 +83,14 @@ namespace DeIce68k.SampleData
                         while (true)
                         {
                             await Task.Delay(500);
-                            switch (r.Next(20))
+                            if (_app.Regs != null)
                             {
-                                case 0:
-                                    _app.Regs.D0.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 1:
-                                    _app.Regs.D1.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 2:
-                                    _app.Regs.D2.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 3:
-                                    _app.Regs.D3.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 4:
-                                    _app.Regs.D4.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 5:
-                                    _app.Regs.D5.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 6:
-                                    _app.Regs.D6.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 7:
-                                    _app.Regs.D7.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 8:
-                                    _app.Regs.A0.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 9:
-                                    _app.Regs.A1.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 10:
-                                    _app.Regs.A2.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 11:
-                                    _app.Regs.A3.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 12:
-                                    _app.Regs.A4.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 13:
-                                    _app.Regs.A5.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 14:
-                                    _app.Regs.A6.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 15:
-                                    _app.Regs.A7u.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 16:
-                                    _app.Regs.A7s.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 17:
-                                    _app.Regs.PC.Data = (uint)r.Next(int.MinValue, int.MaxValue);
-                                    break;
-                                case 19:
-                                    _app.Regs.SR.Data = (uint)r.Next(0xFFFF);
-                                    break;
+                                byte[] regs = _app.Regs.ToDeIceProtcolRegData();
+                                if (regs.Length > 0)
+                                {
+                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
+                                }
+                                _app.Regs.FromDeIceRegisterData(regs);
                             }
                         }
                     });
@@ -146,7 +101,7 @@ namespace DeIce68k.SampleData
 
         public static DisassMemBlock DisassMem => SampleDeIceAppModel.DisassMemBlock;
 
-        public static RegisterSetModel SampleDataRegisterSetModel { get { return SampleDeIceAppModel.Regs; } }
+        public static RegisterSetModelBase SampleDataRegisterSetModel { get { return SampleDeIceAppModel.Regs; } }
 
         public static StatusRegisterBitsModel SampleStatusRegisterBit { get { return SampleDeIceAppModel.Regs.StatusBits.FirstOrDefault(); } }
 

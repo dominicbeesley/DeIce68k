@@ -10,29 +10,8 @@ using System.Windows.Input;
 
 namespace DeIce68k.ViewModel
 {
-    public class RegisterSetModel : ObservableObject
+    public class RegisterSetModel68k : RegisterSetModelBase
     {
-        public DeIceAppModel Parent { get; init; }
-
-        byte _targetStatus;
-
-        public byte TargetStatus
-        {
-            get
-            {
-                return _targetStatus;
-            }
-            set
-            {
-                if (_targetStatus != value)
-                {
-                    _targetStatus = value;
-                    RaisePropertyChangedEvent(nameof(TargetStatus));
-                    RaisePropertyChangedEvent(nameof(IsStopped));
-                    RaisePropertyChangedEvent(nameof(IsRunning));
-                }
-            }
-        }
         public RegisterModel D0 { get; }
         public RegisterModel D1 { get; }
         public RegisterModel D2 { get; }
@@ -55,22 +34,11 @@ namespace DeIce68k.ViewModel
         public RegisterModel PC { get; }
         public RegisterModel SR { get; }
 
-        public ReadOnlyObservableCollection<StatusRegisterBitsModel> StatusBits { get; init; }
-        public bool IsStopped { 
-            get { 
-                return TargetStatus != DeIceProtoConstants.TS_RUNNING; 
-            } 
-        }
+        public override bool CanTrace => true;
 
-        public bool IsRunning
-        {
-            get
-            {
-                return !IsStopped;
-            }
-        }
+        public override uint PCValue => PC.Data;
 
-        public RegisterSetModel(DeIceAppModel _parent)
+        public RegisterSetModel68k(DeIceAppModel _parent)
         {
             Parent = _parent;
 
@@ -128,6 +96,56 @@ namespace DeIce68k.ViewModel
             UpdateStatusBits();
         }
 
+        public override void FromDeIceRegisterData(byte[] deiceData)
+        {
+            TargetStatus = deiceData[0x00];
+            A7u.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x02);
+            A7s.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x06);
+            D0.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x0A);
+            D1.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x0E);
+            D2.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x12);
+            D3.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x16);
+            D4.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x1A);
+            D5.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x1E);
+            D6.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x22);
+            D7.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x26);
+            A0.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x2A);
+            A1.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x2E);
+            A2.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x32);
+            A3.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x36);
+            A4.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x3A);
+            A5.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x3E);
+            A6.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x42);
+            SR.Data = DeIceFnFactory.ReadBEUShort(deiceData, 0x46);
+            PC.Data = DeIceFnFactory.ReadBEULong(deiceData, 0x48);
+        }
+
+        public override byte[] ToDeIceProtcolRegData()
+        {
+            byte [] ret = new byte[0x4C];
+            ret[0] = TargetStatus;
+            DeIceFnFactory.WriteBEULong(ret, 0x02, A7u.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x06, A7s.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x0A, D0.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x0E, D1.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x12, D2.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x16, D3.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x1A, D4.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x1E, D5.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x22, D6.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x26, D7.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x2A, A0.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x2E, A1.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x32, A2.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x36, A3.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x3A, A4.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x3E, A5.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x42, A6.Data);
+            DeIceFnFactory.WriteBEUShort(ret, 0x46, (ushort)SR.Data);
+            DeIceFnFactory.WriteBEULong(ret, 0x48, PC.Data);
+            return ret;
+        }
+
         private void Sb_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             StatusRegisterBitsModel sb = sender as StatusRegisterBitsModel;
@@ -155,56 +173,18 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public void FromDeIceRegisters(DeIceRegisters other)
+        public override bool SetTrace(bool trace)
         {
-            TargetStatus = other.TargetStatus;
-            D0.Data = other.D0;
-            D1.Data = other.D1;
-            D2.Data = other.D2;
-            D3.Data = other.D3;
-            D4.Data = other.D4;
-            D5.Data = other.D5;
-            D6.Data = other.D6;
-            D7.Data = other.D7;
-            A0.Data = other.A0;
-            A1.Data = other.A1;
-            A2.Data = other.A2;
-            A3.Data = other.A3;
-            A4.Data = other.A4;
-            A5.Data = other.A5;
-            A6.Data = other.A6;
-            A7u.Data = other.A7u;
-            A7s.Data = other.A7s;
-            PC.Data = other.PC;
-            SR.Data = other.SR;
-        }
-
-        public DeIceRegisters ToDeIceProtcolRegs()
-        {
-            return new DeIceRegisters()
+            bool ret = (SR.Data & 0x8000) != 0;
+            if (trace && (SR.Data & 0x8000) == 0)
             {
-                TargetStatus = TargetStatus,
-                A0 = A0.Data,
-                A1 = A1.Data,
-                A2 = A2.Data,
-                A3 = A3.Data,
-                A4 = A4.Data,
-                A5 = A5.Data,
-                A6 = A6.Data,
-                A7s = A7s.Data,
-                A7u = A7u.Data,
-                D0 = D0.Data,
-                D1 = D1.Data,
-                D2 = D2.Data,
-                D3 = D3.Data,
-                D4 = D4.Data,
-                D5 = D5.Data,
-                D6 = D6.Data,
-                D7 = D7.Data,
-                PC = PC.Data,
-                SR = (ushort)SR.Data
-            };
-        }
+                SR.Data |= 0x8000;
+            } else if (!trace && (SR.Data & 0x8000) != 0)
+            {
+                SR.Data &= ~(uint)0x8000;
+            }
 
+            return ret;
+        }
     }
 }

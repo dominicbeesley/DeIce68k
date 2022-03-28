@@ -8,8 +8,8 @@ namespace DeIceProtocol
 {
     public abstract class DeIceFnReplyRegsBase : DeIceFnReplyBase
     {
-        public DeIceRegisters Registers { get; }
+        public byte[] RegisterData { get; }
 
-        internal DeIceFnReplyRegsBase(DeIceRegisters regs) => this.Registers = regs;
+        internal DeIceFnReplyRegsBase(byte [] regsdat) => this.RegisterData = regsdat;
     }
 }
