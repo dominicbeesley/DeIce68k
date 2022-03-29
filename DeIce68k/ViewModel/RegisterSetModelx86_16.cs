@@ -42,7 +42,7 @@ namespace DeIce68k.ViewModel
             CX = new RegisterModel("CX", RegisterSize.Word, 0);
             DX = new RegisterModel("DX", RegisterSize.Word, 0);
             SI = new RegisterModel("SI", RegisterSize.Word, 0);
-            SI = new RegisterModel("DI", RegisterSize.Word, 0);
+            DI = new RegisterModel("DI", RegisterSize.Word, 0);
             BP = new RegisterModel("BP", RegisterSize.Word, 0);
             SP = new RegisterModel("SP", RegisterSize.Word, 0);
             IP = new RegisterModel("IP", RegisterSize.Word, 0);
@@ -94,17 +94,18 @@ namespace DeIce68k.ViewModel
             DI.Data = DeIceFnFactory.ReadUShort(deiceData, 0x00);
             SI.Data = DeIceFnFactory.ReadUShort(deiceData, 0x02);
             BP.Data = DeIceFnFactory.ReadUShort(deiceData, 0x04);
-            BX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x06);
-            DX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x08);
-            CX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0A);
-            AX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0C);
-            DS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0E);
-            ES.Data = DeIceFnFactory.ReadUShort(deiceData, 0x10);
-            IP.Data = DeIceFnFactory.ReadUShort(deiceData, 0x12);
-            CS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x14);
-            FLAGS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x16);
-            SP.Data = DeIceFnFactory.ReadUShort(deiceData, 0x18);
-            SS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x1A);
+            //ignore data at 0x06
+            BX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x08);
+            DX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0A);
+            CX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0C);
+            AX.Data = DeIceFnFactory.ReadUShort(deiceData, 0x0E);
+            DS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x10);
+            ES.Data = DeIceFnFactory.ReadUShort(deiceData, 0x12);
+            IP.Data = DeIceFnFactory.ReadUShort(deiceData, 0x14);
+            CS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x16);
+            FLAGS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x18);
+            SP.Data = DeIceFnFactory.ReadUShort(deiceData, 0x1A);
+            SS.Data = DeIceFnFactory.ReadUShort(deiceData, 0x1C);
             TargetStatus = deiceData[0x1E];
         }
 
@@ -114,17 +115,18 @@ namespace DeIce68k.ViewModel
             DeIceFnFactory.WriteUShort(ret, 0x00, DI.Data);
             DeIceFnFactory.WriteUShort(ret, 0x02, SI.Data);
             DeIceFnFactory.WriteUShort(ret, 0x04, BP.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x06, BX.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x08, DX.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x0A, CX.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x0C, AX.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x0E, DS.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x10, ES.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x12, IP.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x14, CS.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x16, FLAGS.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x18, SP.Data);
-            DeIceFnFactory.WriteUShort(ret, 0x1A, SS.Data);
+            // data at 0x06 is ignored
+            DeIceFnFactory.WriteUShort(ret, 0x08, BX.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x0A, DX.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x0C, CX.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x0E, AX.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x10, DS.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x12, ES.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x14, IP.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x16, CS.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x18, FLAGS.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x1A, SP.Data);
+            DeIceFnFactory.WriteUShort(ret, 0x1C, SS.Data);
             ret[0x1E] = TargetStatus;
             return ret;
         }

@@ -45,6 +45,8 @@ namespace DeIce68k.ViewModel
             }
         }
 
+        bool _sampleData = false; // set in constructor if this is a sample data instance i.e. don't actually do any protocol stuff!
+
         public IDossySerial Serial { get; init; }
 
         DeIceProtocolMain _deIceProto;
@@ -58,7 +60,7 @@ namespace DeIce68k.ViewModel
         public ReadOnlyObservableCollection<BreakpointModel> Breakpoints { get { return _breakpoints; } }
 
 
-        RegisterSetModel68k _regs;
+        RegisterSetModelBase _regs;
 
         public RegisterSetModelBase Regs { get { return _regs; } }
 
@@ -386,8 +388,9 @@ namespace DeIce68k.ViewModel
             DisassMemBlock?.BreakpointsUpdated();
         }
 
-        public DeIceAppModel(IDossySerial serial, MainWindow mainWindow, DeIceFnReplyGetStatus hostStatus = null)
+        public DeIceAppModel(IDossySerial serial, MainWindow mainWindow, bool sampleData = false, DeIceFnReplyGetStatus hostStatus = null)
         {
+            this._sampleData = sampleData;
             this.MainWindow = mainWindow;
             this.Serial = serial;
 
@@ -767,7 +770,18 @@ namespace DeIce68k.ViewModel
                 DoInvoke(new Action(
                 delegate
                 {
-                    Messages.Add($"{MessageNo():X4} FN:{ e.Function.FunctionCode } : { e.Function.GetType().Name }");
+                    Messages.Add($"{MessageNo():X4} FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
+
+                    if (Regs == null)
+                    {
+                        // Refresh host status
+                        try
+                        {
+                            DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
+                        } catch (Exception ex) {
+                            Messages.Add($"Error: Trying to get Host Status:{ex.Message} ");
+                        }
+                    }
 
                     var x = e.Function as DeIceFnReplyRegsBase;
                     if (x != null && Regs != null)
@@ -1224,6 +1238,8 @@ namespace DeIce68k.ViewModel
             _debugHostStatus = hostStatus;
             RaisePropertyChangedEvent(nameof(DebugHostStatus));
 
+            Messages.Add($"HOSTSTATUS:{hostStatus.TargetName}");
+
             bool changed = false;
 
             // check the right sort of register model is present
@@ -1235,19 +1251,20 @@ namespace DeIce68k.ViewModel
                 _regs = new RegisterSetModel68k(this);
                 changed = true;
             } 
-            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_16 && Regs?.GetType() != typeof(RegisterSetModel68k))
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_16 && Regs?.GetType() != typeof(RegisterSetModelx86_16))
             {
                 if (_regs != null)
                     _regs.PropertyChanged -= Regs_PropertyChanged;
 
-                _regs = new RegisterSetModel68k(this);
+                _regs = new RegisterSetModelx86_16(this);
                 changed = true;
             }
 
             if (changed)
             {
                 _regs.PropertyChanged += Regs_PropertyChanged;
-                DeIceProto.SendReq(new DeIceFnReqReadRegs());
+                if (!_sampleData)
+                    DeIceProto.SendReq(new DeIceFnReqReadRegs());
                 RaisePropertyChangedEvent(nameof(Regs));
 
             }

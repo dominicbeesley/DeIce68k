@@ -193,8 +193,8 @@ namespace DeIceProtocol
 
         public static void WriteUShort(byte[] data, int index, uint val)
         {
-            data[index + 0] = (byte)(val >> 8);
-            data[index + 1] = (byte)val;
+            data[index + 1] = (byte)(val >> 8);
+            data[index + 0] = (byte)val;
         }
 
         public static uint ReadUShort(byte[] data, int index)

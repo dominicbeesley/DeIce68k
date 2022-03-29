@@ -8,7 +8,7 @@
              d:DesignHeight="32" d:DesignWidth="100"
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"
              xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
-             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel }"
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel_68k }"
              >
     <Grid>
         <TextBox x:Name="txtAddr" KeyUp="txtAddr_KeyUp"></TextBox>

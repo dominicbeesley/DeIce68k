@@ -12,7 +12,7 @@
         Width="800" 
         Closed="Window_Closed" 
         Loaded="Window_Loaded"
-        d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel }"
+        d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel_x86_16 }"
         >
     <!-- look at https://www.codeproject.com/Articles/101881/Executing-Command-Logic-in-a-View-Model -->
     <Window.Resources>
@@ -93,10 +93,23 @@
                     <ColumnDefinition />
                     <ColumnDefinition />
                 </Grid.ColumnDefinitions>
-                <local:ucRegs Grid.Column="0" 
-                              DataContext="{Binding Regs}" 
-                              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel }" 
+                <ContentPresenter Content="{Binding Regs }" Grid.Column="0">
+                    <ContentPresenter.Resources>
+                        <DataTemplate DataType="{x:Type viewmodel:RegisterSetModel68k}">
+                            <local:ucRegs_68k  
+                              DataContext="{Binding .}" 
+                              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_68k }" 
                               />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type viewmodel:RegisterSetModelx86_16}">
+                            <local:ucRegs_x86_16  
+                              DataContext="{Binding .}" 
+                              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_x86_16 }" 
+                              />
+                        </DataTemplate>
+                    </ContentPresenter.Resources>
+                    
+                </ContentPresenter>
                 <local:ucDisass Grid.Column="1" x:Name="ucDisAss" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" DataContext="{Binding DisassMemBlock}" />
 
                 <TabControl Grid.Column="2">

@@ -17,6 +17,8 @@ namespace DeIce68k
     {
 		private void Application_Startup(object sender, StartupEventArgs e)
 		{
+
+
             DeIceAppModel appModel;
             DossySerialPort.DossySerial serialPort;
 

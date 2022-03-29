@@ -18,9 +18,9 @@ namespace DeIce68k
     /// <summary>
     /// Interaction logic for ucRegs.xaml
     /// </summary>
-    public partial class ucRegs : UserControl
+    public partial class ucRegs_68k : UserControl
     {
-        public ucRegs()
+        public ucRegs_68k()
         {
             InitializeComponent();
         }
