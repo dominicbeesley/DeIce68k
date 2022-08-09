@@ -60,7 +60,7 @@ namespace TestDisassArm
 
                         byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{instr.Operands}\t{instr.Hints}\t{string.Join(" ",inst_bytes.Select(b => $"{b:X2}"))}");
+                        Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{instr.Operands}\t{instr.Hints}\t{string.Join(" ",inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b>32 && b < 128)?(char)b:' '))}");
 
                         dispc += instr.Length;
                     }
