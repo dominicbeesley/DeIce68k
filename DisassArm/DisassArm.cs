@@ -21,6 +21,8 @@ namespace DisassArm
 
             if ((opcode & 0x0E000000) == 0x0A000000)
                 return DecodeBranch(cond, opcode, pc, symbols);
+            else if ((opcode & 0x0FC00090) == 0x00000090)
+                return DecodeMul(cond, opcode, pc, symbols);
             else if ((opcode & 0x0C000000) == 0x00000000)
                 return DecodeAlu(cond, opcode, pc, symbols);
             else
@@ -154,6 +156,40 @@ namespace DisassArm
                 Length = 4,
             };
 
+
+        }
+
+        private static DisRec DecodeMul(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        {
+
+            bool sflag = (opcode & 0x00100000) != 0;
+            string sorp = (sflag ? "s" : "");
+            int rdix = (int)(opcode & 0xF0000) >> 16;
+            string Rd = Reg(rdix);
+            string Rn = Reg((int)(opcode & 0xF000) >> 12);
+            string Rs = Reg((int)(opcode & 0xF00) >> 8);
+            string Rm = Reg((int)(opcode & 0xF));
+            bool mla = (opcode & 0x00200000) != 0;
+
+            string op;
+            if (mla)
+            {
+                op = "mla";
+
+            } else
+            {
+                op = "mul";
+                Rn = null;
+            }
+
+            return new DisRec
+            {
+                Decoded = true,
+                Mnemonic = $"{op}{cond}{sorp}",
+                Operands = string.Join(',', new[] { Rd, Rm, Rs, Rn}.Where(x => x != null)),
+                Hints = "",
+                Length = 4,
+            };
 
         }
 
