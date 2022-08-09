@@ -11,7 +11,7 @@ namespace DisassArm
 {
     public static class DisassArm
     {
-
+        private static DisRec Undefined { get => new DisRec { Decoded = false, Length = 4 }; }
 
         public static DisRec Decode(BinaryReader br, UInt32 pc, IDisassSymbols symbols)
         {
@@ -80,15 +80,19 @@ namespace DisassArm
                 } 
                 else
                 {
+                    //illegal check
+                    if ((opcode & 0x10) != 0)
+                        return Undefined;
+
                     int stix = (int)(opcode & 0x60) >> 5;
                     int sha = (int)(opcode & 0xF80) >> 7;
                     string Shi = ShiftDecode(sha, stix);
                     string Rm = $"{Reg((int)opcode & 0xF)}{(Shi!=null?",":"")}{Shi}";
                     
                     if (pflag)
-                        mem = $"[{Rn},#{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}";
+                        mem = $"[{Rn},{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}";
                     else
-                        mem = $"[{Rn}],#{(uflag ? "" : "-")}{Rm}";
+                        mem = $"[{Rn}],{(uflag ? "" : "-")}{Rm}";
 
                 }
 
@@ -206,13 +210,21 @@ namespace DisassArm
 
                 if ((opcode & 0x00000010) != 0)
                 {
+                    if ((opcode & 0x80) != 0)
+                        return Undefined;
+
                     //shift by reg
                     string Rs = $"R{(opcode & 0xF00) >> 8}";
                     Op2 = $"{Rm}";
                     string St = ShiftType(stix);
                     Shi = $"{St} {Rs}";
-                } else
+                } 
+                else
                 {
+
+                    if ((opcode & 0x10) != 0)
+                        return Undefined;
+
                     Op2 = $"{Rm}";
 
                     int sha = (int)((opcode & 0xF80) >> 7);
@@ -297,16 +309,12 @@ namespace DisassArm
                 {
                     case 1:
                         return "lsr #32";
-                        break;
                     case 2:
                         return "asr #32";
-                        break;
                     case 3:
                         return "rrx";
-                        break;
                     default:
                         return null;
-                        break;
                 }
 
             }
