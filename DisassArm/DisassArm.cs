@@ -106,9 +106,9 @@ namespace DisassArm
         }
 
 
-        private static (string, bool, bool) DecodeAluOp(UInt32 opcode)
+        private static (string, bool, bool) DecodeAluOp(int opix)
         {
-            switch ((opcode & 0x01E00000) >> 21)
+            switch (opix)
             {
                 case 0x0:
                     return ("and", true, true);
@@ -147,13 +147,16 @@ namespace DisassArm
 
         private static DisRec DecodeAlu(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
         {
-            (string op, bool hasRd, bool hasOp1) = DecodeAluOp(opcode);
+
+            int opix = (int)(opcode & 0x01E00000) >> 21;
+            (string op, bool hasRd, bool hasOp1) = DecodeAluOp(opix);
 
             bool sflag = (opcode & 0x00100000) != 0;
             string sorp = (sflag ? "s" : "");
             int rdix = (int)(opcode & 0xF000) >> 12;
             string Rd = Reg(rdix);
-            string Rn = Reg((int)(opcode & 0xF0000) >> 16);
+            int rnix = (int)(opcode & 0xF0000) >> 16;
+            string Rn = Reg(rnix);
             string Op2=null;
             string Shi=null;
 
@@ -175,6 +178,26 @@ namespace DisassArm
                 //op2 is immed
                 UInt32 imm = Ror32(opcode & 0xFF, (opcode & 0xF00) >> 7);
                 Op2 = $"#{Hex(imm)}";
+
+                //special case for ADR
+                if (rnix == 15 && !sflag && opix == 2)
+                    return new DisRec
+                    {
+                        Decoded = true,
+                        Mnemonic = $"adr",
+                        Operands = Hex(pc + 8 - imm),
+                        Hints = "",
+                        Length = 4
+                    };
+                else if (rnix == 15 && !sflag && opix == 4)
+                    return new DisRec
+                    {
+                        Decoded = true,
+                        Mnemonic = $"adr",
+                        Operands = Hex(pc + 8 + imm),
+                        Hints = "",
+                        Length = 4
+                    };
             }
             else
             {
