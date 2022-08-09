@@ -29,6 +29,8 @@ namespace DisassArm
                 return DecodeLdrStr(cond, opcode, pc, symbols);
             else if ((opcode & 0x0E000000) == 0x08000000)
                 return DecodeLdmStm(cond, opcode, pc, symbols);
+            else if ((opcode & 0x0F000000) == 0x0F000000)
+                return DecodeSwi(cond, opcode, pc, symbols);
             else
                 return new DisRec
                 {
@@ -36,6 +38,19 @@ namespace DisassArm
                     Mnemonic = Hex(opcode, 8),
                     Length = 4
                 };            
+        }
+
+        private static DisRec DecodeSwi(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        {
+            return new DisRec
+            {
+                Decoded = true,
+                Mnemonic = $"swi{cond}",
+                Operands = Hex(opcode & 0xFFFFFF),
+                Hints = "",
+                Length = 4,
+            };
+
         }
 
         private static readonly string[] m_modes = { "da", "ia", "db", "ib"};
@@ -70,7 +85,13 @@ namespace DisassArm
                 Enumerable.Range(0, 15)
                 .Where(i => (opcode & 1 << i) != 0)
                 .GroupConsecutive()
-                .Select(i => (i.Item1 == i.Item2)?Reg(i.Item1):$"{Reg(i.Item1)}-{Reg(i.Item2)}"));
+                .Select(i => 
+                    (i.Item1 == i.Item2)
+                        ?Reg(i.Item1)
+                        :i.Item2 == i.Item1+1
+                            ?$"{Reg(i.Item1)},{Reg(i.Item2)}"
+                            :$"{Reg(i.Item1)}-{Reg(i.Item2)}"
+                ));
 
             return new DisRec
             {
