@@ -1,4 +1,5 @@
 ﻿
+using DisassShared;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -12,20 +13,6 @@ namespace Disass68k
     {
 
         public static Regex reHint = new Regex(@"\s*\[([^\]]+)]\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        public record DisRec
-        {
-            public bool Decoded { get; init; }
-            public string Mnemonic { get; init; }
-            public string Operands { get; init; }
-
-            public string Hints { get; init; }
-
-            public ushort Length { get; init; }
-
-            public override string ToString() => $"{Mnemonic,-8} {Operands,-40}; {Hints}";
-
-        }
 
         struct OpcodeDetails
         {
