@@ -26,7 +26,9 @@ namespace DisassArm
             else if ((opcode & 0x0C000000) == 0x00000000)
                 return DecodeAlu(cond, opcode, pc, symbols);
             else if ((opcode & 0x0C000000) == 0x04000000)
-                return DecodeLdSt(cond, opcode, pc, symbols);
+                return DecodeLdrStr(cond, opcode, pc, symbols);
+            else if ((opcode & 0x0E000000) == 0x08000000)
+                return DecodeLdmStm(cond, opcode, pc, symbols);
             else
                 return new DisRec
                 {
@@ -36,7 +38,51 @@ namespace DisassArm
                 };            
         }
 
-        private static DisRec DecodeLdSt(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static readonly string[] m_modes = { "da", "ia", "db", "ib"};
+
+
+        public static IEnumerable<Tuple<int, int>> GroupConsecutive(this IEnumerable<int> source)
+        {
+            using (var e = source.GetEnumerator())
+            {
+                for (bool more = e.MoveNext(); more;)
+                {
+                    int first = e.Current, last = first, next;
+                    while ((more = e.MoveNext()) && (next = e.Current) > last && next - last == 1)
+                        last = next;
+                    yield return new Tuple<int,int>( first, last );
+                }
+            }
+        }
+
+        private static DisRec DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        {
+            int puflag = (int)(opcode & 0x01800000) >> 23;
+            bool sflag = (opcode & 0x00400000) != 0;
+            bool wflag = (opcode & 0x00200000) != 0;
+            bool lflag = (opcode & 0x00100000) != 0;
+            int rnix = (int)(opcode & 0xF0000) >> 16;
+            string Rn = Reg(rnix);
+
+            string op = $"{(lflag ? "ldm" : "stm")}{cond}{m_modes[puflag]}";
+
+            string regs = string.Join(",", 
+                Enumerable.Range(0, 15)
+                .Where(i => (opcode & 1 << i) != 0)
+                .GroupConsecutive()
+                .Select(i => (i.Item1 == i.Item2)?Reg(i.Item1):$"{Reg(i.Item1)}-{Reg(i.Item2)}"));
+
+            return new DisRec
+            {
+                Decoded = true,
+                Mnemonic = op,
+                Operands = $"{Rn}{(wflag?"!":"")},{{{regs}}}{(sflag?"^":"")}",
+                Hints = "",
+                Length = 4,
+            };
+
+        }
+        private static DisRec DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
         {
             bool iflag = (opcode & 0x02000000) != 0;
             bool pflag = (opcode & 0x01000000) != 0;
