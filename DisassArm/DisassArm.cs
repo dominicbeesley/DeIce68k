@@ -25,6 +25,8 @@ namespace DisassArm
                 return DecodeMul(cond, opcode, pc, symbols);
             else if ((opcode & 0x0C000000) == 0x00000000)
                 return DecodeAlu(cond, opcode, pc, symbols);
+            else if ((opcode & 0x0C000000) == 0x04000000)
+                return DecodeLdSt(cond, opcode, pc, symbols);
             else
                 return new DisRec
                 {
@@ -33,6 +35,76 @@ namespace DisassArm
                     Length = 4
                 };            
         }
+
+        private static DisRec DecodeLdSt(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        {
+            bool iflag = (opcode & 0x02000000) != 0;
+            bool pflag = (opcode & 0x01000000) != 0;
+            bool uflag = (opcode & 0x00800000) != 0;
+            bool bflag = (opcode & 0x00400000) != 0;
+            bool wflag = (opcode & 0x00200000) != 0;
+            bool tflag = !pflag && wflag;
+            wflag = wflag & !tflag;
+            bool lflag = (opcode & 0x00100000) != 0;
+            int rnix = (int)(opcode & 0xF0000) >> 16;
+            int rdix = (int)(opcode & 0xF000) >> 12;
+
+            string op = $"{(lflag?"ldr":"str")}";
+            string Rd = Reg(rdix);
+            string Rn = Reg(rnix);
+
+            string mem;
+
+            if (rnix == 15 & !iflag & !wflag & pflag)
+            {
+                if (uflag)
+                    mem = Hex(pc + 8 + (opcode & 0xFFF),8);
+                else
+                    mem = Hex(pc + 8 - (opcode & 0xFFF),8);
+            } else
+            {
+                if (!iflag)
+                {
+                    UInt32 offs = opcode & 0xFFF;
+
+                    if (offs == 0)
+                    {
+                        mem = $"[{Rn}]";
+                    } else
+                    {
+                        if (pflag)
+                            mem = $"[{Rn},#{(uflag ? "" : "-")}{Hex(offs)}]{(wflag?"!":"")}";
+                        else
+                            mem = $"[{Rn}],#{(uflag ? "" : "-")}{Hex(offs)}";
+                    }
+                } 
+                else
+                {
+                    int stix = (int)(opcode & 0x60) >> 5;
+                    int sha = (int)(opcode & 0xF80) >> 7;
+                    string Shi = ShiftDecode(sha, stix);
+                    string Rm = $"{Reg((int)opcode & 0xF)}{(Shi!=null?",":"")}{Shi}";
+                    
+                    if (pflag)
+                        mem = $"[{Rn},#{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}";
+                    else
+                        mem = $"[{Rn}],#{(uflag ? "" : "-")}{Rm}";
+
+                }
+
+            }
+
+            return new DisRec
+            {
+                Decoded = true,
+                Mnemonic = $"{op}{cond}{(bflag ? "b" : "")}{(tflag ? "t" : "")}",
+                Operands = $"{Rd},{mem}",
+                Hints = "",
+                Length = 4,
+            };
+
+        }
+
 
         private static (string, bool, bool) DecodeAluOp(UInt32 opcode)
         {
@@ -108,13 +180,13 @@ namespace DisassArm
             {
                 string Rm = Reg((int)opcode & 0xF);
                 int stix = (int)(opcode & 0x60) >> 5;
-                string St = AluShift(stix);
 
                 if ((opcode & 0x00000010) != 0)
                 {
                     //shift by reg
                     string Rs = $"R{(opcode & 0xF00) >> 8}";
                     Op2 = $"{Rm}";
+                    string St = ShiftType(stix);
                     Shi = $"{St} {Rs}";
                 } else
                 {
@@ -122,29 +194,13 @@ namespace DisassArm
 
                     int sha = (int)((opcode & 0xF80) >> 7);
 
-                    if (sha == 0)
-                    {
-                        switch (stix) {
-                            case 1:
-                                Shi = "lsr #32";
-                                break;
-                            case 2:
-                                Shi = "asr #32";
-                                break;
-                            case 3:
-                                Shi = "rrx";
-                                break;
-                            default:
-                                Shi = null;
-                                break;
-                        }
-
-                    }
-                    else 
-                        Shi = $"{St} #{sha}";
+                    Shi = ShiftDecode(sha, stix);
 
                 }
             }
+
+            if (!hasOp1)
+                Rn = null;
 
 
             return new DisRec
@@ -193,7 +249,7 @@ namespace DisassArm
 
         }
 
-        private static string AluShift(int s)
+        private static string ShiftType(int s)
         {
             switch(s)
             {
@@ -210,6 +266,32 @@ namespace DisassArm
             }
         }
 
+        private static string ShiftDecode(int sha, int stix)
+        {
+            if (sha == 0)
+            {
+                switch (stix)
+                {
+                    case 1:
+                        return "lsr #32";
+                        break;
+                    case 2:
+                        return "asr #32";
+                        break;
+                    case 3:
+                        return "rrx";
+                        break;
+                    default:
+                        return null;
+                        break;
+                }
+
+            }
+            else
+                return $"{ShiftType(stix)} #{sha}";
+
+        }
+
         private static UInt32 Ror32(UInt32 val, uint n)
         {
             int nn = (int)n;
@@ -222,10 +304,12 @@ namespace DisassArm
         {
             UInt32 dest = (pc + 8 + ((opcode & 0xFFFFFF) << 2)) & 0x3FFFFFF;
 
+            bool lflag = (opcode & 0x01000000) != 0;
+
             return new DisRec
             {
                 Decoded = true,
-                Mnemonic = $"b{((opcode & 0x01000000) != 0 ? "" : "l")}{cond}",
+                Mnemonic = $"b{(lflag ? "l" : "")}{cond}",
                 Operands = $"${dest:X8}",
                 Hints = "",
                 Length = 4,
