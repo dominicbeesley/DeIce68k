@@ -11,9 +11,9 @@ namespace DisassArm
 {
     public static class DisassArm
     {
-        private static DisRec Undefined { get => new DisRec { Decoded = false, Length = 4 }; }
+        private static DisRec2<UInt32> Undefined { get => new DisRec2<UInt32> { Decoded = false, Length = 4 }; }
 
-        public static DisRec Decode(BinaryReader br, UInt32 pc, IDisassSymbols symbols)
+        public static DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc, ISymbols2<UInt32> symbols)
         {
 
             UInt32 opcode = br.ReadUInt32();
@@ -32,21 +32,20 @@ namespace DisassArm
             else if ((opcode & 0x0F000000) == 0x0F000000)
                 return DecodeSwi(cond, opcode, pc, symbols);
             else
-                return new DisRec
+                return new DisRec2<UInt32>
                 {
                     Decoded = false,
-                    Mnemonic = Hex(opcode, 8),
                     Length = 4
                 };            
         }
 
-        private static DisRec DecodeSwi(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = $"swi{cond}",
-                Operands = Hex(opcode & 0xFFFFFF),
+                Operands = new [] { SymFind(symbols, opcode & 0xFFFFFF) },
                 Hints = "",
                 Length = 4,
             };
@@ -70,7 +69,7 @@ namespace DisassArm
             }
         }
 
-        private static DisRec DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
             int puflag = (int)(opcode & 0x01800000) >> 23;
             bool sflag = (opcode & 0x00400000) != 0;
@@ -93,17 +92,17 @@ namespace DisassArm
                             :$"{Reg(i.Item1)}-{Reg(i.Item2)}"
                 ));
 
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = op,
-                Operands = $"{Rn}{(wflag?"!":"")},{{{regs}}}{(sflag?"^":"")}",
+                Operands = new[] { new DisRec2OperString<UInt32> { Text = $"{Rn}{(wflag ? "!" : "")},{{{regs}}}{(sflag ? "^" : "")}" } },
                 Hints = "",
                 Length = 4,
             };
 
         }
-        private static DisRec DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
             bool iflag = (opcode & 0x02000000) != 0;
             bool pflag = (opcode & 0x01000000) != 0;
@@ -120,14 +119,12 @@ namespace DisassArm
             string Rd = Reg(rdix);
             string Rn = Reg(rnix);
 
-            string mem;
+            IEnumerable<DisRec2OperString<UInt32>> mem;
 
             if (rnix == 15 & !iflag & !wflag & pflag)
             {
-                if (uflag)
-                    mem = Hex(pc + 8 + (opcode & 0xFFF),8);
-                else
-                    mem = Hex(pc + 8 - (opcode & 0xFFF),8);
+                UInt32 addr = uflag ? pc + 8 + (opcode & 0xFFF) : pc + 8 - (opcode & 0xFFF);
+                    mem = new[] { SymFind(symbols, addr) };
             } else
             {
                 if (!iflag)
@@ -136,13 +133,13 @@ namespace DisassArm
 
                     if (offs == 0)
                     {
-                        mem = $"[{Rn}]";
+                        mem = OperStr( $"[{Rn}]" );
                     } else
                     {
                         if (pflag)
-                            mem = $"[{Rn},#{(uflag ? "" : "-")}{Hex(offs)}]{(wflag?"!":"")}";
+                            mem = OperStr($"[{Rn},#{(uflag ? "" : "-")}{Hex(offs)}]{(wflag?"!":"")}");
                         else
-                            mem = $"[{Rn}],#{(uflag ? "" : "-")}{Hex(offs)}";
+                            mem = OperStr($"[{Rn}],#{(uflag ? "" : "-")}{Hex(offs)}");
                     }
                 } 
                 else
@@ -157,19 +154,19 @@ namespace DisassArm
                     string Rm = $"{Reg((int)opcode & 0xF)}{(Shi!=null?",":"")}{Shi}";
                     
                     if (pflag)
-                        mem = $"[{Rn},{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}";
+                        mem = OperStr($"[{Rn},{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}");
                     else
-                        mem = $"[{Rn}],{(uflag ? "" : "-")}{Rm}";
+                        mem = OperStr($"[{Rn}],{(uflag ? "" : "-")}{Rm}");
 
                 }
 
             }
 
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = $"{op}{cond}{(bflag ? "b" : "")}{(tflag ? "t" : "")}",
-                Operands = $"{Rd},{mem}",
+                Operands = OperStr($"{Rd},").Concat(mem),
                 Hints = "",
                 Length = 4,
             };
@@ -216,7 +213,7 @@ namespace DisassArm
             }
         }
 
-        private static DisRec DecodeAlu(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
 
             int opix = (int)(opcode & 0x01E00000) >> 21;
@@ -252,20 +249,20 @@ namespace DisassArm
 
                 //special case for ADR
                 if (rnix == 15 && !sflag && opix == 2)
-                    return new DisRec
+                    return new DisRec2<UInt32>
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = Hex(pc + 8 - imm),
+                        Operands = new[] { SymFind(symbols, pc + 8 - imm) },
                         Hints = "",
                         Length = 4
                     };
                 else if (rnix == 15 && !sflag && opix == 4)
-                    return new DisRec
+                    return new DisRec2<UInt32>
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = Hex(pc + 8 + imm),
+                        Operands = new[] { SymFind(symbols, pc + 8 + imm) },
                         Hints = "",
                         Length = 4
                     };
@@ -305,19 +302,19 @@ namespace DisassArm
                 Rn = null;
 
 
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = $"{op}{cond}{sorp}",
-                Operands = string.Join(',', new [] {Rd,Rn,Op2,Shi}.Where(x => x != null)),
+                Operands = OperStr(string.Join(',', new [] {Rd,Rn,Op2,Shi}.Where(x => x != null))),
                 Hints = "",
-                Length = 4,
+                Length = 4
             };
 
 
         }
 
-        private static DisRec DecodeMul(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
 
             bool sflag = (opcode & 0x00100000) != 0;
@@ -340,11 +337,11 @@ namespace DisassArm
                 Rn = null;
             }
 
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = $"{op}{cond}{sorp}",
-                Operands = string.Join(',', new[] { Rd, Rm, Rs, Rn}.Where(x => x != null)),
+                Operands = OperStr(string.Join(',', new[] { Rd, Rm, Rs, Rn}.Where(x => x != null))),
                 Hints = "",
                 Length = 4,
             };
@@ -398,17 +395,17 @@ namespace DisassArm
             return (UInt32)v2;
         }
 
-        private static DisRec DecodeBranch(string cond, UInt32 opcode, UInt32 pc, IDisassSymbols symbols)
+        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols)
         {
             UInt32 dest = (pc + 8 + ((opcode & 0xFFFFFF) << 2)) & 0x3FFFFFF;
 
             bool lflag = (opcode & 0x01000000) != 0;
 
-            return new DisRec
+            return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Mnemonic = $"b{(lflag ? "l" : "")}{cond}",
-                Operands = $"${dest:X8}",
+                Operands = new[] { SymFind(symbols, dest) },
                 Hints = "",
                 Length = 4,
             };
@@ -478,6 +475,17 @@ namespace DisassArm
                     return "??";
             
             }
+        }
+
+        private static DisRec2OperString<UInt32>SymFind(ISymbols2<UInt32> symbols, UInt32 addr)
+        {
+            var sym = symbols?.GetByAddress(addr).FirstOrDefault();
+            return new DisRec2OperString<UInt32>{ Text = Hex(addr), Symbol = sym };
+        }
+
+        private static IEnumerable<DisRec2OperString<UInt32>> OperStr(string str)
+        {
+            return new[] { new DisRec2OperString<UInt32> { Text = str } };
         }
     }
 

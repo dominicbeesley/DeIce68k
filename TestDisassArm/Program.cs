@@ -14,7 +14,7 @@ namespace TestDisassArm
         static void Main(string[] args)
         {
 
-            IDisassSymbols symbols = new Symbols();
+            ISymbols2<UInt32> symbols = new Symbols();
 
             byte[] Data = File.ReadAllBytes(@"E:\Users\dominic\GitHub\b-em\roms\tube\ARMeval_100.rom");
 
@@ -32,16 +32,16 @@ namespace TestDisassArm
                 while (ok)
                 {
                     bool hassym = false;
-                    foreach (var label in symbols.AddressToSymbols(dispc))
+                    foreach (var label in symbols.GetByAddress(dispc))
                     {
-                        Console.WriteLine($"{label}:");
+                        Console.WriteLine($"{label.Name}:");
                         hassym = true;
                     }
 
                     var p = ms.Position;
 
                     var br = new BinaryReader(ms);
-                    DisRec instr;
+                    DisRec2<UInt32> instr;
                     try
                     {
 
@@ -56,11 +56,36 @@ namespace TestDisassArm
                     if (instr != null)
                     {
 
-                        ms.Position = p;
+                        if (instr.Decoded)
+                        {
+                            ms.Position = p;
 
-                        byte[] inst_bytes = new byte[instr.Length];
-                        ms.Read(inst_bytes, 0, instr.Length);
-                        Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{instr.Operands}\t{instr.Hints}\t{string.Join(" ",inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b>32 && b < 128)?(char)b:' '))}");
+                            byte[] inst_bytes = new byte[instr.Length];
+                            ms.Read(inst_bytes, 0, instr.Length);
+
+                            Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{string.Join("", instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+                        } else
+                        {
+                            ms.Position = p;
+                            int l = instr.Length;
+                            
+                            while (l >= 4)
+                            {
+                                UInt32 v = br.ReadUInt32();
+                                byte[] inst_bytes = BitConverter.GetBytes(v);
+                                Console.WriteLine($"{dispc:X8}\t.ualong\t{v:X8}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+                                l -= 4;
+                            }
+
+                            while (l >= 1)
+                            {
+                                byte v = br.ReadByte();
+                                byte[] inst_bytes = new[] { v };
+                                Console.WriteLine($"{dispc:X8}\t.ualong\t0x{v:X8}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+                                l -= 4;
+                            }
+
+                        }
 
                         dispc += instr.Length;
                     }

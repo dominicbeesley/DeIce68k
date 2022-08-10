@@ -7,17 +7,18 @@ using System.Threading.Tasks;
 
 namespace TestDisassArm
 {
-    public class Symbols : IDisassSymbols
+    public class Symbols : ISymbols2<UInt32>
     {
-        public IEnumerable<string> AddressToSymbols(uint address)
+        public bool FindByName(string name, out ISymbol2<uint> sym)
         {
-            return Enumerable.Empty<string>();
-        }
-
-        public bool SymbolToAddress(string symbol, out uint address)
-        {
-            address = 0;
+            sym = null;
             return false;
         }
+
+        public IEnumerable<ISymbol2<UInt32>> GetByAddress(UInt32 addr)
+        {
+            return Enumerable.Empty<ISymbol2<UInt32>>();
+        }
+
     }
 }
