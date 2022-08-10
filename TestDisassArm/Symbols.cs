@@ -11,16 +11,18 @@ namespace TestDisassArm
     {
         public record Symbol : ISymbol2<UInt32>
         {
+            public SymbolType SymbolType { get; init; }
+
             public string Name { get; init; }
 
-            public uint Address { get; init; }
+            public UInt32 Address { get; init; }
         }
 
         Dictionary<string, Symbol> dic = new Dictionary<string, Symbol>();
 
-        public ISymbol2<UInt32> Add(string name, UInt32 addr)
+        public ISymbol2<UInt32> Add(string name, UInt32 addr, SymbolType type)
         {
-            var s = new Symbol { Name = name, Address = addr };
+            var s = new Symbol { Name = name, Address = addr, SymbolType = type };
             dic[name] = s;
             return s;
         }
@@ -34,9 +36,9 @@ namespace TestDisassArm
             return ret;
         }
 
-        public IEnumerable<ISymbol2<UInt32>> GetByAddress(UInt32 addr)
+        public IEnumerable<ISymbol2<UInt32>> GetByAddress(UInt32 addr, SymbolType type = SymbolType.ANY)
         {
-            return dic.Values.Where(v => v.Address == addr);
+            return dic.Values.Where(v => v.Address == addr && (v.SymbolType & type) != 0);
         }
 
     }

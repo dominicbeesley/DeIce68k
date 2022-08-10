@@ -10,7 +10,7 @@ namespace DisassShared
     {
         public bool Decoded { get; init; }
         public string Mnemonic { get; init; }
-        public IEnumerable<DisRec2OperString<Taddr>> Operands { get; init; }
+        public IEnumerable<DisRec2OperString_Base> Operands { get; init; }
 
         public string Hints { get; init; }
 
@@ -20,18 +20,31 @@ namespace DisassShared
 
     }
 
-    public record DisRec2OperString<Taddr>
+    public record DisRec2OperString_Base
     {
+
+    }
+
+    public record DisRec2OperString_String : DisRec2OperString_Base
+    { 
         public string Text {get; init;}
-        public ISymbol2<Taddr> Symbol { get; init; }
 
         public override string ToString()
         {
-            if (Symbol != null)
-                return Symbol.Name;
-            else
-                return Text ?? "?";
+            return Text ?? "?";
         }
+    }
+
+    public record DisRec2OperString_Number : DisRec2OperString_Base
+    {
+        public SymbolType SymbolType { get; init; }
+        public UInt32 Number { get; init; }
+
+        public override string ToString()
+        {
+            return $"0x{Number:X}";
+        }
+
     }
 
 }

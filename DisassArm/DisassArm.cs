@@ -45,7 +45,7 @@ namespace DisassArm
             {
                 Decoded = true,
                 Mnemonic = $"swi{cond}",
-                Operands = new [] { SymFind(symbols, opcode & 0xFFFFFF, createSymbols) },
+                Operands = OperNum (opcode & 0xFFFFFF, SymbolType.ServiceCall),
                 Hints = "",
                 Length = 4,
             };
@@ -66,6 +66,17 @@ namespace DisassArm
                         last = next;
                     yield return new Tuple<int,int>( first, last );
                 }
+            }
+        }
+
+        public static IEnumerable<T> Intersperse<T>(this IEnumerable<T> source, T value)
+        {
+            bool first = true;
+            foreach (T item in source)
+            {
+                if (first) { first = false; }
+                else { yield return value; }
+                yield return item;
             }
         }
 
@@ -96,7 +107,7 @@ namespace DisassArm
             {
                 Decoded = true,
                 Mnemonic = op,
-                Operands = new[] { new DisRec2OperString<UInt32> { Text = $"{Rn}{(wflag ? "!" : "")},{{{regs}}}{(sflag ? "^" : "")}" } },
+                Operands = OperStr( $"{Rn}{(wflag ? "!" : "")},{{{regs}}}{(sflag ? "^" : "")}" ),
                 Hints = "",
                 Length = 4,
             };
@@ -119,12 +130,12 @@ namespace DisassArm
             string Rd = Reg(rdix);
             string Rn = Reg(rnix);
 
-            IEnumerable<DisRec2OperString<UInt32>> mem;
+            IEnumerable<DisRec2OperString_Base> mem;
 
             if (rnix == 15 & !iflag & !wflag & pflag)
             {
                 UInt32 addr = uflag ? pc + 8 + (opcode & 0xFFF) : pc + 8 - (opcode & 0xFFF);
-                    mem = new[] { SymFind(symbols, addr, createSymbols) };
+                    mem = new[] { new DisRec2OperString_Number { Number = addr } };
             } else
             {
                 if (!iflag)
@@ -222,11 +233,11 @@ namespace DisassArm
             bool sflag = (opcode & 0x00100000) != 0;
             string sorp = (sflag ? "s" : "");
             int rdix = (int)(opcode & 0xF000) >> 12;
-            string Rd = Reg(rdix);
+            var Rd = OperStr(Reg(rdix));
             int rnix = (int)(opcode & 0xF0000) >> 16;
-            string Rn = Reg(rnix);
-            string Op2=null;
-            string Shi=null;
+            var Rn = OperStr(Reg(rnix));
+            IEnumerable<DisRec2OperString_Base> Op2 = null;
+            IEnumerable<DisRec2OperString_Base> Shi = null;
 
             if (!hasRd)
             {
@@ -245,7 +256,7 @@ namespace DisassArm
             {
                 //op2 is immed
                 UInt32 imm = Ror32(opcode & 0xFF, (opcode & 0xF00) >> 7);
-                Op2 = $"#{Hex(imm)}";
+                Op2 = OperStr("#").Concat(OperNum(imm, SymbolType.Immediate));
 
                 //special case for ADR
                 if (rnix == 15 && !sflag && opix == 2)
@@ -253,7 +264,7 @@ namespace DisassArm
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = new[] { SymFind(symbols, pc + 8 - imm, createSymbols) },
+                        Operands = OperNum(pc + 8 - imm, SymbolType.Pointer),
                         Hints = "",
                         Length = 4
                     };
@@ -262,7 +273,7 @@ namespace DisassArm
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = new[] { SymFind(symbols, pc + 8 + imm, createSymbols) },
+                        Operands = OperNum(pc + 8 + imm, SymbolType.Pointer),
                         Hints = "",
                         Length = 4
                     };
@@ -279,9 +290,9 @@ namespace DisassArm
 
                     //shift by reg
                     string Rs = $"R{(opcode & 0xF00) >> 8}";
-                    Op2 = $"{Rm}";
+                    Op2 = OperStr($"{Rm}");
                     string St = ShiftType(stix);
-                    Shi = $"{St} {Rs}";
+                    Shi = OperStr($"{St} {Rs}");
                 } 
                 else
                 {
@@ -289,11 +300,11 @@ namespace DisassArm
                     if ((opcode & 0x10) != 0)
                         return Undefined;
 
-                    Op2 = $"{Rm}";
+                    Op2 = OperStr($"{Rm}");
 
                     int sha = (int)((opcode & 0xF80) >> 7);
 
-                    Shi = ShiftDecode(sha, stix);
+                    Shi = OperStr(ShiftDecode(sha, stix));
 
                 }
             }
@@ -306,7 +317,7 @@ namespace DisassArm
             {
                 Decoded = true,
                 Mnemonic = $"{op}{cond}{sorp}",
-                Operands = OperStr(string.Join(',', new [] {Rd,Rn,Op2,Shi}.Where(x => x != null))),
+                Operands = new [] {Rd,Rn,Op2,Shi}.Where(x => x != null && x.Any()).Intersperse(OperStr(",")).SelectMany(o => o),
                 Hints = "",
                 Length = 4
             };
@@ -405,7 +416,7 @@ namespace DisassArm
             {
                 Decoded = true,
                 Mnemonic = $"b{(lflag ? "l" : "")}{cond}",
-                Operands = new[] { SymFind(symbols, dest, createSymbols) },
+                Operands = OperNum(dest, SymbolType.Pointer),
                 Hints = "",
                 Length = 4,
             };
@@ -477,19 +488,17 @@ namespace DisassArm
             }
         }
 
-        private static DisRec2OperString<UInt32>SymFind(ISymbols2<UInt32> symbols, UInt32 addr, bool createSymbols)
+        private static IEnumerable<DisRec2OperString_Base> OperNum(UInt32 num, SymbolType type)
         {
-            var sym = symbols?.GetByAddress(addr).FirstOrDefault();
-            if (sym == null)
-            {
-                sym = symbols.Add($"L_{addr:X8}", addr);
-            }
-            return new DisRec2OperString<UInt32>{ Text = Hex(addr), Symbol = sym };
+            return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type } };
         }
 
-        private static IEnumerable<DisRec2OperString<UInt32>> OperStr(string str)
+        private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
         {
-            return new[] { new DisRec2OperString<UInt32> { Text = str } };
+            if (str == null)
+                return null;
+            else
+                return new[] { new DisRec2OperString_String { Text = str } };
         }
     }
 
