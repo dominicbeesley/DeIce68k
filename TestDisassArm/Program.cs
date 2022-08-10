@@ -14,7 +14,7 @@ namespace TestDisassArm
         static void Main(string[] args)
         {
 
-            ISymbols2<UInt32> symbols = new Symbols();
+            Symbols symbols = new Symbols();
 
             byte[] Data = File.ReadAllBytes(@"E:\Users\dominic\GitHub\b-em\roms\tube\ARMeval_100.rom");
 
@@ -25,10 +25,41 @@ namespace TestDisassArm
 
 
 
-            bool ok = true;
-            bool first = true;
             using (var ms = new MemoryStream(Data))
             {
+                var br = new BinaryReader(ms);
+
+                bool ok = true;
+                //first pass to autogen symbols
+                while (ok)
+                {
+
+                    DisRec2<UInt32> instr;
+                    try
+                    {
+
+                        instr = DisassArm.DisassArm.Decode(br, dispc, symbols, true);
+                    }
+                    catch (EndOfStreamException)
+                    {
+                        ok = false;
+                        continue;
+                    }
+
+                    if (instr != null)
+                    {
+                        dispc += instr.Length;
+                    }
+                    else
+                    {
+                        ok = false;
+                    }
+                }
+
+                dispc = BaseAddress;
+                ok = true;
+                ms.Position = 0;
+                bool first = true;
                 while (ok)
                 {
                     bool hassym = false;
@@ -40,12 +71,11 @@ namespace TestDisassArm
 
                     var p = ms.Position;
 
-                    var br = new BinaryReader(ms);
                     DisRec2<UInt32> instr;
                     try
                     {
 
-                        instr = DisassArm.DisassArm.Decode(br, dispc, symbols);
+                        instr = DisassArm.DisassArm.Decode(br, dispc, symbols, false);
                     }
                     catch (EndOfStreamException)
                     {
