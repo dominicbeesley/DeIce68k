@@ -12,9 +12,9 @@ namespace DisassShared
     /// <typeparam name="Taddr">The address type i.e. UInt32</typeparam>
     public interface ISymbols2<Taddr>
     {
-        ISymbol2<Taddr> Add(string name, Taddr addr);
+        ISymbol2<Taddr> Add(string name, Taddr addr, SymbolType type);
 
-        IEnumerable<ISymbol2<Taddr>> GetByAddress(Taddr addr);
+        IEnumerable<ISymbol2<Taddr>> GetByAddress(Taddr addr, SymbolType type = SymbolType.ANY);
 
         bool FindByName(string name, out ISymbol2<Taddr> sym);
     }

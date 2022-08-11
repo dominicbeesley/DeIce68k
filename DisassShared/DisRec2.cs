@@ -33,6 +33,10 @@ namespace DisassShared
         {
             return Text ?? "?";
         }
+        public override int GetHashCode()
+        {
+            return Text.GetHashCode();
+        }
     }
 
     public record DisRec2OperString_Number : DisRec2OperString_Base
@@ -45,6 +49,10 @@ namespace DisassShared
             return $"0x{Number:X}";
         }
 
+        public override int GetHashCode()
+        {
+            return SymbolType.GetHashCode() + Number.GetHashCode();
+        }
     }
 
 }

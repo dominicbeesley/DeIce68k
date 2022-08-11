@@ -21,13 +21,16 @@ namespace TestDisassArm
             UInt32 BaseAddress = 0x0;
             UInt32 PC = BaseAddress;
 
-            uint dispc = BaseAddress;
+            UInt32 dispc = BaseAddress;
+            UInt32 EndAddress = BaseAddress;
 
 
 
             using (var ms = new MemoryStream(Data))
             {
                 var br = new BinaryReader(ms);
+
+                var miss = new HashSet<DisRec2OperString_Number>();
 
                 bool ok = true;
                 //first pass to autogen symbols
@@ -39,6 +42,15 @@ namespace TestDisassArm
                     {
 
                         instr = DisassArm.DisassArm.Decode(br, dispc, symbols, true);
+
+                        if (instr?.Operands != null) {
+                            //look for missing symbols and add to set to create later
+                            miss.UnionWith(
+                                instr.Operands.Where(i => i is DisRec2OperString_Number).Cast<DisRec2OperString_Number>()
+                                .Where(i => i.SymbolType == SymbolType.Pointer || i.SymbolType == SymbolType.ServiceCall)
+                                );
+                        }
+
                     }
                     catch (EndOfStreamException)
                     {
@@ -55,6 +67,21 @@ namespace TestDisassArm
                         ok = false;
                     }
                 }
+                EndAddress = dispc;
+
+                foreach (var n in miss)
+                {
+                    if (n.SymbolType == SymbolType.ServiceCall)
+                    {
+                        symbols.Add($"SWI_{n.Number:X}", n.Number, n.SymbolType);
+                    } else if (n.SymbolType == SymbolType.Pointer)
+                    {
+                        if (n.Number >= BaseAddress && n.Number < EndAddress)
+                            symbols.Add($"L_{n.Number:X}", n.Number, n.SymbolType);
+                        else
+                            symbols.Add($"P_{n.Number:X}", n.Number, n.SymbolType);
+                    }
+                }
 
                 dispc = BaseAddress;
                 ok = true;
@@ -63,7 +90,7 @@ namespace TestDisassArm
                 while (ok)
                 {
                     bool hassym = false;
-                    foreach (var label in symbols.GetByAddress(dispc))
+                    foreach (var label in symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
                         Console.WriteLine($"{label.Name}:");
                         hassym = true;
@@ -93,7 +120,7 @@ namespace TestDisassArm
                             byte[] inst_bytes = new byte[instr.Length];
                             ms.Read(inst_bytes, 0, instr.Length);
 
-                            Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{string.Join("", instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+                            Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{ExpandSymbols(symbols, instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
                         } else
                         {
                             ms.Position = p;
@@ -126,6 +153,27 @@ namespace TestDisassArm
                 }
             }
 
+        }
+
+        static string ExpandSymbols(Symbols symbols, IEnumerable<DisRec2OperString_Base> oper)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var o in oper)
+            {
+                if (o is DisRec2OperString_Number)
+                {
+                    var n = (DisRec2OperString_Number)o;
+                    var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
+                    if (s != null)
+                        sb.Append(s.Name);
+                    else
+                        sb.Append(n.ToString());
+                } else
+                {
+                    sb.Append(o.ToString());
+                }
+            }
+            return sb.ToString();
         }
     }
 }

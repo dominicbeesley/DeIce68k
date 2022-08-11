@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 
 namespace DisassShared
 {
+    [Flags]
     public enum SymbolType
     {
-        NONE,
-        Pointer,
-        ServiceCall,
-        Immediate
+        NONE = 0,
+        Pointer = 1,
+        ServiceCall = 2,
+        Immediate = 4,
+        ANY = 7
     }
 }
