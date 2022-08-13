@@ -16,24 +16,26 @@ namespace DeIceProtocol
             if (req is DeIceFnReqReadMem)
             {
                 DeIceFnReqReadMem rm = (DeIceFnReqReadMem)req;
-                ret = new byte[7];
+                ret = new byte[8];
                 ret[0] = req.FunctionCode;
-                ret[1] = 4;
-                ret[2] = (byte)(rm.Address >> 16);
-                ret[3] = (byte)(rm.Address >> 8);
-                ret[4] = (byte)(rm.Address);
-                ret[5] = rm.Len;
+                ret[1] = 5;
+                ret[2] = (byte)(rm.Address >> 24);
+                ret[3] = (byte)(rm.Address >> 16);
+                ret[4] = (byte)(rm.Address >> 8);
+                ret[5] = (byte)(rm.Address);
+                ret[6] = rm.Len;
             }
             else if (req is DeIceFnReqWriteMem)
             {
                 DeIceFnReqWriteMem rm = (DeIceFnReqWriteMem)req;
-                ret = new byte[6 + rm.Data.Length];
+                ret = new byte[7 + rm.Data.Length];
                 ret[0] = req.FunctionCode;
                 ret[1] = (byte)(3 + rm.Data.Length);
-                ret[2] = (byte)(rm.Address >> 16);
-                ret[3] = (byte)(rm.Address >> 8);
-                ret[4] = (byte)(rm.Address);
-                rm.Data.CopyTo(ret, 5);
+                ret[2] = (byte)(rm.Address >> 24);
+                ret[3] = (byte)(rm.Address >> 16);
+                ret[4] = (byte)(rm.Address >> 8);
+                ret[5] = (byte)(rm.Address);
+                rm.Data.CopyTo(ret, 6);
             }
             else if (req is DeIceFnReqRun)
             {
@@ -64,7 +66,7 @@ namespace DeIceProtocol
             {
                 var sb = (DeIceFnReqSetBytes)req;
 
-                int ll = sb.Items.Length * 4;
+                int ll = sb.Items.Length * 5;
 
                 if (ll > 255)
                     throw new ArgumentException($"DeIceFnReqSetBytes data too long, > 255 bytes in payload");
@@ -75,8 +77,8 @@ namespace DeIceProtocol
 
                 for (int i = 0; i < sb.Items.Length; i++)
                 {
-                    WriteBEULong24(ret, 2 + i * 4, sb.Items[i].Address);
-                    ret[5 + i * 4] = sb.Items[i].Data;
+                    WriteBEULong(ret, 2 + i * 5, sb.Items[i].Address);
+                    ret[6 + i * 5] = sb.Items[i].Data;
                 }
             }
             else if (req is DeIceFnReqGetStatus)
