@@ -1,4 +1,5 @@
 ﻿using Disass68k;
+using DisassShared;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -82,7 +83,7 @@ namespace DeIce68k.ViewModel
                     var p = ms.Position;
 
                     var br = new BinaryReader(ms);
-                    Disass.DisRec instr;
+                    DisRec instr;
                     try
                     {
                         instr = Disass.Decode(br, dispc, _app.Symbols, true);
@@ -160,7 +161,7 @@ namespace DeIce68k.ViewModel
                     var p = ms.Position;
 
                     var br = new BinaryReader(ms);
-                    Disass.DisRec instr;
+                    DisRec instr;
                     try
                     {
 

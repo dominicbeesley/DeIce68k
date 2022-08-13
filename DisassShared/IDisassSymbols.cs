@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Disass68k
+namespace DisassShared
 {
     public interface IDisassSymbols
     {

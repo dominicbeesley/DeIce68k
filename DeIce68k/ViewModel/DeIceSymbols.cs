@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Disass68k;
+using DisassShared;
 
 namespace DeIce68k.ViewModel
 {
