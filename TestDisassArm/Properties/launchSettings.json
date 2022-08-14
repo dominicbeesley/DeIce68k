@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TestDisass": {
+      "commandName": "Project",
+      "commandLineArgs": "X86 E:\\Users\\dominic\\programming\\x86\\x86-trunk\\blitter\\1st-light\\test-1\\build\\test-1.rom 0xFC000000"
+    }
+  }
+}

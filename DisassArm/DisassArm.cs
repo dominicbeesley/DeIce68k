@@ -9,28 +9,28 @@ using System.Threading.Tasks;
 
 namespace DisassArm
 {
-    public static class DisassArm
+    public class DisassArm : IDisAss
     {
         private static DisRec2<UInt32> Undefined { get => new DisRec2<UInt32> { Decoded = false, Length = 4 }; }
 
-        public static DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        public DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc)
         {
 
             UInt32 opcode = br.ReadUInt32();
             string cond = DecodeCond(opcode);
 
             if ((opcode & 0x0E000000) == 0x0A000000)
-                return DecodeBranch(cond, opcode, pc, symbols, createSymbols);
+                return DecodeBranch(cond, opcode, pc);
             else if ((opcode & 0x0FC00090) == 0x00000090)
-                return DecodeMul(cond, opcode, pc, symbols, createSymbols);
+                return DecodeMul(cond, opcode, pc);
             else if ((opcode & 0x0C000000) == 0x00000000)
-                return DecodeAlu(cond, opcode, pc, symbols, createSymbols);
+                return DecodeAlu(cond, opcode, pc);
             else if ((opcode & 0x0C000000) == 0x04000000)
-                return DecodeLdrStr(cond, opcode, pc, symbols, createSymbols);
+                return DecodeLdrStr(cond, opcode, pc);
             else if ((opcode & 0x0E000000) == 0x08000000)
-                return DecodeLdmStm(cond, opcode, pc, symbols, createSymbols);
+                return DecodeLdmStm(cond, opcode, pc);
             else if ((opcode & 0x0F000000) == 0x0F000000)
-                return DecodeSwi(cond, opcode, pc, symbols, createSymbols);
+                return DecodeSwi(cond, opcode, pc);
             else
                 return new DisRec2<UInt32>
                 {
@@ -39,7 +39,7 @@ namespace DisassArm
                 };            
         }
 
-        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, UInt32 pc)
         {
             return new DisRec2<UInt32>
             {
@@ -54,33 +54,7 @@ namespace DisassArm
 
         private static readonly string[] m_modes = { "da", "ia", "db", "ib"};
 
-
-        public static IEnumerable<Tuple<int, int>> GroupConsecutive(this IEnumerable<int> source)
-        {
-            using (var e = source.GetEnumerator())
-            {
-                for (bool more = e.MoveNext(); more;)
-                {
-                    int first = e.Current, last = first, next;
-                    while ((more = e.MoveNext()) && (next = e.Current) > last && next - last == 1)
-                        last = next;
-                    yield return new Tuple<int,int>( first, last );
-                }
-            }
-        }
-
-        public static IEnumerable<T> Intersperse<T>(this IEnumerable<T> source, T value)
-        {
-            bool first = true;
-            foreach (T item in source)
-            {
-                if (first) { first = false; }
-                else { yield return value; }
-                yield return item;
-            }
-        }
-
-        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc)
         {
             int puflag = (int)(opcode & 0x01800000) >> 23;
             bool sflag = (opcode & 0x00400000) != 0;
@@ -113,7 +87,7 @@ namespace DisassArm
             };
 
         }
-        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc)
         {
             bool iflag = (opcode & 0x02000000) != 0;
             bool pflag = (opcode & 0x01000000) != 0;
@@ -224,7 +198,7 @@ namespace DisassArm
             }
         }
 
-        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, UInt32 pc)
         {
 
             int opix = (int)(opcode & 0x01E00000) >> 21;
@@ -325,7 +299,7 @@ namespace DisassArm
 
         }
 
-        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, UInt32 pc)
         {
 
             bool sflag = (opcode & 0x00100000) != 0;
@@ -406,7 +380,7 @@ namespace DisassArm
             return (UInt32)v2;
         }
 
-        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, UInt32 pc, ISymbols2<UInt32> symbols, bool createSymbols)
+        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, UInt32 pc)
         {
             UInt32 dest = (pc + 8 + ((opcode & 0xFFFFFF) << 2)) & 0x3FFFFFF;
 

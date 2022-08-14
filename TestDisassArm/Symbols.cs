@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TestDisassArm
+namespace TestDisass
 {
     public class Symbols : ISymbols2<UInt32>
     {

@@ -1,24 +1,67 @@
 ﻿using DisassShared;
-using DisassArm;
+using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace TestDisassArm
+namespace TestDisass
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Usage(TextWriter wr, string message, int ExitCode)
         {
+            wr.WriteLine("TestDisAss <type> <file> <base>");
+            if (!string.IsNullOrEmpty(message))
+                wr.WriteLine(message);
+
+            Environment.Exit(ExitCode);
+        }
+
+        static int Main(string[] args)
+        {
+            if (args.Length != 3)
+                Usage(Console.Error, "Wrong number of arguments", 100);
+
+            IDisAss disass = null;
+
+            switch (args[0])
+            {
+                case "X86": 
+                    disass = new DisassX86.DisassX86();
+                    break;
+                case "ARM":
+                    disass = new DisassArm.DisassArm();
+                    break;
+                default:
+                    Usage(Console.Error, $"Unknown assembler \"{args[0]}\"", 102);
+                    break;
+
+            }
 
             Symbols symbols = new Symbols();
 
-            byte[] Data = File.ReadAllBytes(@"E:\Users\dominic\GitHub\b-em\roms\tube\ARMeval_100.rom");
+            byte[] Data = null;
 
-            UInt32 BaseAddress = 0x0;
+            try
+            {
+                Data = File.ReadAllBytes(args[1]);
+            } catch (Exception ex)
+            {
+                Usage(Console.Error, $"Error reading file \"{args[1]}\" : {ex.ToString()}", 101);
+            }
+
+            UInt32 BaseAddress = 0;
+
+            try
+            {
+                BaseAddress = Convert.ToUInt32(args[2], 16);
+            } catch (Exception)
+            {
+                Usage(Console.Error, $"Bad base address {args[2]}", 103);
+            }
+
             UInt32 PC = BaseAddress;
 
             UInt32 dispc = BaseAddress;
@@ -41,7 +84,7 @@ namespace TestDisassArm
                     try
                     {
 
-                        instr = DisassArm.DisassArm.Decode(br, dispc, symbols, true);
+                        instr = disass.Decode(br, dispc);
 
                         if (instr?.Operands != null) {
                             //look for missing symbols and add to set to create later
@@ -86,7 +129,8 @@ namespace TestDisassArm
                 dispc = BaseAddress;
                 ok = true;
                 ms.Position = 0;
-                bool first = true;
+                UInt32 lastGood = BaseAddress;
+                long lastGood_p = 0;
                 while (ok)
                 {
                     bool hassym = false;
@@ -102,7 +146,7 @@ namespace TestDisassArm
                     try
                     {
 
-                        instr = DisassArm.DisassArm.Decode(br, dispc, symbols, false);
+                        instr = disass.Decode(br, dispc);
                     }
                     catch (EndOfStreamException)
                     {
@@ -115,34 +159,35 @@ namespace TestDisassArm
 
                         if (instr.Decoded)
                         {
+                            var dispc2 = lastGood;
+                            while (lastGood_p < p)
+                            {
+                                ms.Position = lastGood_p;
+
+                                var ll = p - lastGood_p;
+                                if (ll > 8)
+                                    ll = 8;
+                                byte[] skip_bytes = new byte[ll];
+                                ms.Read(skip_bytes, 0, (int)ll);
+
+                                Console.WriteLine($"{dispc2:X8}\t\t\t{instr.Hints}\t{string.Join(" ", skip_bytes.Select(b => $"{b:X2}"))} {string.Join("", skip_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+
+                                dispc2 += (UInt32)ll;
+                                lastGood_p += ll;
+                            }
+
+
                             ms.Position = p;
 
                             byte[] inst_bytes = new byte[instr.Length];
                             ms.Read(inst_bytes, 0, instr.Length);
 
                             Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{ExpandSymbols(symbols, instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
-                        } else
-                        {
-                            ms.Position = p;
-                            int l = instr.Length;
-                            
-                            while (l >= 4)
-                            {
-                                UInt32 v = br.ReadUInt32();
-                                byte[] inst_bytes = BitConverter.GetBytes(v);
-                                Console.WriteLine($"{dispc:X8}\t.ualong\t{v:X8}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
-                                l -= 4;
-                            }
 
-                            while (l >= 1)
-                            {
-                                byte v = br.ReadByte();
-                                byte[] inst_bytes = new[] { v };
-                                Console.WriteLine($"{dispc:X8}\t.ualong\t0x{v:X8}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
-                                l -= 4;
-                            }
+                            lastGood = dispc + instr.Length;
+                            lastGood_p = ms.Position;
 
-                        }
+                        } 
 
                         dispc += instr.Length;
                     }
@@ -153,24 +198,30 @@ namespace TestDisassArm
                 }
             }
 
+            return 0;
+
         }
 
         static string ExpandSymbols(Symbols symbols, IEnumerable<DisRec2OperString_Base> oper)
         {
             StringBuilder sb = new StringBuilder();
-            foreach (var o in oper)
+            if (oper != null)
             {
-                if (o is DisRec2OperString_Number)
+                foreach (var o in oper)
                 {
-                    var n = (DisRec2OperString_Number)o;
-                    var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
-                    if (s != null)
-                        sb.Append(s.Name);
+                    if (o is DisRec2OperString_Number)
+                    {
+                        var n = (DisRec2OperString_Number)o;
+                        var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
+                        if (s != null)
+                            sb.Append(s.Name);
+                        else
+                            sb.Append(n.ToString());
+                    }
                     else
-                        sb.Append(n.ToString());
-                } else
-                {
-                    sb.Append(o.ToString());
+                    {
+                        sb.Append(o.ToString());
+                    }
                 }
             }
             return sb.ToString();

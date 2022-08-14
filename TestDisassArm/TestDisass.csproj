@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DisassArm\DisassArm.csproj" />
     <ProjectReference Include="..\DisassShared\DisassShared.csproj" />
+    <ProjectReference Include="..\DisassX86\DisassX86.csproj" />
   </ItemGroup>
 
 </Project>
