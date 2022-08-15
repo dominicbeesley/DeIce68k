@@ -187,7 +187,10 @@ namespace TestDisass
                             lastGood = dispc + instr.Length;
                             lastGood_p = ms.Position;
 
-                        } 
+                        } else
+                        {
+                            ms.Position = p + instr.Length;
+                        }
 
                         dispc += instr.Length;
                     }

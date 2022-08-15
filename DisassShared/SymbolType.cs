@@ -13,6 +13,7 @@ namespace DisassShared
         Pointer = 1,
         ServiceCall = 2,
         Immediate = 4,
-        ANY = 7
+        Offset = 8,
+        ANY = 15
     }
 }
