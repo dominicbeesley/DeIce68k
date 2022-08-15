@@ -15,7 +15,7 @@ namespace DisassX86
             SEGS = Prefixes.ES | Prefixes.CS | Prefixes.SS | Prefixes.DS,
             REP, REPNZ };
 
-        public enum OpClass { Prefix, Inherent, Inherent_AA, Mem, MemImm, AccImm }
+        public enum OpClass { Prefix, Inherent, Inherent_AA, Mem, MemImm, AccDisp, RegImm, MemSeg }
 
 
         public record OpCodeDetails
@@ -41,7 +41,10 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam"},
             new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
             new OpCodeDetails {And = 0xFC, Xor = 0x88, OpClass = OpClass.Mem, Text = "mov"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xC6, OpClass = OpClass.MemImm, Text = "mov"}
+            new OpCodeDetails {And = 0xFE, Xor = 0xC6, OpClass = OpClass.MemImm, Text = "mov"},
+            new OpCodeDetails {And = 0xF0, Xor = 0xB0, OpClass = OpClass.RegImm, Text = "mov"},
+            new OpCodeDetails {And = 0xFC, Xor = 0xA0, OpClass = OpClass.AccDisp, Text = "mov"},
+            new OpCodeDetails {And = 0xFD, Xor = 0x8C, OpClass = OpClass.MemSeg, Text = "mov"},
         };
 
 
@@ -76,6 +79,15 @@ namespace DisassX86
                         break;
                     case OpClass.MemImm:
                         ret = DoClassMemImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.RegImm:
+                        ret = DoClassRegImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.AccDisp:
+                        ret = DoClassAccDisp(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemSeg:
+                        ret = DoClassMemSeg(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -115,17 +127,38 @@ namespace DisassX86
             return new[] { new DisRec2OperString_String { Text = regs[ix] } };
         }
 
-        IEnumerable<DisRec2OperString_Base> GetData(BinaryReader br, bool w, ref ushort l)
+        private readonly static string[] segregs =
+        {
+            "es",
+            "cs",
+            "ss",
+            "ds"
+        };
+
+        IEnumerable<DisRec2OperString_Base> GetSegReg(int ix)
+        {
+            return new[] { new DisRec2OperString_String { Text = segregs[ix & 3] } };
+
+        }
+
+        IEnumerable<DisRec2OperString_Base> GetData(BinaryReader br, bool w, ref ushort l, SymbolType symboltype)
         {
             if (w)
             {
                 l+=2;
-                return OperNum(br.ReadUInt16(), SymbolType.Immediate);
+                return OperNum(br.ReadUInt16(), symboltype);
             } else
             {
                 l++;
-                return OperNum(br.ReadByte(), SymbolType.Immediate);
+                return OperNum(br.ReadByte(), symboltype);
             }
+        }
+
+        IEnumerable<DisRec2OperString_Base> GetDisp(BinaryReader br, bool w, ref ushort l, Prefixes prefixes)
+        {
+            var ps = PointerPrefixStr(prefixes, Prefixes.DS);
+
+            return OperStr("[").Concat(ps).Concat(GetData(br, w, ref l, SymbolType.Pointer)).Concat(OperStr("]"));
         }
 
         public IEnumerable<DisRec2OperString_Base> GetModRm(BinaryReader br, int mod, int r_m, bool w, bool ptrsz, Prefixes prefixes, ref ushort l)
@@ -179,37 +212,41 @@ namespace DisassX86
                 else
                     offs_str = OperStr("-").Concat(OperNum((uint)-offs, SymbolType.Offset));
 
+                var pre = PointerPrefixStr(prefixes, Prefixes.DS);
+
+                string m;
+
                 switch (r_m)
                 {
                     case 0:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx+si")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bx+si";
                         break;
                     case 1:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx+di")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bx+di";
                         break;
                     case 2:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp+si")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bp+si";
                         break;
                     case 3:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp+di")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bp+di";
                         break;
                     case 4:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[si")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "si";
                         break;
                     case 5:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[di")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "di";
                         break;
                     case 6:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bp";
                         break;
                     case 7:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx")).Concat(offs_str).Concat(OperStr("]"));
+                        m = "bx";
                         break;
                     default:
                         return null;
                 }
 
-                return ptr_sz_str.Concat(ret);
+                return ptr_sz_str.Concat(OperStr("[")).Concat(pre).Concat(OperStr(m)).Concat(offs_str).Concat(OperStr("]"));
             }
 
         }
@@ -217,11 +254,8 @@ namespace DisassX86
         private IEnumerable<DisRec2OperString_Base> PointerPrefixStr(Prefixes prefixes, Prefixes def)
         {
             prefixes = prefixes & Prefixes.SEGS;
-            if (prefixes == Prefixes.NONE)
-                if (def == Prefixes.NONE)
-                    return Enumerable.Empty<DisRec2OperString_Base>();
-                else
-                    prefixes = def;
+            if (prefixes == Prefixes.NONE || (prefixes & def) != 0)
+               return Enumerable.Empty<DisRec2OperString_Base>();
 
             switch (prefixes)
             {
@@ -238,6 +272,47 @@ namespace DisassX86
             }
         }
 
+        private DisRec2<UInt32> DoClassRegImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x08) != 0;
+            int rix = opcode & 0x7;
+
+            var Ops = GetReg(rix, w).Concat(OperStr(",")).Concat(GetData(br, w, ref l, SymbolType.Immediate));
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l),
+                Mnemonic = opd.Text,
+                Operands = Ops
+            };
+
+        }
+
+        private DisRec2<UInt32> DoClassAccDisp(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+            bool d = (opcode & 0x02) != 0;
+
+            var Mem = GetDisp(br, true, ref l, prefixes);
+            var Acc = w ? OperStr("ax") : OperStr("al");
+
+            IEnumerable<DisRec2OperString_Base> Ops;
+            
+            if (d)
+                Ops = Mem.Concat(OperStr(",")).Concat(Acc);
+            else
+                Ops = Acc.Concat(OperStr(",")).Concat(Mem);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l),
+                Mnemonic = opd.Text,
+                Operands = Ops
+            };
+
+        }
 
         private DisRec2<UInt32> DoClassMem(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
@@ -273,6 +348,42 @@ namespace DisassX86
             };
         }
 
+        private DisRec2<UInt32> DoClassMemSeg(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool sdflag = (opcode & 0x02) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+            int r_m = modrm & 0x7;
+
+            if (rrr >= 4)
+                return null;
+            var Op1 = GetSegReg(rrr);
+            if (Op1 == null)
+                return null;
+
+            var Op2 = GetModRm(br, mod, r_m, true, false, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+            IEnumerable<DisRec2OperString_Base> Ops;
+            if (sdflag)
+                Ops = Op1.Concat(OperStr(",")).Concat(Op2);
+            else
+                Ops = Op2.Concat(OperStr(",")).Concat(Op1);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opd.Text,
+                Operands = Ops
+            };
+        }
+
+
         public DisRec2<UInt32> DoClassMemImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
@@ -290,7 +401,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, w, ref l);
+            var Op1 = GetData(br, w, ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -304,6 +415,8 @@ namespace DisassX86
                 Operands = Ops
             };
         }
+
+
 
 
         public DisRec2<UInt32> DoClassInherent(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)

@@ -151,31 +151,35 @@ namespace TestDisass
                     catch (EndOfStreamException)
                     {
                         ok = false;
-                        continue;
+                        instr = null;
                     }
 
-                    if (instr != null)
+                    if (!ok || instr.Decoded)
+                    {
+                        var dispc2 = lastGood;
+                        while (lastGood_p < p)
+                        {
+                            ms.Position = lastGood_p;
+
+                            var ll = p - lastGood_p;
+                            if (ll > 8)
+                                ll = 8;
+                            byte[] skip_bytes = new byte[ll];
+                            ms.Read(skip_bytes, 0, (int)ll);
+
+                            Console.WriteLine($"{dispc2:X8}\t\t\t\t{string.Join(" ", skip_bytes.Select(b => $"{b:X2}"))} {string.Join("", skip_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+
+                            dispc2 += (UInt32)ll;
+                            lastGood_p += ll;
+                        }
+                    }
+
+
+                    if (instr != null && ok)
                     {
 
                         if (instr.Decoded)
                         {
-                            var dispc2 = lastGood;
-                            while (lastGood_p < p)
-                            {
-                                ms.Position = lastGood_p;
-
-                                var ll = p - lastGood_p;
-                                if (ll > 8)
-                                    ll = 8;
-                                byte[] skip_bytes = new byte[ll];
-                                ms.Read(skip_bytes, 0, (int)ll);
-
-                                Console.WriteLine($"{dispc2:X8}\t\t\t{instr.Hints}\t{string.Join(" ", skip_bytes.Select(b => $"{b:X2}"))} {string.Join("", skip_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
-
-                                dispc2 += (UInt32)ll;
-                                lastGood_p += ll;
-                            }
-
 
                             ms.Position = p;
 
