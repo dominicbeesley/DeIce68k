@@ -15,7 +15,7 @@ namespace DisassX86
             SEGS = Prefixes.ES | Prefixes.CS | Prefixes.SS | Prefixes.DS,
             REP, REPNZ };
 
-        public enum OpClass { Prefix, Inherent, Inherent_AA, Mem, MemImm, AccDisp, RegImm, MemSeg }
+        public enum OpClass { Prefix, Inherent, Inherent_AA, Mem, MemW, MemImm, MemImmOpc, AccDisp, RegImm, MemSeg, AccImm, CallNear, CallFar, CallMemOpc }
 
 
         public record OpCodeDetails
@@ -29,6 +29,34 @@ namespace DisassX86
 
         }
 
+        /// <summary>
+        /// used in the MemImm mode
+        /// </summary>
+        private readonly static string[] opcode_extensions = 
+        {
+            "add",
+            "???",
+            "adc",
+            "???",
+            "and",
+            "???",
+            "???",
+            "???"
+        };
+
+        private readonly static string[] call_opcode_extensions =
+        {
+            "???",
+            "???",
+            "call near",
+            "call far",
+            "???",
+            "???",
+            "???",
+            "???",
+        };
+
+
         public readonly static OpCodeDetails[] OpMap = new[]
         {
             new OpCodeDetails {And = 0xFF, Xor = 0x26, OpClass = OpClass.Prefix, Text = "es:", Pref = Prefixes.ES},
@@ -40,6 +68,31 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xD5, OpClass = OpClass.Inherent_AA, Text = "aad"},
             new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam"},
             new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
+
+            //DP instructions
+            new OpCodeDetails {And = 0xFC, Xor = 0x80, OpClass = OpClass.MemImmOpc, Text = "!!!"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x10, OpClass = OpClass.Mem, Text = "adc"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x14, OpClass = OpClass.AccImm, Text = "adc"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x00, OpClass = OpClass.Mem, Text = "add"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x04, OpClass = OpClass.AccImm, Text = "add"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x02, OpClass = OpClass.Mem, Text = "add"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x24, OpClass = OpClass.AccImm, Text = "add"},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
+
+            //CALL
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xFF, OpClass = OpClass.CallMemOpc, Text = "!!!"},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xE8, OpClass = OpClass.CallNear, Text = "call near"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9A, OpClass = OpClass.CallFar, Text = "call far"},
+
+
+            //MOVs
+
             new OpCodeDetails {And = 0xFC, Xor = 0x88, OpClass = OpClass.Mem, Text = "mov"},
             new OpCodeDetails {And = 0xFE, Xor = 0xC6, OpClass = OpClass.MemImm, Text = "mov"},
             new OpCodeDetails {And = 0xF0, Xor = 0xB0, OpClass = OpClass.RegImm, Text = "mov"},
@@ -77,8 +130,14 @@ namespace DisassX86
                     case OpClass.Mem:
                         ret = DoClassMem(br, pc, l, prefixes, opd, opcode);
                         break;
+                    case OpClass.MemW:
+                        ret = DoClassMemW(br, pc, l, prefixes, opd, opcode);
+                        break;
                     case OpClass.MemImm:
                         ret = DoClassMemImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemImmOpc:
+                        ret = DoClassMemImmOpc(br, pc, l, prefixes, opd, opcode);
                         break;
                     case OpClass.RegImm:
                         ret = DoClassRegImm(br, pc, l, prefixes, opd, opcode);
@@ -88,6 +147,18 @@ namespace DisassX86
                         break;
                     case OpClass.MemSeg:
                         ret = DoClassMemSeg(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.AccImm:
+                        ret = DoClassAccImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.CallFar:
+                        ret = DoClassCallFar(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.CallNear:
+                        ret = DoClassCallNear(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.CallMemOpc:
+                        ret = DoClassCallMemOpc(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -154,6 +225,18 @@ namespace DisassX86
             }
         }
 
+        IEnumerable<DisRec2OperString_Base> GetData32(BinaryReader br, ref ushort l, SymbolType symboltype)
+        {
+            l += 4;
+            return OperNum(br.ReadUInt32(), symboltype);
+        }
+
+        IEnumerable<DisRec2OperString_Base> GetRelDisp(BinaryReader br, bool w, ref ushort l, UInt32 pc)
+        {
+            l += 2;
+            return OperNum((uint)(3 + pc + br.ReadInt16()) & 0xFFFF, SymbolType.Pointer);
+        }
+
         IEnumerable<DisRec2OperString_Base> GetDisp(BinaryReader br, bool w, ref ushort l, Prefixes prefixes)
         {
             var ps = PointerPrefixStr(prefixes, Prefixes.DS);
@@ -184,7 +267,7 @@ namespace DisassX86
                 offs = br.ReadUInt16();
                 l += 2;
                 //special addressing mode
-                return ptr_sz_str.Concat(PointerPrefixStr(prefixes, Prefixes.DS)).Concat(OperStr("[")).Concat(OperNum((UInt32)offs, SymbolType.Pointer)).Concat(OperStr("]"));
+                return ptr_sz_str.Concat(OperStr("[")).Concat(PointerPrefixStr(prefixes, Prefixes.DS)).Concat(OperNum((UInt32)offs, SymbolType.Pointer)).Concat(OperStr("]"));
             }
             else
             {
@@ -289,6 +372,24 @@ namespace DisassX86
 
         }
 
+        private DisRec2<UInt32> DoClassAccImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            string r = (w) ? "ax" : "al";
+            var imm = GetData(br, w, ref l, SymbolType.Immediate);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l),
+                Mnemonic = opd.Text,
+                Operands = OperStr(r).Concat(OperStr(",")).Concat(imm)
+            };
+
+        }
+
+
         private DisRec2<UInt32> DoClassAccDisp(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
@@ -316,9 +417,19 @@ namespace DisassX86
 
         private DisRec2<UInt32> DoClassMem(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
-            bool sdflag = (opcode & 0x02) != 0;
+            bool dflag = (opcode & 0x02) != 0;
             bool w = (opcode & 0x01) != 0;
 
+            return DoClassMem_int(br, pc, l, prefixes, opd, opcode, dflag, w);
+        }
+
+        private DisRec2<UInt32> DoClassMemW(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            return DoClassMem_int(br, pc, l, prefixes, opd, opcode, true, true);
+        }
+
+
+        private DisRec2<UInt32> DoClassMem_int(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w) { 
             byte modrm = br.ReadByte();
 
             int mod = (modrm & 0xC0) >> 6;
@@ -334,7 +445,7 @@ namespace DisassX86
                 return null;
 
             IEnumerable<DisRec2OperString_Base> Ops;
-            if (sdflag)
+            if (dflag)
                 Ops = Op1.Concat(OperStr(",")).Concat(Op2);
             else
                 Ops = Op2.Concat(OperStr(",")).Concat(Op1);
@@ -416,6 +527,39 @@ namespace DisassX86
             };
         }
 
+        public DisRec2<UInt32> DoClassMemImmOpc(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+            bool s = (opcode & 0x02) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            string opcode_over = opcode_extensions[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, true, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+            var Op1 = GetData(br, w ^ s, ref l, SymbolType.Immediate);
+            if (Op1 == null)
+                return null;
+
+            var Ops = Op2.Concat(OperStr(",")).Concat(Op1);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Ops
+            };
+        }
 
 
 
@@ -442,6 +586,63 @@ namespace DisassX86
                 Mnemonic = opd.Text
             };
         }
+
+        public DisRec2<UInt32> DoClassCallNear(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            var disp = GetRelDisp(br, true, ref l, pc);
+
+            return new DisRec2<uint>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = opd.Text,
+                Operands = disp
+            };
+
+        }
+
+        public DisRec2<UInt32> DoClassCallFar(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            var disp = GetData32(br, ref l, SymbolType.Pointer);
+
+            return new DisRec2<uint>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = opd.Text,
+                Operands = disp
+            };
+
+        }
+
+        public DisRec2<UInt32> DoClassCallMemOpc(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            string opcode_over = call_opcode_extensions[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, true, true, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Op2
+            };
+        }
+
+
 
         private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
         {

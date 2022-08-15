@@ -2,7 +2,7 @@
   "profiles": {
     "TestDisass": {
       "commandName": "Project",
-      "commandLineArgs": "X86 E:\\Users\\dominic\\programming\\x86\\x86-trunk\\tests\\disasstest\\build\\disasstest.bin 0"
+      "commandLineArgs": "X86 E:\\Users\\dominic\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\disasstest.bin 0"
     }
   }
 }
