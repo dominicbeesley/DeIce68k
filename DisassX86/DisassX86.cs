@@ -137,9 +137,9 @@ namespace DisassX86
             if (!ptrsz)
                 ptr_sz_str = Enumerable.Empty<DisRec2OperString_Base>();
             else if (w)
-                ptr_sz_str = OperStr("WORD PTR ");
+                ptr_sz_str = OperStr("word ");
             else
-                ptr_sz_str = OperStr("BYTE PTR ");
+                ptr_sz_str = OperStr("byte ");
 
 
             if (mod == 3)
@@ -182,28 +182,28 @@ namespace DisassX86
                 switch (r_m)
                 {
                     case 0:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[BX+SI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx+si")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 1:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[BX+DI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx+di")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 2:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[BP+SI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp+si")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 3:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[BP+DI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp+di")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 4:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[SI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[si")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 5:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[DI")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[di")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 6:
-                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[BP")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.SS).Concat(OperStr($"[bp")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     case 7:
-                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[BX")).Concat(offs_str).Concat(OperStr("]"));
+                        ret = PointerPrefixStr(prefixes, Prefixes.DS).Concat(OperStr($"[bx")).Concat(offs_str).Concat(OperStr("]"));
                         break;
                     default:
                         return null;
@@ -226,13 +226,13 @@ namespace DisassX86
             switch (prefixes)
             {
                 case Prefixes.CS:
-                    return OperStr("CS:");
+                    return OperStr("cs:");
                 case Prefixes.DS:
-                    return OperStr("DS:");
+                    return OperStr("ds:");
                 case Prefixes.ES:
-                    return OperStr("ES:");
+                    return OperStr("es:");
                 case Prefixes.SS:
-                    return OperStr("SS:");
+                    return OperStr("ss:");
                 default:
                     return OperStr("??:");
             }
