@@ -48,8 +48,8 @@ namespace DisassX86
         {
             "???",
             "???",
-            "call near",
-            "call far",
+            "call",
+            "call",
             "???",
             "???",
             "???",
@@ -87,8 +87,8 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFF, Xor = 0xFF, OpClass = OpClass.CallMemOpc, Text = "!!!"},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xE8, OpClass = OpClass.CallNear, Text = "call near"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9A, OpClass = OpClass.CallFar, Text = "call far"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE8, OpClass = OpClass.CallNear, Text = "call"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9A, OpClass = OpClass.CallFar, Text = "call"},
 
 
             //MOVs
@@ -244,7 +244,7 @@ namespace DisassX86
             return OperStr("[").Concat(ps).Concat(GetData(br, w, ref l, SymbolType.Pointer)).Concat(OperStr("]"));
         }
 
-        public IEnumerable<DisRec2OperString_Base> GetModRm(BinaryReader br, int mod, int r_m, bool w, bool ptrsz, Prefixes prefixes, ref ushort l)
+        public IEnumerable<DisRec2OperString_Base> GetModRm(BinaryReader br, int mod, int r_m, bool w, bool ptrsz, Prefixes prefixes, ref ushort l, bool call = false)
         {
             int offs = 0;
 
@@ -252,6 +252,8 @@ namespace DisassX86
 
             if (!ptrsz)
                 ptr_sz_str = Enumerable.Empty<DisRec2OperString_Base>();
+            else if (call)
+                ptr_sz_str = OperStr("far ");
             else if (w)
                 ptr_sz_str = OperStr("word ");
             else
@@ -589,7 +591,7 @@ namespace DisassX86
 
         public DisRec2<UInt32> DoClassCallNear(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
-            var disp = GetRelDisp(br, true, ref l, pc);
+            var disp = OperStr("near ").Concat(GetRelDisp(br, true, ref l, pc));
 
             return new DisRec2<uint>
             {
@@ -603,7 +605,7 @@ namespace DisassX86
 
         public DisRec2<UInt32> DoClassCallFar(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
-            var disp = GetData32(br, ref l, SymbolType.Pointer);
+            var disp = OperStr("far ").Concat(GetData32(br, ref l, SymbolType.Pointer));
 
             return new DisRec2<uint>
             {
@@ -624,11 +626,12 @@ namespace DisassX86
             int rrr = (modrm & 0x38) >> 3;
 
             string opcode_over = call_opcode_extensions[rrr];
+            bool far = (rrr & 0x1) != 0;
 
             int r_m = modrm & 0x7;
 
 
-            var Op2 = GetModRm(br, mod, r_m, true, true, prefixes, ref l);
+            var Op2 = GetModRm(br, mod, r_m, true, far, prefixes, ref l, call: true);
             if (Op2 == null)
                 return null;
 
