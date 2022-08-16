@@ -439,6 +439,48 @@ l16		jno	l16
 		jmp	far  [CS:DATA1]
 		jmp	near [ES:DATA2]
 
+		;;;;;;;;;;;;;; lahf ;;;;;;;;;;;;;;;;;		
+
+		lahf
+
+		;;;;;;;;;;;;;; lds ;;;;;;;;;;;;;;;;;		
+
+		lds	DI,[DATA1]
+		lds	SP,[DATA1]
+		lds	BP,[SI]
+		lds	BP,[SI+BP]
+		lds	BP,[SI+BP+3]
+		; TODO: more examples?
+
+		;;;;;;;;;;;;;; lea ;;;;;;;;;;;;;;;;;		
+
+		lea	DI,[DATA1]
+		lea	SP,[DATA1]
+		lea	BP,[SI]
+		lea	BP,[SI+BP]
+		lea	BP,[SI+BP+3]
+		; TODO: more examples?
+
+		;;;;;;;;;;;;;; les ;;;;;;;;;;;;;;;;;		
+
+		les	DI,[DATA1]
+		les	SP,[DATA1]
+		les	BP,[SI]
+		les	BP,[SI+BP]
+		les	BP,[SI+BP+3]
+		; TODO: more examples?
+
+		;;;;;;;;;;;;;; LODS ;;;;;;;;;;;;;;;;
+
+		rep lodsb
+		rep lodsw
+		repnz lodsb
+		rep lodsw
+
+		cs rep lodsb
+		es rep lodsw
+		ds repnz lodsb
+		ss rep lodsw
 
 
 l11:		rep mov  AL,3

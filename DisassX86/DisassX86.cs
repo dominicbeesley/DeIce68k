@@ -27,6 +27,7 @@ namespace DisassX86
             Inherent,
             Inherent_AA,
             Mem,
+            Mem2R,
             MemW,
             MemImm,
             MemImmOpc_DP,
@@ -145,6 +146,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "iret"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
 
 
             //DP instructions
@@ -164,6 +166,15 @@ namespace DisassX86
 
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
+
+            // effective address instructions
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xC5, OpClass = OpClass.Mem2R, Text = "lds"},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0x8D, OpClass = OpClass.Mem2R, Text = "lea"},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xC4, OpClass = OpClass.Mem2R, Text = "les"},
+
 
             //Single MemOpc Instructions
 
@@ -205,6 +216,7 @@ namespace DisassX86
             // strings
             new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
             new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods"},
 
             //In/Out
             new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},
@@ -243,6 +255,9 @@ namespace DisassX86
                         break;
                     case OpClass.Mem:
                         ret = DoClassMem(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.Mem2R:
+                        ret = DoClassMem2R(br, pc, l, prefixes, opd, opcode);
                         break;
                     case OpClass.MemW:
                         ret = DoClassMemW(br, pc, l, prefixes, opd, opcode);
@@ -608,6 +623,11 @@ namespace DisassX86
             return DoClassMem_int(br, pc, l, prefixes, opd, opcode, true, true);
         }
 
+        private DisRec2<UInt32> DoClassMem2R(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            return DoClassMem_int(br, pc, l, prefixes, opd, opcode, true, true);
+        }
+
 
         private DisRec2<UInt32> DoClassMem_int(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w) { 
             byte modrm = br.ReadByte();
@@ -858,11 +878,21 @@ namespace DisassX86
         {
             bool w = (opcode & 0x01) != 0;
 
+            var pre = string.Join(" ",
+                (prefixes & Prefixes.SEGS)
+                .GetFlags()
+                .Cast<Prefixes>()
+                .Where(o => o != Prefixes.NONE)
+                .Select(o => o.ToString().ToLower())
+                );
+
+            var mne = string.Join(" ", new[] { pre, $"{opd.Text}{(w ? "w" : "")}" });
+
             return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Length = l,
-                Mnemonic = $"{opd.Text}{(w?"w":"")}"
+                Mnemonic = mne
             };
 
         }
