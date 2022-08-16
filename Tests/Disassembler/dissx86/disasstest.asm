@@ -193,3 +193,53 @@ c:
 		call	far  [CS:DATA1]
 		call	near [ES:DATA2]
 
+		;;; CBW
+
+		cbw
+
+		;;; CLC
+
+		clc
+
+		;;; CLD
+
+		cld
+
+		;;; CLI
+
+		cli
+
+		;;; CMC
+
+		cmc
+
+
+		;;;;;;;;;;;;;; CMP ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		cmp	AX,CX
+		cmp	al,cl
+		cmp	DX,BX
+
+		; mem,reg
+
+		cmp	[DATA1],al
+		cmp	al,[DATA1]
+
+		cmp	[DI+DATA2],BX
+
+		cmp	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		cmp	CX,0x23
+		cmp	CX,0x2323
+		cmp	DL,23
+		cmp	DL,0x22
+		cmp	word [BP+SI],99
+
+		; acc, imm
+		cmp	AL,3
+		cmp	AX,9999
+		cmp	AH,3
+

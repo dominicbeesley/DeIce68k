@@ -41,7 +41,7 @@ namespace DisassX86
             "and",
             "???",
             "???",
-            "???"
+            "cmp"
         };
 
         private readonly static string[] call_opcode_extensions =
@@ -68,6 +68,12 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xD5, OpClass = OpClass.Inherent_AA, Text = "aad"},
             new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam"},
             new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc"},
+
 
             //DP instructions
             new OpCodeDetails {And = 0xFC, Xor = 0x80, OpClass = OpClass.MemImmOpc, Text = "!!!"},
@@ -78,8 +84,12 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFC, Xor = 0x00, OpClass = OpClass.Mem, Text = "add"},
             new OpCodeDetails {And = 0xFE, Xor = 0x04, OpClass = OpClass.AccImm, Text = "add"},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x02, OpClass = OpClass.Mem, Text = "add"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x24, OpClass = OpClass.AccImm, Text = "add"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x20, OpClass = OpClass.Mem, Text = "and"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x24, OpClass = OpClass.AccImm, Text = "and"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x38, OpClass = OpClass.Mem, Text = "cmp"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x3C, OpClass = OpClass.AccImm, Text = "cmp"},
+
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 
