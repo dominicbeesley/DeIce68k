@@ -360,21 +360,31 @@ c:
 
 		; mem
 
-		inc	byte [DATA1]
-		inc	byte [DI+DATA2]
-		inc	byte [CS:BP+SI+6]
+l1:		inc	byte [DATA1]
+l2:		inc	byte [DI+DATA2]
+l3:		inc	byte [CS:BP+SI+6]
 
-		inc	word [DATA1]
-		inc	word [DI+DATA2]
-		inc	word [CS:BP+SI+6]
+l4:		inc	word [DATA1]
+l5:		inc	word [DI+DATA2]
+l6:		inc	word [CS:BP+SI+6]
 
 		;;;;;;;;;;;;;; CMPS ;;;;;;;;;;;;;;;;
 
-		rep insb
-		rep insw
-		repnz insb
-		rep insw
+l7:		rep insb
+l8:		rep insw
+l9:		repnz insb
+l10:		rep insw
 
+		;;;;;;;;;;;;;; int ;;;;;;;;;;;;;;;;
+
+		int 1
+		int 2
+		int3
+		int 0xFF
+
+		;;;;;;;;;;;;;; iret ;;;;;;;;;;;;;;;;
+
+		iret
 
 		;;;;;;;;;;;;;; out ;;;;;;;;;;;;;;;;
 
@@ -386,9 +396,52 @@ c:
 		out	DX, AL
 		out	DX, AX
 
+		;;;;;;;;;;;;;; Jcc ;;;;;;;;;;;;;;;;;
+
+l15:		jo	l15
+l16		jno	l16
+		jb	l1
+		jae	l2
+		je	l3
+		jne	l4
+		jbe	l5
+		ja	l6
+		js	l7
+		jns	l8
+		jp	l9
+		jnp	l10
+		jl	l11
+		jge	l12
+		jle	l13
+		jg	l14
+
+		;;;;;;;;;;;;;; JCXZ ;;;;;;;;;;;;;;;;;
+
+		jcxz	l15
+
+		;;;;;;;;;;;;;; jumps ;;;;;;;;;;;;;;;;;		
+
+		jmp	l15
+
+		jmp	DATA1
+
+		jmp	1234h:5678h
+
+		jmp	AX
+		jmp	BX
+		jmp	CX
+		jmp	SI
+
+		jmp	near [SI]
+		jmp	near [ES:SI]
+		jmp	far  [BP+DI]
+
+		jmp	far  [CS:DATA1]
+		jmp	near [ES:DATA2]
 
 
-		rep mov  AL,3
-		repe mov  AL,3
-		repnz mov  AL,3
-		repne mov  AL,3
+
+l11:		rep mov  AL,3
+l12:		repe mov  AL,3
+l13:		repnz mov  AL,3
+l14:		repne mov  AL,3
