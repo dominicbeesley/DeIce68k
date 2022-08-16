@@ -75,9 +75,9 @@ namespace DisassX86
             "???",
             "???",
             "???",
-            "???",
+            "imul",
             "div",
-            "???"
+            "idiv"
         };
 
 
@@ -120,6 +120,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
             new OpCodeDetails {And = 0xFF, Xor = 0x27, OpClass = OpClass.Inherent, Text = "daa"},
             new OpCodeDetails {And = 0xFF, Xor = 0x2F, OpClass = OpClass.Inherent, Text = "das"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
 
 
             //DP instructions
@@ -144,8 +145,8 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "dec"},
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_S16, Text = "dec"},
-
-            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "div"},
+            
+            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL
 
             //CALL
 

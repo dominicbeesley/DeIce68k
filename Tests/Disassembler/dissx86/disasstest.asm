@@ -299,6 +299,46 @@ c:
 		div	word [DI+DATA2]
 		div	word [CS:BP+SI+6]
 
+		;;;;;;;;;;;;;; HLT ;;;;;;;;;;;;;;;;
+
+		hlt
+
+		;;;;;;;;;;;;;; IDIV ;;;;;;;;;;;;;;;;
+
+		; reg
+		idiv	AX
+		idiv	AL
+		idiv	DX
+		idiv	bl
+
+		; mem
+
+		idiv	byte [DATA1]
+		idiv	byte [DI+DATA2]
+		idiv	byte [CS:BP+SI+6]
+
+		idiv	word [DATA1]
+		idiv	word [DI+DATA2]
+		idiv	word [CS:BP+SI+6]
+
+		;;;;;;;;;;;;;; IMUL ;;;;;;;;;;;;;;;;
+
+		; reg
+		imul	AX
+		imul	AL
+		imul	DX
+		imul	bl
+
+		; mem
+
+		imul	byte [DATA1]
+		imul	byte [DI+DATA2]
+		imul	byte [CS:BP+SI+6]
+
+		imul	word [DATA1]
+		imul	word [DI+DATA2]
+		imul	word [CS:BP+SI+6]
+
 
 		rep mov  AL,3
 		repe mov  AL,3
