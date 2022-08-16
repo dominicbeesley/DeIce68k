@@ -76,7 +76,7 @@ namespace DisassX86
             "???",
             "???",
             "???",
-            "???",
+            "div",
             "???"
         };
 
@@ -145,6 +145,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "dec"},
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_S16, Text = "dec"},
 
+            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "div"},
 
             //CALL
 

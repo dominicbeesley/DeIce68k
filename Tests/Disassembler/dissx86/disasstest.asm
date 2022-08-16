@@ -271,7 +271,7 @@ c:
 		dec	DX
 		dec	bl
 
-		; mem,reg
+		; mem
 
 		dec	byte [DATA1]
 		dec	byte [DI+DATA2]
@@ -281,6 +281,23 @@ c:
 		dec	word [DI+DATA2]
 		dec	word [CS:BP+SI+6]
 
+		;;;;;;;;;;;;;; DIV ;;;;;;;;;;;;;;;;
+
+		; reg
+		div	AX
+		div	AL
+		div	DX
+		div	bl
+
+		; mem
+
+		div	byte [DATA1]
+		div	byte [DI+DATA2]
+		div	byte [CS:BP+SI+6]
+
+		div	word [DATA1]
+		div	word [DI+DATA2]
+		div	word [CS:BP+SI+6]
 
 
 		rep mov  AL,3
