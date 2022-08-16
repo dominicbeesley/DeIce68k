@@ -45,7 +45,8 @@ namespace DisassX86
             InOut,
             Int,
             Jcc,
-            J_short
+            J_short,
+            ImmPush
         }
 
 
@@ -83,13 +84,13 @@ namespace DisassX86
             "call",
             "jmp",
             "jmp",
-            "???",
+            "push",
             "???"
         };
 
         private readonly static string[] opcode_extensions_s_divmul =
 {
-            "???",
+            "pop",
             "???",
             "not",
             "neg",
@@ -97,18 +98,6 @@ namespace DisassX86
             "imul",
             "div",
             "idiv"
-        };
-
-        private readonly static string[] opcode_extensions_s_pushpop =
-{
-            "pop",
-            "???",
-            "???",
-            "???",
-            "???",
-            "???",
-            "push",
-            "???"
         };
 
         private readonly static string[] j_conds = {
@@ -156,6 +145,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop"},
             new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
             new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9C, OpClass = OpClass.Inherent, Text = "pushf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
 
@@ -202,7 +192,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "!!!"}, // dec/inc/call/jmp etc
 
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_16, Text = "dec"},
-            
+
             new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL/NEG
 
             new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_16, Text = "inc"},
@@ -258,8 +248,12 @@ namespace DisassX86
             //Push/Pop
             new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop"},
             new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_PushPop, Text = "pop"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S, Text = "!!!"},
 
+            new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push"},
+            new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push"},
+
+            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push"}
 
         };
 
@@ -308,9 +302,6 @@ namespace DisassX86
                     case OpClass.MemOpc_S:
                         ret = DoClassMemOpc_S(br, pc, l, prefixes, opd, opcode);
                         break;
-                    case OpClass.MemOpc_PushPop:
-                        ret = DoClassMemOpc_PushPop(br, pc, l, prefixes, opd, opcode);
-                        break;
                     case OpClass.RegImm:
                         ret = DoClassRegImm(br, pc, l, prefixes, opd, opcode);
                         break;
@@ -349,6 +340,9 @@ namespace DisassX86
                         break;
                     case OpClass.J_short:
                         ret = DoClassJ_short(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.ImmPush:
+                        ret = DoClassImmPush(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -824,7 +818,7 @@ namespace DisassX86
         public DisRec2<UInt32> DoClassMemOpc_S(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
-            bool divmul = (opcode & 0x08) == 0;
+            bool divmul = (opcode == 0x8F) || (opcode & 0x08) == 0;
 
             byte modrm = br.ReadByte();
 
@@ -839,31 +833,6 @@ namespace DisassX86
 
 
             var Op2 = GetModRm(br, mod, r_m, w, call ? far : true, prefixes, ref l, call : call );
-            if (Op2 == null)
-                return null;
-
-
-            return new DisRec2<UInt32>
-            {
-                Decoded = true,
-                Length = (ushort)(l + 1),
-                Mnemonic = opcode_over,
-                Operands = Op2
-            };
-        }
-        public DisRec2<UInt32> DoClassMemOpc_PushPop(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
-        {
-            byte modrm = br.ReadByte();
-
-            int mod = (modrm & 0xC0) >> 6;
-            int rrr = (modrm & 0x38) >> 3;
-
-            string opcode_over = opcode_extensions_s_pushpop[rrr];
-
-            int r_m = modrm & 0x7;
-
-
-            var Op2 = GetModRm(br, mod, r_m, true, true, prefixes, ref l);
             if (Op2 == null)
                 return null;
 
@@ -1019,12 +988,35 @@ namespace DisassX86
             {
                 Decoded = true,
                 Length = l,
-                Mnemonic = $"{opd.Text}",
+                Mnemonic = opd.Text,
                 Operands = Ops
             };
 
         }
 
+        public DisRec2<UInt32> DoClassImmPush(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x02) == 0;
+
+            IEnumerable<DisRec2OperString_Base> Ops;
+            if (w)
+            {
+                Ops = OperStr("word ").Concat(OperNum(br.ReadUInt16(), SymbolType.Immediate));
+                l += 2;
+            } else
+            {
+                Ops = OperStr("byte ").Concat(OperNum(br.ReadByte(), SymbolType.Immediate));
+                l ++;
+            }
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = opd.Text,
+                Operands = Ops
+            };
+        }
 
         private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
         {

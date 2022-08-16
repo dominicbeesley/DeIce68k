@@ -522,6 +522,25 @@ x2:
 		repnz es movsw 
 		repne ss movsw
 
+		;;;;;;;;;;;;;; mul ;;;;;;;;;;;;;;;;
+
+		; reg
+		mul	AX
+		mul	AL
+		mul	DX
+		mul	bl
+
+		; mem
+
+		mul	byte [DATA1]
+		mul	byte [DI+DATA2]
+		mul	byte [CS:BP+SI+6]
+
+		mul	word [DATA1]
+		mul	word [DI+DATA2]
+		mul	word [CS:BP+SI+6]
+
+
 		;;;;;;;;;;;;;; neg ;;;;;;;;;;;;;;;;
 
 		; reg
@@ -629,3 +648,29 @@ x2:
 		pop	word [CS:BP+SI+6]
 
 		popf
+
+		;;;;;;;;;;;;;; push ;;;;;;;;;;;;;;;;;
+
+		push	AX
+		push	BX
+		push	CX
+		push	DX
+		push	SP
+		push	BP
+		push	SI
+		push	DI
+
+		push	CS
+		push	DS
+		push	ES
+		push	SS
+
+		push	word [DATA1]
+		push	word [DI+DATA2]
+		push	word [CS:BP+SI+6]
+
+		push	0x1234
+		push	0x99
+		push	'.'
+
+		pushf		
