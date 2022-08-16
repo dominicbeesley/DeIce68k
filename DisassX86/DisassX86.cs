@@ -32,9 +32,11 @@ namespace DisassX86
             MemImm,
             MemImmOpc_DP,
             MemOpc_S,
+            MemOpc_PushPop,
             AccDisp,
             RegImm,
-            Reg_S16,
+            Reg_16,
+            Seg_16,
             MemSeg,
             AccImm,
             CallNear,
@@ -97,6 +99,17 @@ namespace DisassX86
             "idiv"
         };
 
+        private readonly static string[] opcode_extensions_s_pushpop =
+{
+            "pop",
+            "???",
+            "???",
+            "???",
+            "???",
+            "???",
+            "push",
+            "???"
+        };
 
         private readonly static string[] j_conds = {
             "o",
@@ -135,19 +148,22 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xD5, OpClass = OpClass.Inherent_AA, Text = "aad"},
             new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam"},
             new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
             new OpCodeDetails {And = 0xFF, Xor = 0x27, OpClass = OpClass.Inherent, Text = "daa"},
             new OpCodeDetails {And = 0xFF, Xor = 0x2F, OpClass = OpClass.Inherent, Text = "das"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "iret"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xCF, OpClass = OpClass.Inherent, Text = "iret"},
+
             new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld"},
 
 
             //DP instructions
@@ -185,11 +201,11 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "!!!"}, // dec/inc/call/jmp etc
 
-            new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_S16, Text = "dec"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_16, Text = "dec"},
             
             new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL/NEG
 
-            new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_S16, Text = "inc"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_16, Text = "inc"},
 
 
 
@@ -226,15 +242,24 @@ namespace DisassX86
 
             // strings
             new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
             new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods"},
             new OpCodeDetails {And = 0xFE, Xor = 0xA4, OpClass = OpClass.String, Text = "movs"},
+
+            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs"},
+
 
             //In/Out
             new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},
 
             //Int
-            new OpCodeDetails {And = 0xFE, Xor = 0xCC, OpClass = OpClass.Int, Text = "int"}
+            new OpCodeDetails {And = 0xFE, Xor = 0xCC, OpClass = OpClass.Int, Text = "int"},
+
+            //Push/Pop
+            new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop"},
+            new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_PushPop, Text = "pop"},
+
 
         };
 
@@ -283,11 +308,17 @@ namespace DisassX86
                     case OpClass.MemOpc_S:
                         ret = DoClassMemOpc_S(br, pc, l, prefixes, opd, opcode);
                         break;
+                    case OpClass.MemOpc_PushPop:
+                        ret = DoClassMemOpc_PushPop(br, pc, l, prefixes, opd, opcode);
+                        break;
                     case OpClass.RegImm:
                         ret = DoClassRegImm(br, pc, l, prefixes, opd, opcode);
                         break;
-                    case OpClass.Reg_S16:
-                        ret = DoClassReg_S16(br, pc, l, prefixes, opd, opcode);
+                    case OpClass.Reg_16:
+                        ret = DoClassReg_16(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.Seg_16:
+                        ret = DoClassSeg_16(br, pc, l, prefixes, opd, opcode);
                         break;
                     case OpClass.AccDisp:
                         ret = DoClassAccDisp(br, pc, l, prefixes, opd, opcode);
@@ -563,7 +594,7 @@ namespace DisassX86
             };
 
         }
-        private DisRec2<UInt32> DoClassReg_S16(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassReg_16(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             int rix = opcode & 0x7;
 
@@ -578,6 +609,23 @@ namespace DisassX86
             };
 
         }
+
+        private DisRec2<UInt32> DoClassSeg_16(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            int rix = (opcode & 0x38) >> 3;
+
+            var Ops = GetSegReg(rix);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l),
+                Mnemonic = opd.Text,
+                Operands = Ops
+            };
+
+        }
+
 
         private DisRec2<UInt32> DoClassAccImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
@@ -803,22 +851,19 @@ namespace DisassX86
                 Operands = Op2
             };
         }
-        /*
-        public DisRec2<UInt32> DoClassCallMemOpc(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_PushPop(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
-
             byte modrm = br.ReadByte();
 
             int mod = (modrm & 0xC0) >> 6;
             int rrr = (modrm & 0x38) >> 3;
 
-            string opcode_over = call_opcode_extensions[rrr];
-            bool far = (rrr & 0x1) != 0;
+            string opcode_over = opcode_extensions_s_pushpop[rrr];
 
             int r_m = modrm & 0x7;
 
 
-            var Op2 = GetModRm(br, mod, r_m, true, far, prefixes, ref l, call: true);
+            var Op2 = GetModRm(br, mod, r_m, true, true, prefixes, ref l);
             if (Op2 == null)
                 return null;
 
@@ -831,7 +876,6 @@ namespace DisassX86
                 Operands = Op2
             };
         }
-        */
 
         public DisRec2<UInt32> DoClassInherent(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {

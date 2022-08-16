@@ -368,7 +368,7 @@ l4:		inc	word [DATA1]
 l5:		inc	word [DI+DATA2]
 l6:		inc	word [CS:BP+SI+6]
 
-		;;;;;;;;;;;;;; CMPS ;;;;;;;;;;;;;;;;
+		;;;;;;;;;;;;;; INS ;;;;;;;;;;;;;;;;
 
 l7:		rep insb
 l8:		rep insw
@@ -381,6 +381,11 @@ l10:		rep insw
 		int 2
 		int3
 		int 0xFF
+
+		;;;;;;;;;;;;;; iret ;;;;;;;;;;;;;;;;
+
+		into
+
 
 		;;;;;;;;;;;;;; iret ;;;;;;;;;;;;;;;;
 
@@ -586,3 +591,41 @@ x2:
 		or	AX,9999
 		or	AH,3
 
+		;;;;;;;;;;;;;; out ;;;;;;;;;;;;;;;;
+
+		out	1,AL
+		out	0x34,AL
+		out	1,AX
+		out	0x34,AX
+
+		out	DX,AL
+		out	DX,AX
+
+		;;;;;;;;;;;;;; outs ;;;;;;;;;;;;;;;;
+
+		rep outsb
+		rep outsw
+		repnz outsb
+		rep outsw
+
+		;;;;;;;;;;;;;; pop ;;;;;;;;;;;;;;;;;
+
+		pop	AX
+		pop	BX
+		pop	CX
+		pop	DX
+		pop	SP
+		pop	BP
+		pop	SI
+		pop	DI
+
+		pop	CS
+		pop	DS
+		pop	ES
+		pop	SS
+
+		pop	word [DATA1]
+		pop	word [DI+DATA2]
+		pop	word [CS:BP+SI+6]
+
+		popf
