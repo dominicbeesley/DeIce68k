@@ -243,3 +243,47 @@ c:
 		cmp	AX,9999
 		cmp	AH,3
 
+
+		;;;;;;;;;;;;;; CMPS ;;;;;;;;;;;;;;;;
+
+		rep cmpsb
+		rep cmpsw
+		repnz cmpsb
+		rep cmpsw
+
+		;;;;;;;;;;;;;; CWD ;;;;;;;;;;;;;;;;
+
+		cwd
+
+		;;;;;;;;;;;;;; DAA ;;;;;;;;;;;;;;;;
+
+		daa
+
+		;;;;;;;;;;;;;; DAS ;;;;;;;;;;;;;;;;
+
+		das
+
+		;;;;;;;;;;;;;; DEC ;;;;;;;;;;;;;;;;
+
+		; reg
+		dec	AX
+		dec	AL
+		dec	DX
+		dec	bl
+
+		; mem,reg
+
+		dec	byte [DATA1]
+		dec	byte [DI+DATA2]
+		dec	byte [CS:BP+SI+6]
+
+		dec	word [DATA1]
+		dec	word [DI+DATA2]
+		dec	word [CS:BP+SI+6]
+
+
+
+		rep mov  AL,3
+		repe mov  AL,3
+		repnz mov  AL,3
+		repne mov  AL,3
