@@ -14,6 +14,7 @@ namespace DisassShared
         ServiceCall = 2,
         Immediate = 4,
         Offset = 8,
-        ANY = 15
+        Port = 16,
+        ANY = 31
     }
 }

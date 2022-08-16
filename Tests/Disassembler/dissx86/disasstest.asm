@@ -340,6 +340,48 @@ c:
 		imul	word [CS:BP+SI+6]
 
 
+		;;;;;;;;;;;;;; IN ;;;;;;;;;;;;;;;;
+
+		in	AL, 1
+		in	AL, 0x34
+		in	AX, 1
+		in	AX, 0x34
+
+		in	AL,DX
+		in	AX,DX
+
+		;;;;;;;;;;;;;; inc ;;;;;;;;;;;;;;;;
+
+		; reg
+		inc	AX
+		inc	AL
+		inc	DX
+		inc	bl
+
+		; mem
+
+		inc	byte [DATA1]
+		inc	byte [DI+DATA2]
+		inc	byte [CS:BP+SI+6]
+
+		inc	word [DATA1]
+		inc	word [DI+DATA2]
+		inc	word [CS:BP+SI+6]
+
+
+
+		;;;;;;;;;;;;;; out ;;;;;;;;;;;;;;;;
+
+		out	1, AL
+		out	0x34, AL
+		out	1, AX
+		out	0x34, AX
+
+		out	DX, AL
+		out	DX, AX
+
+
+
 		rep mov  AL,3
 		repe mov  AL,3
 		repnz mov  AL,3

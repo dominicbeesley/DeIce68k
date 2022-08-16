@@ -39,7 +39,9 @@ namespace DisassX86
             CallNear, 
             CallFar, 
             CallMemOpc, 
-            String }
+            String,
+            InOut
+        }
 
 
         public record OpCodeDetails
@@ -70,7 +72,7 @@ namespace DisassX86
 
         private readonly static string[] opcode_extensions_s =
 {
-            "???",
+            "inc",
             "dec",
             "???",
             "???",
@@ -143,10 +145,14 @@ namespace DisassX86
 
             //Single MemOpc Instructions
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "dec"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "???"}, // dec/inc
+
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_S16, Text = "dec"},
             
             new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL
+
+            new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_S16, Text = "inc"},
+
 
             //CALL
 
@@ -165,7 +171,10 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFD, Xor = 0x8C, OpClass = OpClass.MemSeg, Text = "mov"},
 
             // strings
-            new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"}
+            new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
+
+            //In/Out
+            new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},
         };
 
 
@@ -236,6 +245,9 @@ namespace DisassX86
                         break;
                     case OpClass.String:
                         ret = DoClassString(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.InOut:
+                        ret = DoClassInOut(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -800,6 +812,27 @@ namespace DisassX86
 
         }
 
+        public DisRec2<UInt32> DoClassInOut(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+            bool d = (opcode & 0x02) != 0;
+            bool dx = (opcode & 0x08) != 0;
+
+            var OpP = dx ? OperStr("dx") : GetData(br, false, ref l, SymbolType.Port);
+
+            var OpAcc = OperStr((w) ? "ax" : "al");
+
+            var Ops = d ? OpP.Concat(OperStr(",")).Concat(OpAcc) : OpAcc.Concat(OperStr(",")).Concat(OpP);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = d ? "out" : "in",
+                Operands = Ops
+            };
+
+        }
 
 
         private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
