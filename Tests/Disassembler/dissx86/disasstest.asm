@@ -673,4 +673,85 @@ x2:
 		push	0x99
 		push	'.'
 
-		pushf		
+		pushf	
+
+		;;;;;;;;;;;;;; RCL/RCR/ROL/ROR ;;;;;;;;;;;;;;;;;;
+
+		rcl	AL,1
+		rcl	AH,1
+		rcl	AX,1
+		rcr	BL,1
+		rcr	BH,1
+		rcr	BX,1
+		rol	CL,1
+		rol	CH,1
+		rol	CX,1
+		ror	DL,1
+		ror	DH,1
+		ror	DX,1
+
+		rcl	SI,1
+		rcr	DI,1
+		rol	BP,1
+		ror	SP,1
+
+		rol	byte [DATA1],1
+		rol	byte [DI+DATA2],1
+		rol	byte [CS:BP+SI+6],1
+
+		ror	word [DATA1],1
+		ror	word [DI+DATA2],1
+		ror	word [CS:BP+SI+6],1
+
+		rcl	AL,CL
+		rcl	AH,CL
+		rcl	AX,CL
+		rcr	BL,CL
+		rcr	BH,CL
+		rcr	BX,CL
+		rol	CL,CL
+		rol	CH,CL
+		rol	CX,CL
+		ror	DL,CL
+		ror	DH,CL
+		ror	DX,CL
+
+		rcl	SI,CL
+		rcr	DI,CL
+		rol	BP,CL
+		ror	SP,CL
+
+		rol	byte [DATA1],CL
+		rol	byte [DI+DATA2],CL
+		rol	byte [CS:BP+SI+6],CL
+
+		ror	word [DATA1],CL
+		ror	word [DI+DATA2],CL
+		ror	word [CS:BP+SI+6],CL
+
+
+		rcl	AL,2
+		rcl	AH,3
+		rcl	AX,4
+		rcr	BL,5
+		rcr	BH,6
+		rcr	BX,7
+		rol	CL,8
+		rol	CH,9
+		rol	CX,10
+		ror	DL,11
+		ror	DH,12
+		ror	DX,13
+
+		rcl	SI,2
+		rcr	DI,3
+		rol	BP,4
+		ror	SP,5
+
+		rol	byte [DATA1],6
+		rol	byte [DI+DATA2],7
+		rol	byte [CS:BP+SI+6],8
+
+		ror	word [DATA1],9
+		ror	word [DI+DATA2],10
+		ror	word [CS:BP+SI+6],11

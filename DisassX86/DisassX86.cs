@@ -32,7 +32,9 @@ namespace DisassX86
             MemImm,
             MemImmOpc_DP,
             MemOpc_S,
-            MemOpc_PushPop,
+            MemOpc_S_Rot1,
+            MemOpc_S_RotCL,
+            MemImmOpc_Rot,
             AccDisp,
             RegImm,
             Reg_16,
@@ -99,6 +101,19 @@ namespace DisassX86
             "div",
             "idiv"
         };
+
+        private readonly static string[] opcode_extensions_s_rot =
+        {
+            "rol",
+            "ror",
+            "rcl",
+            "rcr",
+            "???",
+            "???",
+            "???",
+            "???"
+        };
+
 
         private readonly static string[] j_conds = {
             "o",
@@ -253,7 +268,14 @@ namespace DisassX86
             new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push"},
             new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push"},
 
-            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push"}
+            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push"},
+
+            // rotates
+
+            new OpCodeDetails {And = 0xFE, Xor = 0xD0, OpClass = OpClass.MemOpc_S_Rot1, Text = "!!!"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xD2, OpClass = OpClass.MemOpc_S_RotCL, Text = "!!!"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!"}
+
 
         };
 
@@ -301,6 +323,15 @@ namespace DisassX86
                         break;
                     case OpClass.MemOpc_S:
                         ret = DoClassMemOpc_S(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemOpc_S_Rot1:
+                        ret = DoClassMemOpc_S_Rot1(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemOpc_S_RotCL:
+                        ret = DoClassMemOpc_S_RotCL(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemImmOpc_Rot:
+                        ret = DoClassMemImmOpc_Rot(br, pc, l, prefixes, opd, opcode);
                         break;
                     case OpClass.RegImm:
                         ret = DoClassRegImm(br, pc, l, prefixes, opd, opcode);
@@ -815,6 +846,40 @@ namespace DisassX86
             };
         }
 
+        public DisRec2<UInt32> DoClassMemImmOpc_Rot(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            string opcode_over = opcode_extensions_s_rot[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, true, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+            var Op1 = GetData(br, false, ref l, SymbolType.Immediate);
+            if (Op1 == null)
+                return null;
+
+            var Ops = Op2.Concat(OperStr(",")).Concat(Op1);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Ops
+            };
+        }
+
+
         public DisRec2<UInt32> DoClassMemOpc_S(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
@@ -833,6 +898,62 @@ namespace DisassX86
 
 
             var Op2 = GetModRm(br, mod, r_m, w, call ? far : true, prefixes, ref l, call : call );
+            if (Op2 == null)
+                return null;
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Op2
+            };
+        }
+
+        public DisRec2<UInt32> DoClassMemOpc_S_Rot1(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            string opcode_over = opcode_extensions_s_rot[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, false, prefixes, ref l, false).Concat(OperStr(",1"));
+            if (Op2 == null)
+                return null;
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Op2
+            };
+        }
+
+        public DisRec2<UInt32> DoClassMemOpc_S_RotCL(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            string opcode_over = opcode_extensions_s_rot[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, false, prefixes, ref l, false).Concat(OperStr(",cl"));
             if (Op2 == null)
                 return null;
 
