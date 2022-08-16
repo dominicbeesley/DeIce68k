@@ -172,6 +172,7 @@ namespace DisassX86
 
             // strings
             new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
 
             //In/Out
             new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},

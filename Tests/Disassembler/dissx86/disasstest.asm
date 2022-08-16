@@ -368,6 +368,12 @@ c:
 		inc	word [DI+DATA2]
 		inc	word [CS:BP+SI+6]
 
+		;;;;;;;;;;;;;; CMPS ;;;;;;;;;;;;;;;;
+
+		rep insb
+		rep insw
+		repnz insb
+		rep insw
 
 
 		;;;;;;;;;;;;;; out ;;;;;;;;;;;;;;;;
