@@ -415,6 +415,12 @@ l16		jno	l16
 		jle	l13
 		jg	l14
 
+l11:		rep mov  AL,3
+l12:		repe mov  AL,3
+l13:		repnz mov  AL,3
+l14:		repne mov  AL,3
+
+
 		;;;;;;;;;;;;;; JCXZ ;;;;;;;;;;;;;;;;;
 
 		jcxz	l15
@@ -481,9 +487,102 @@ l16		jno	l16
 		es rep lodsw
 		ds repnz lodsb
 		ss rep lodsw
+x1:
 
+		;;;;;;;;;;;;;; LOOP ;;;;;;;;;;;;;;;;
 
-l11:		rep mov  AL,3
-l12:		repe mov  AL,3
-l13:		repnz mov  AL,3
-l14:		repne mov  AL,3
+		loop	x1
+		loope	x2
+		loopne	x2
+
+x2:
+		;;;;;;;;;;;;;; MOVS ;;;;;;;;;;;;;;;;
+		rep movsb  
+		repe movsb 
+		repnz movsb 
+		repne movsb 
+
+		rep cs movsb  
+		repe ds movsb 
+		repnz es movsb 
+		repne ss movsb
+
+		rep movsw 
+		repe movsw
+		repnz movsw
+		repne movsw
+
+		rep cs movsw  
+		repe ds movsw 
+		repnz es movsw 
+		repne ss movsw
+
+		;;;;;;;;;;;;;; neg ;;;;;;;;;;;;;;;;
+
+		; reg
+		neg	AX
+		neg	AL
+		neg	DX
+		neg	bl
+
+		; mem
+
+		neg	byte [DATA1]
+		neg	byte [DI+DATA2]
+		neg	byte [CS:BP+SI+6]
+
+		neg	word [DATA1]
+		neg	word [DI+DATA2]
+		neg	word [CS:BP+SI+6]
+
+		;;;;;;;;;;;;;; nop ;;;;;;;;;;;;;;;
+
+		nop
+
+		;;;;;;;;;;;;;; not ;;;;;;;;;;;;;;;;
+
+		; reg
+		not	AX
+		not	AL
+		not	DX
+		not	bl
+
+		; mem
+
+		not	byte [DATA1]
+		not	byte [DI+DATA2]
+		not	byte [CS:BP+SI+6]
+
+		not	word [DATA1]
+		not	word [DI+DATA2]
+		not	word [CS:BP+SI+6]
+
+		;;;;;;;;;;;;;; or ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		or	AX,CX
+		or	al,cl
+		or	DX,BX
+
+		; mem,reg
+
+		or	[DATA1],al
+		or	al,[DATA1]
+
+		or	[DI+DATA2],BX
+
+		or	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		or	CX,0x23
+		or	CX,0x2323
+		or	DL,23
+		or	DL,0x22
+		or	word [BP+SI],99
+
+		; acc, imm
+		or	AL,3
+		or	AX,9999
+		or	AH,3
+

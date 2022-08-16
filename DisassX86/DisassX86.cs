@@ -64,7 +64,7 @@ namespace DisassX86
         private readonly static string[] opcode_extensions_dp =
         {
             "add",
-            "???",
+            "or",
             "adc",
             "???",
             "and",
@@ -89,8 +89,8 @@ namespace DisassX86
 {
             "???",
             "???",
-            "???",
-            "???",
+            "not",
+            "neg",
             "mul",
             "imul",
             "div",
@@ -147,6 +147,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "iret"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop"},
 
 
             //DP instructions
@@ -164,9 +165,13 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFC, Xor = 0x38, OpClass = OpClass.Mem, Text = "cmp"},
             new OpCodeDetails {And = 0xFE, Xor = 0x3C, OpClass = OpClass.AccImm, Text = "cmp"},
 
+            new OpCodeDetails {And = 0xFC, Xor = 0x08, OpClass = OpClass.Mem, Text = "or"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x0C, OpClass = OpClass.AccImm, Text = "or"},
+
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 
+            
             // effective address instructions
 
             new OpCodeDetails {And = 0xFF, Xor = 0xC5, OpClass = OpClass.Mem2R, Text = "lds"},
@@ -178,13 +183,14 @@ namespace DisassX86
 
             //Single MemOpc Instructions
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "call"}, // dec/inc/call/jmp etc
+            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "!!!"}, // dec/inc/call/jmp etc
 
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_S16, Text = "dec"},
             
-            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL
+            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL/NEG
 
             new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_S16, Text = "inc"},
+
 
 
             //CALL
@@ -202,6 +208,11 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFF, Xor = 0xEB, OpClass = OpClass.J_short, Text = "jmp"},
 
+            new OpCodeDetails {And = 0xFF, Xor = 0xE2, OpClass = OpClass.J_short, Text = "loop"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE1, OpClass = OpClass.J_short, Text = "loope"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE0, OpClass = OpClass.J_short, Text = "loopne"},
+
+
             new OpCodeDetails {And = 0xFF, Xor = 0xE9, OpClass = OpClass.CallNear, Text = "jmp"},
             new OpCodeDetails {And = 0xFF, Xor = 0xEA, OpClass = OpClass.CallFar, Text = "jmp"},
 
@@ -217,6 +228,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
             new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
             new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xA4, OpClass = OpClass.String, Text = "movs"},
 
             //In/Out
             new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},
