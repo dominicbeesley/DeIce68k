@@ -109,10 +109,10 @@ namespace DisassX86
             "ror",
             "rcl",
             "rcr",
+            "shl",
+            "shr",
             "???",
-            "???",
-            "???",
-            "???"
+            "sar"
         };
 
 
@@ -165,6 +165,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9C, OpClass = OpClass.Inherent, Text = "pushf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9E, OpClass = OpClass.Inherent, Text = "sahf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
 
             new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},

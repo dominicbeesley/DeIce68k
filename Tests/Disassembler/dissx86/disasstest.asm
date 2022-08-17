@@ -765,3 +765,70 @@ x2:
 		retf
 		retf	22
 		retf	0x333
+
+		;;;;;;;;;;;;;; SAHF ;;;;;;;;;;;;;;;;;;
+
+		sahf
+
+		;;;;;;;;;;;;;; sal/shr/sar/ROR ;;;;;;;;;;;;;;;;;;
+
+		sal	AL,1
+		sal	AH,1
+		sal	AX,1
+		shr	BL,1
+		shr	BH,1
+		shr	BX,1
+		sar	CL,1
+		sar	CH,1
+		sar	CX,1
+		sal	DL,1
+		shr	DH,1
+		sar	DX,1
+
+		sal	SI,1
+		shr	DI,1
+		sar	BP,1
+		sal	SP,1
+
+		sar	byte [DATA1],1
+		sar	byte [DI+DATA2],1
+		sar	byte [CS:BP+SI+6],1
+
+		sal	AL,CL
+		sal	AH,CL
+		sal	AX,CL
+		shr	BL,CL
+		shr	BH,CL
+		shr	BX,CL
+		sar	CL,CL
+		sar	CH,CL
+		sar	CX,CL
+
+		sal	SI,CL
+		shr	DI,CL
+		sar	BP,CL
+
+		sar	byte [DATA1],CL
+		sar	byte [DI+DATA2],CL
+		sar	byte [CS:BP+SI+6],CL
+
+
+
+		sal	AL,2
+		sal	AH,3
+		sal	AX,4
+		shr	BL,5
+		shr	BH,6
+		shr	BX,7
+		sar	CL,8
+		sar	CH,9
+		sar	CX,10
+
+		sal	SI,2
+		shr	DI,3
+		sar	BP,4
+
+		sar	byte [DATA1],6
+		sar	byte [DI+DATA2],7
+		sar	byte [CS:BP+SI+6],8
+
