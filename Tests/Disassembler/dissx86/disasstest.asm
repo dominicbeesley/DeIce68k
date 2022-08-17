@@ -755,3 +755,13 @@ x2:
 		ror	word [DATA1],9
 		ror	word [DI+DATA2],10
 		ror	word [CS:BP+SI+6],11
+
+		;;;;;;;;;;;;;; RET ;;;;;;;;;;;;;;;;;;
+
+		ret
+		ret	10
+		ret	0x222
+
+		retf
+		retf	22
+		retf	0x333

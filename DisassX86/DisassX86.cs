@@ -48,7 +48,8 @@ namespace DisassX86
             Int,
             Jcc,
             J_short,
-            ImmPush
+            ImmPush,
+            RetImm
         }
 
 
@@ -154,6 +155,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
             new OpCodeDetails {And = 0xFF, Xor = 0x27, OpClass = OpClass.Inherent, Text = "daa"},
             new OpCodeDetails {And = 0xFF, Xor = 0x2F, OpClass = OpClass.Inherent, Text = "das"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xC3, OpClass = OpClass.Inherent, Text = "ret"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xCB, OpClass = OpClass.Inherent, Text = "retf"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into"},
             new OpCodeDetails {And = 0xFF, Xor = 0xCF, OpClass = OpClass.Inherent, Text = "iret"},
 
@@ -274,8 +277,11 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFE, Xor = 0xD0, OpClass = OpClass.MemOpc_S_Rot1, Text = "!!!"},
             new OpCodeDetails {And = 0xFE, Xor = 0xD2, OpClass = OpClass.MemOpc_S_RotCL, Text = "!!!"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!"}
+            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!"},
 
+            // RetImm
+
+            new OpCodeDetails {And = 0xF7, Xor = 0xC2, OpClass = OpClass.RetImm, Text = "ret"}
 
         };
 
@@ -374,6 +380,9 @@ namespace DisassX86
                         break;
                     case OpClass.ImmPush:
                         ret = DoClassImmPush(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.RetImm:
+                        ret = DoClassRetImm(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -1095,6 +1104,22 @@ namespace DisassX86
                 Decoded = true,
                 Length = l,
                 Mnemonic = $"{opd.Text}{j_conds[ccix]}",
+                Operands = Ops
+            };
+
+        }
+        public DisRec2<UInt32> DoClassRetImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool f = (opcode & 0x08) != 0;
+
+            var Ops = OperNum(br.ReadUInt16(), SymbolType.Offset);
+            l += 2;
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = $"{opd.Text}{(f?"f":"")}",
                 Operands = Ops
             };
 
