@@ -832,3 +832,61 @@ x2:
 		sar	byte [DI+DATA2],7
 		sar	byte [CS:BP+SI+6],8
 
+
+		;;;;;;;;;;;;;; sbb ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		sbb	AX,CX
+		sbb	al,cl
+		sbb	DX,BX
+
+		; mem,reg
+
+		sbb	[DATA1],al
+		sbb	al,[DATA1]
+
+		sbb	[DI+DATA2],BX
+
+		sbb	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		sbb	CX,0x23
+		sbb	CX,0x2323
+		sbb	DL,23
+		sbb	DL,0x22
+		sbb	word [BP+SI],99
+
+		; acc, imm
+		sbb	AL,3
+		sbb	AX,9999
+		sbb	AH,3
+
+		;;;;;;;;;;;;;; sbb ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		sbb	AX,CX
+		sbb	al,cl
+		sbb	DX,BX
+
+		; mem,reg
+
+		sbb	[DATA1],al
+		sbb	al,[DATA1]
+
+		sbb	[DI+DATA2],BX
+
+		sbb	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		sbb	CX,0x23
+		sbb	CX,0x2323
+		sbb	DL,23
+		sbb	DL,0x22
+		sbb	word [BP+SI],99
+
+		; acc, imm
+		sbb	AL,3
+		sbb	AX,9999
+		sbb	AH,3

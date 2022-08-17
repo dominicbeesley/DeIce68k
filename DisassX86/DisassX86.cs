@@ -72,7 +72,7 @@ namespace DisassX86
             "add",
             "or",
             "adc",
-            "???",
+            "sbb",
             "and",
             "???",
             "???",
@@ -193,6 +193,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFC, Xor = 0x08, OpClass = OpClass.Mem, Text = "or"},
             new OpCodeDetails {And = 0xFE, Xor = 0x0C, OpClass = OpClass.AccImm, Text = "or"},
 
+            new OpCodeDetails {And = 0xFC, Xor = 0x18, OpClass = OpClass.Mem, Text = "sbb"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x1C, OpClass = OpClass.AccImm, Text = "sbb"},
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 
