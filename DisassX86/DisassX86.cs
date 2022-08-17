@@ -31,7 +31,9 @@ namespace DisassX86
             MemW,
             MemImm,
             MemImmOpc_DP,
-            MemOpc_S,
+            MemOpc_S1,
+            MemOpc_S2,
+            MemOpc_S_Pop,
             MemOpc_S_Rot1,
             MemOpc_S_RotCL,
             MemImmOpc_Rot,
@@ -79,7 +81,7 @@ namespace DisassX86
             "cmp"
         };
 
-        private readonly static string[] opcode_extensions_s =
+        private readonly static string[] opcode_extensions_s1 =
 {
             "inc",
             "dec",
@@ -91,9 +93,9 @@ namespace DisassX86
             "???"
         };
 
-        private readonly static string[] opcode_extensions_s_divmul =
+        private readonly static string[] opcode_extensions_s2 =
 {
-            "pop",
+            "test",
             "???",
             "not",
             "neg",
@@ -202,6 +204,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFC, Xor = 0x28, OpClass = OpClass.Mem, Text = "sub"},
             new OpCodeDetails {And = 0xFE, Xor = 0x2C, OpClass = OpClass.AccImm, Text = "sub"},
 
+            new OpCodeDetails {And = 0xFC, Xor = 0x84, OpClass = OpClass.Mem, Text = "test"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xA8, OpClass = OpClass.AccImm, Text = "test"},
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 
@@ -217,11 +221,11 @@ namespace DisassX86
 
             //Single MemOpc Instructions
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S, Text = "!!!"}, // dec/inc/call/jmp etc
+            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S1, Text = "!!!"}, // dec/inc/call/jmp etc
 
             new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_16, Text = "dec"},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S, Text = "!!!"},//DIV/IDIV/IMUL/NEG
+            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S2, Text = "!!!"},//DIV/IDIV/IMUL/NEG
 
             new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_16, Text = "inc"},
 
@@ -278,7 +282,7 @@ namespace DisassX86
             //Push/Pop
             new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop"},
             new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S, Text = "!!!"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S_Pop, Text = "!!!"},
 
             new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push"},
             new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push"},
@@ -339,8 +343,14 @@ namespace DisassX86
                     case OpClass.MemImmOpc_DP:
                         ret = DoClassMemImmOpc_DP(br, pc, l, prefixes, opd, opcode);
                         break;
-                    case OpClass.MemOpc_S:
-                        ret = DoClassMemOpc_S(br, pc, l, prefixes, opd, opcode);
+                    case OpClass.MemOpc_S1:
+                        ret = DoClassMemOpc_S1(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemOpc_S2:
+                        ret = DoClassMemOpc_S2(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.MemOpc_S_Pop:
+                        ret = DoClassMemOpc_S_Pop(br, pc, l, prefixes, opd, opcode);
                         break;
                     case OpClass.MemOpc_S_Rot1:
                         ret = DoClassMemOpc_S_Rot1(br, pc, l, prefixes, opd, opcode);
@@ -867,6 +877,7 @@ namespace DisassX86
             };
         }
 
+
         public DisRec2<UInt32> DoClassMemImmOpc_Rot(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
@@ -901,19 +912,18 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassMemOpc_S(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S1(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
-            bool divmul = (opcode == 0x8F) || (opcode & 0x08) == 0;
 
             byte modrm = br.ReadByte();
 
             int mod = (modrm & 0xC0) >> 6;
             int rrr = (modrm & 0x38) >> 3;
-            bool call = !divmul && rrr >= 2 && rrr <= 4;
+            bool call = rrr >= 2 && rrr <= 4;
             bool far = (rrr & 0x01) != 0;
 
-            string opcode_over = divmul? opcode_extensions_s_divmul[rrr]:opcode_extensions_s[rrr];
+            string opcode_over = opcode_extensions_s1[rrr];
 
             int r_m = modrm & 0x7;
 
@@ -931,6 +941,85 @@ namespace DisassX86
                 Operands = Op2
             };
         }
+
+        public DisRec2<UInt32> DoClassMemOpc_S2(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+            bool far = (rrr & 0x01) != 0;
+
+            string opcode_over = opcode_extensions_s2[rrr];
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, true, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+            IEnumerable<DisRec2OperString_Base> Ops;
+            if (rrr == 0)
+            {
+                UInt32 imm;
+                if (w) {
+                    imm = br.ReadUInt16();
+                    l += 2;
+                } else {
+                    imm = br.ReadByte();
+                    l++;
+                }
+
+                // horendous bodge for test!
+                Ops = Op2.Concat(OperStr(",")).Concat(OperNum(imm, SymbolType.Immediate));
+            } else
+            {
+                Ops = Op2;
+            }
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opcode_over,
+                Operands = Ops
+            };
+        }
+
+        public DisRec2<UInt32> DoClassMemOpc_S_Pop(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            bool w = (opcode & 0x01) != 0;
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+            int rrr = (modrm & 0x38) >> 3;
+
+            if (rrr != 0)
+                return null; //not a pop
+
+
+            int r_m = modrm & 0x7;
+
+
+            var Op2 = GetModRm(br, mod, r_m, w, false, prefixes, ref l, false);
+            if (Op2 == null)
+                return null;
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = "pop",
+                Operands = Op2
+            };
+        }
+
 
         public DisRec2<UInt32> DoClassMemOpc_S_Rot1(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {

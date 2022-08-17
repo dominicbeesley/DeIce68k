@@ -946,3 +946,32 @@ x2:
 		sub	AL,3
 		sub	AX,9999
 		sub	AH,3
+
+		;;;;;;;;;;;;;; test ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		test	AX,CX
+		test	al,cl
+		test	DX,BX
+
+		; mem,reg
+
+		test	[DATA1],al
+		test	al,[DATA1]
+
+		test	[DI+DATA2],BX
+
+		test	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		test	CX,0x23
+		test	CX,0x2323
+		test	DL,23
+		test	DL,0x22
+		test	word [BP+SI],99
+
+		; acc, imm
+		test	AL,3
+		test	AX,9999
+		test	AH,3
