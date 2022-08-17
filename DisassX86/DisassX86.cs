@@ -74,7 +74,7 @@ namespace DisassX86
             "adc",
             "sbb",
             "and",
-            "???",
+            "sub",
             "???",
             "cmp"
         };
@@ -198,6 +198,10 @@ namespace DisassX86
 
             new OpCodeDetails {And = 0xFC, Xor = 0x18, OpClass = OpClass.Mem, Text = "sbb"},
             new OpCodeDetails {And = 0xFE, Xor = 0x1C, OpClass = OpClass.AccImm, Text = "sbb"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x28, OpClass = OpClass.Mem, Text = "sub"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x2C, OpClass = OpClass.AccImm, Text = "sub"},
+
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 

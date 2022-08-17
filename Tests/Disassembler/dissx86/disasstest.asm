@@ -917,3 +917,32 @@ x2:
 		rep stosw
 		repnz stosb
 		rep stosw
+
+		;;;;;;;;;;;;;; sub ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		sub	AX,CX
+		sub	al,cl
+		sub	DX,BX
+
+		; mem,reg
+
+		sub	[DATA1],al
+		sub	al,[DATA1]
+
+		sub	[DI+DATA2],BX
+
+		sub	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		sub	CX,0x23
+		sub	CX,0x2323
+		sub	DL,23
+		sub	DL,0x22
+		sub	word [BP+SI],99
+
+		; acc, imm
+		sub	AL,3
+		sub	AX,9999
+		sub	AH,3
