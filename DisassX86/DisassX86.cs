@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+//TODO: There's a lot of cut and paste code - try and simplify/factor out
+//TODO: there's some opc overrides set as "???" - make them null and return unknown opcode
+
 namespace DisassX86
 {
     public class DisassX86 : IDisAss
