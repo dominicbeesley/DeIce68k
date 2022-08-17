@@ -890,3 +890,30 @@ x2:
 		sbb	AL,3
 		sbb	AX,9999
 		sbb	AH,3
+
+
+		;;;;;;;;;;;;;; scas ;;;;;;;;;;;;;;;;
+
+		rep scasb
+		rep scasw
+		repnz scasb
+		rep scasw
+
+		;;;;;;;;;;;;;; stc ;;;;;;;;;;;;;;;;
+
+		stc
+
+		;;;;;;;;;;;;;; std ;;;;;;;;;;;;;;;;
+
+		std
+
+		;;;;;;;;;;;;;; sti ;;;;;;;;;;;;;;;;
+
+		sti
+
+		;;;;;;;;;;;;;; stos ;;;;;;;;;;;;;;;;
+
+		rep stosb
+		rep stosw
+		repnz stosb
+		rep stosw

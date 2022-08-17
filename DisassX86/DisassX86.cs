@@ -171,8 +171,11 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
             new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc"},
             new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF9, OpClass = OpClass.Inherent, Text = "stc"},
             new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFB, OpClass = OpClass.Inherent, Text = "sti"},
             new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFD, OpClass = OpClass.Inherent, Text = "std"},
 
 
             //DP instructions
@@ -255,6 +258,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
             new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods"},
             new OpCodeDetails {And = 0xFE, Xor = 0xA4, OpClass = OpClass.String, Text = "movs"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAA, OpClass = OpClass.String, Text = "stos"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAE, OpClass = OpClass.String, Text = "scas"},
 
             new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
             new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs"},
