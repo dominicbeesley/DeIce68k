@@ -77,7 +77,7 @@ namespace DisassX86
             "sbb",
             "and",
             "sub",
-            "???",
+            "xor",
             "cmp"
         };
 
@@ -165,6 +165,7 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop"},
             new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
             new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9B, OpClass = OpClass.Inherent, Text = "wait"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9C, OpClass = OpClass.Inherent, Text = "pushf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf"},
             new OpCodeDetails {And = 0xFF, Xor = 0x9E, OpClass = OpClass.Inherent, Text = "sahf"},
@@ -204,8 +205,15 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFC, Xor = 0x28, OpClass = OpClass.Mem, Text = "sub"},
             new OpCodeDetails {And = 0xFE, Xor = 0x2C, OpClass = OpClass.AccImm, Text = "sub"},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x84, OpClass = OpClass.Mem, Text = "test"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x84, OpClass = OpClass.Mem, Text = "test"},
             new OpCodeDetails {And = 0xFE, Xor = 0xA8, OpClass = OpClass.AccImm, Text = "test"},
+
+            new OpCodeDetails {And = 0xFE, Xor = 0x86, OpClass = OpClass.Mem, Text = "xchg"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x90, OpClass = OpClass.Reg_16, Text = "xchg"},
+
+            new OpCodeDetails {And = 0xFC, Xor = 0x30, OpClass = OpClass.Mem, Text = "xor"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x34, OpClass = OpClass.AccImm, Text = "xor"},
+
 
             new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
 
@@ -654,7 +662,13 @@ namespace DisassX86
         {
             int rix = opcode & 0x7;
 
-            var Ops = GetReg(rix, true);
+            var Reg = GetReg(rix, true);
+            var Ops = Reg;
+            if ((opcode & 0xF8) == 0x90)
+            {
+                //xchg acc,reg
+                Ops = OperStr("ax,").Concat(Ops);
+            }
 
             return new DisRec2<UInt32>
             {

@@ -975,3 +975,61 @@ x2:
 		test	AL,3
 		test	AX,9999
 		test	AH,3
+
+
+		;;;;;;;;;;;;;; wait ;;;;;;;;;;;;;;;;
+
+		wait
+
+		;;;;;;;;;;;;;; xchg ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		xchg	AL,BL
+		xchg	DX,BX
+		xchg	BP,SI
+		xchg	AH,DL
+
+		; mem,reg
+
+		xchg	[DATA1],al
+		xchg	al,[DATA1]
+
+		xchg	[DI+DATA2],BX
+
+		xchg	CX,[CS:BP+SI+6]
+
+
+		; acc, imm
+		xchg	AX,CX
+		xchg	AX,BP
+		xchg	SP,AX
+
+		;;;;;;;;;;;;;; xor ;;;;;;;;;;;;;;;;
+
+		; reg,reg
+		xor	AX,CX
+		xor	al,cl
+		xor	DX,BX
+
+		; mem,reg
+
+		xor	[DATA1],al
+		xor	al,[DATA1]
+
+		xor	[DI+DATA2],BX
+
+		xor	CX,[CS:BP+SI+6]
+
+		; reg, imm
+
+		xor	CX,0x23
+		xor	CX,0x2323
+		xor	DL,23
+		xor	DL,0x22
+		xor	word [BP+SI],99
+
+		; acc, imm
+		xor	AL,3
+		xor	AX,9999
+		xor	AH,3
+
