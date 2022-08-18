@@ -522,7 +522,7 @@ namespace DisassX86
                 offs = br.ReadSByte();
                 l += 1;
             }
-            return OperNum((uint)(l + pc + offs) & 0xFFFF, SymbolType.Pointer);
+            return OperNum((uint)((l + pc + offs) & 0xFFFF) | (pc & 0xFFFF0000), SymbolType.Pointer);
         }
 
         IEnumerable<DisRec2OperString_Base> GetDisp(BinaryReader br, bool w, ref ushort l, Prefixes prefixes)
