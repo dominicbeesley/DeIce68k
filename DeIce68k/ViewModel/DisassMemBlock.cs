@@ -1,5 +1,6 @@
 ﻿using Disass68k;
 using DisassShared;
+using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -131,6 +132,7 @@ namespace DeIce68k.ViewModel
  
             uint dispc = BaseAddress;
 
+            IDisAss disass = new DisassX86.DisassX86();
 
 
             bool ok = true;
@@ -161,11 +163,11 @@ namespace DeIce68k.ViewModel
                     var p = ms.Position;
 
                     var br = new BinaryReader(ms);
-                    DisRec instr;
+                    DisRec2<UInt32> instr;
                     try
                     {
 
-                        instr = Disass.Decode(br, dispc, _app.Symbols, true);
+                        instr = disass.Decode(br, dispc);
                     }
                     catch (EndOfStreamException)
                     {
@@ -180,7 +182,7 @@ namespace DeIce68k.ViewModel
 
                         byte [] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, $"{ ExpandSymbols(_app.Symbols, instr.Operands) }", instr.Length, instr.Decoded, dispc == PC));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
@@ -193,6 +195,32 @@ namespace DeIce68k.ViewModel
             }
 
         }
+
+        static string ExpandSymbols(DeIceSymbols symbols, IEnumerable<DisRec2OperString_Base> oper)
+        {
+            StringBuilder sb = new StringBuilder();
+            if (oper != null)
+            {
+                foreach (var o in oper)
+                {
+                    if (o is DisRec2OperString_Number)
+                    {
+                        var n = (DisRec2OperString_Number)o;
+                        var s = symbols.AddressToSymbols(n.Number).FirstOrDefault();
+                        if (s != null)
+                            sb.Append(s);
+                        else
+                            sb.Append(n.ToString());
+                    }
+                    else
+                    {
+                        sb.Append(o.ToString());
+                    }
+                }
+            }
+            return sb.ToString();
+        }
+
 
         public void BreakpointsUpdated()
         {
