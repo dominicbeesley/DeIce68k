@@ -9,6 +9,7 @@ using System.IO;
 using System.Text;
 using System.Linq;
 using DeIce68k.Lib;
+using DisassShared;
 
 namespace DeIce68k
 {
@@ -27,6 +28,24 @@ namespace DeIce68k
             
         }
     }
+
+    public class OperandTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate String { get; set; }
+        public DataTemplate Symbol { get; set; }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            if (item is DisRec2OperString_String)
+                return String;
+            if (item is DisRec2OperString_Symbol)
+                return Symbol;
+            else
+                return null;
+
+        }
+    }
+
 
     /// <summary>
     /// Interaction logic for ucDisass.xaml

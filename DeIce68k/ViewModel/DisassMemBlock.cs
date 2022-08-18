@@ -77,17 +77,20 @@ namespace DeIce68k.ViewModel
                 ms.Position = EndPoint - BaseAddress;
                 while (ok)
                 {
-                    foreach (var label in _app.Symbols.AddressToSymbols(dispc)) { 
-                        _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
+                    bool hassym = false;
+                    foreach (var symbol in _app.Symbols.GetByAddress(dispc, SymbolType.Pointer))
+                    {
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc == PC));
+                        hassym = true;
                     }
 
                     var p = ms.Position;
 
                     var br = new BinaryReader(ms);
-                    DisRec instr;
+                    DisRec2<UInt32> instr;
                     try
                     {
-                        instr = Disass.Decode(br, dispc, _app.Symbols, true);
+                        instr = disAss.Decode(br, dispc);
                     }
                     catch (EndOfStreamException)
                     {
@@ -119,7 +122,9 @@ namespace DeIce68k.ViewModel
             RaisePropertyChangedEvent(nameof(Items));
         }
 
-        public DisassMemBlock(DeIceAppModel app, uint baseAddr, byte[] data)
+        IDisAss disAss;
+
+        public DisassMemBlock(DeIceAppModel app, uint baseAddr, byte[] data, IDisAss disAss)
             : base()
         {
             _items = new ObservableCollection<DisassItemModelBase>();
@@ -132,7 +137,7 @@ namespace DeIce68k.ViewModel
  
             uint dispc = BaseAddress;
 
-            IDisAss disass = new DisassX86.DisassX86();
+            this.disAss = disAss;
 
 
             bool ok = true;
@@ -142,16 +147,16 @@ namespace DeIce68k.ViewModel
                 while (ok)
                 {
                     bool hassym = false;
-                    foreach (var label in _app.Symbols.AddressToSymbols(dispc))
+                    foreach (var symbol in _app.Symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
-                        _items.Add(new DisassItemLabelModel(_app, dispc, null, $"{label}", dispc == PC));
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc == PC));
                         hassym = true;
                     }
                     if (first)
                     {
                         if (!hassym)
                         {
-                            string nearsym = _app.Symbols.FindNearest(dispc);
+                            var nearsym = _app.Symbols.FindNearest(dispc, SymbolType.Pointer);
                             if (nearsym != null)
                             {
                                 _items.Add(new DisassItemLabelModel(_app, dispc, null, nearsym, dispc == PC));
@@ -167,7 +172,7 @@ namespace DeIce68k.ViewModel
                     try
                     {
 
-                        instr = disass.Decode(br, dispc);
+                        instr = disAss.Decode(br, dispc);
                     }
                     catch (EndOfStreamException)
                     {
@@ -182,7 +187,7 @@ namespace DeIce68k.ViewModel
 
                         byte [] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, $"{ ExpandSymbols(_app.Symbols, instr.Operands) }", instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc == PC));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
@@ -196,9 +201,8 @@ namespace DeIce68k.ViewModel
 
         }
 
-        static string ExpandSymbols(DeIceSymbols symbols, IEnumerable<DisRec2OperString_Base> oper)
+        static IEnumerable<DisRec2OperString_Base> ExpandSymbols(DeIceSymbols symbols, IEnumerable<DisRec2OperString_Base> oper)
         {
-            StringBuilder sb = new StringBuilder();
             if (oper != null)
             {
                 foreach (var o in oper)
@@ -206,19 +210,21 @@ namespace DeIce68k.ViewModel
                     if (o is DisRec2OperString_Number)
                     {
                         var n = (DisRec2OperString_Number)o;
-                        var s = symbols.AddressToSymbols(n.Number).FirstOrDefault();
+                        var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
                         if (s != null)
-                            sb.Append(s);
+                            yield return new DisRec2OperString_Symbol
+                            {
+                                Symbol = s
+                            };
                         else
-                            sb.Append(n.ToString());
+                            yield return n;
                     }
                     else
                     {
-                        sb.Append(o.ToString());
+                        yield return o;
                     }
                 }
             }
-            return sb.ToString();
         }
 
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DisassShared;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -72,7 +73,7 @@ namespace DeIce68k
                     var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
                     if (am != null)
                     {
-                        var ss = am.Symbols.Symbol2AddressDictionary.Keys.Where(x => x.StartsWith(s)).FirstOrDefault();
+                        var ss = am.Symbols.SymbolsByAddress.Where(x => x.Name.StartsWith(s)).FirstOrDefault()?.Name;
                         if (ss != null)
                         {
                             txtAddr.Text = ss;
@@ -88,9 +89,9 @@ namespace DeIce68k
         protected string GetSymbol()
         {
             var s = txtAddr.Text;
-            var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
-            if (am != null)
-                return am.Symbols.Symbol2AddressDictionary.Keys.Where(x => x == s).FirstOrDefault();
+            ISymbol2<UInt32> sym = null;
+            if ((DataContext as DeIce68k.ViewModel.DeIceAppModel)?.Symbols.FindByName(s, out sym) ?? false) 
+                return sym?.Name ?? null;
             else
                 return null;
         }
@@ -118,7 +119,15 @@ namespace DeIce68k
                 var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
                 if (am != null)
                 {
-                    return am.Symbols.Symbol2AddressDictionary.TryGetValue(s, out addr);
+                    ISymbol2<UInt32> sym;
+                    if (am.Symbols.FindByName(s, out sym))
+                    {
+                        addr = sym.Address;
+                        return true;
+                    } else
+                    {
+                        return false;
+                    }
                 }
                 else
                     return false;

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using DisassShared;
 
 namespace DeIce68k.ViewModel.Scripts
 {
@@ -59,8 +60,9 @@ namespace DeIce68k.ViewModel.Scripts
         public uint GetSymbol(string s)
         {
             uint ret;
-            if (_app.Symbols.SymbolToAddress(s, out ret))
-                return ret;
+            ISymbol2<UInt32> sym;
+            if (_app.Symbols.FindByName(s, out sym))
+                return sym.Address;
             else
                 throw new ArgumentException($"Symbol {s} is not defined");
         }

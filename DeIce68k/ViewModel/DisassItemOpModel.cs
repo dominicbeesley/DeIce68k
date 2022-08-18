@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DisassShared;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,7 +10,7 @@ namespace DeIce68k.ViewModel
     public class DisassItemOpModel : DisassItemModelBase
     {
         public string Mnemonic { get; }
-        public string Operands { get; }
+        public IEnumerable<DisRec2OperString_Base> Operands { get; }
 
         public ushort Length { get; }
 
@@ -39,7 +40,7 @@ namespace DeIce68k.ViewModel
         }
 
 
-        public DisassItemOpModel(DeIceAppModel deIceAppModel, uint addr, string hints, byte[] instrBytes, string mnemonic, string operands, ushort length, bool decoded, bool pc)
+        public DisassItemOpModel(DeIceAppModel deIceAppModel, uint addr, string hints, byte[] instrBytes, string mnemonic, IEnumerable<DisRec2OperString_Base> operands, ushort length, bool decoded, bool pc)
             : base(deIceAppModel, addr, hints, pc)
         {
             Mnemonic = mnemonic;

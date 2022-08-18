@@ -233,10 +233,7 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="{Binding Address, StringFormat=X08 }" Grid.Column="0"/>
-                                        <ListView Grid.Column="1" ItemsSource="{Binding Symbols}">
-                                            
-                                            
-                                        </ListView>
+                                        <TextBlock Text="{Binding Name}" Grid.Column="1"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>

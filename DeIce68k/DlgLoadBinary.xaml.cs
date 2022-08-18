@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using DeIce68k.ViewModel;
+using DisassShared;
 using Microsoft.Win32;
 
 namespace DeIce68k
@@ -34,19 +35,26 @@ namespace DeIce68k
             {
 
                 uint a = 0;
+                ISymbol2<UInt32> sym;
                 try
                 {
-                    if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
+                    if (Context.Symbols.FindByName(txtAddress.Text, out sym))
+                    {
+                        a = sym.Address;
+                    }
+                    else
+                    {
                         a = Convert.ToUInt32(txtAddress.Text, 16);
+                    }
                 }
                 catch (Exception ex) { }
                 return a;
             }
             set
             {
-                var sym = Context?.Symbols?.AddressToSymbols(value).FirstOrDefault();
+                var sym = Context?.Symbols?.GetByAddress(value, SymbolType.ANY).FirstOrDefault();
                 if (sym != null)
-                    txtAddress.Text = sym;
+                    txtAddress.Text = sym.Name;
                 else
                     txtAddress.Text = $"{value:X08}";
             }
@@ -61,9 +69,16 @@ namespace DeIce68k
         {
             try
             {
-                uint a;
-                if (!Context.Symbols.SymbolToAddress(txtAddress.Text, out a))
+                UInt32 a;
+                ISymbol2<UInt32> sym;
+                if (Context.Symbols.FindByName(txtAddress.Text, out sym))
+                {
+                    a = sym.Address;
+                }
+                else
+                {
                     a = Convert.ToUInt32(txtAddress.Text, 16);
+                }
             } catch (Exception)
             {
                 MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);

@@ -46,13 +46,33 @@ namespace DisassShared
 
         public override string ToString()
         {
-            return $"0x{Number:X}";
+            if (Number >= 0 && Number <= 32)
+                return $"{Number}";
+            else
+                return $"0x{Number:X}";
         }
 
         public override int GetHashCode()
         {
             return SymbolType.GetHashCode() + Number.GetHashCode();
         }
+    }
+
+    public record DisRec2OperString_Symbol : DisRec2OperString_Base
+    {
+
+        public ISymbol2<UInt32> Symbol { get; init; }
+
+        public override string ToString()
+        {
+            return Symbol.Name;
+        }
+
+        public override int GetHashCode()
+        {
+            return Symbol.GetHashCode();
+        }
+
     }
 
 }

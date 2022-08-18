@@ -6,12 +6,28 @@
              xmlns:local="clr-namespace:DeIce68k"
              xmlns:local_dd="clr-namespace:DeIce68k.SampleData"
              xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
+             xmlns:disass="clr-namespace:DisassShared;assembly=DisassShared"
              mc:Ignorable="d" 
              d:DesignHeight="450" 
              d:DesignWidth="800"
              d:DataContext="{x:Static local_dd:DesignTimeSampleData.DisassMem }" DataContextChanged="UserControl_DataContextChanged"
              >
     <UserControl.Resources>
+
+        <DataTemplate x:Key="OperandString" DataType="{x:Type disass:DisRec2OperString_String}">
+            <TextBlock Text="{Binding Text}" Margin="0" Padding="0"  Foreground="AliceBlue" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="OperandSymbol" DataType="{x:Type disass:DisRec2OperString_Symbol}">
+            <TextBlock Text="{Binding Symbol.Name}" Margin="0" Padding="0"  Foreground="Navy" />
+        </DataTemplate>
+
+        <local:OperandTemplateSelector 
+            x:Key="OperandTemplateSelector" 
+            String="{StaticResource OperandString}" 
+            Symbol="{StaticResource OperandSymbol}" 
+            />
+
         <DataTemplate x:Key="OpModelTemplate" DataType="{x:Type viewmodel:DisassItemOpModel}">
             <StackPanel Orientation="Horizontal">
                 <StackPanel.ContextMenu>
@@ -65,7 +81,39 @@
                     </TextBlock.Style>
                 </TextBlock>
                 <TextBlock Text="{Binding Mnemonic}" Width="64" Foreground="#FF54A436"/>
-                <TextBlock Text="{Binding Operands}" Width="140" TextWrapping="Wrap" Foreground="#FFDAFBD8" />
+                <ListView 
+                    Width="180" 
+                    Background="Transparent"
+                    Foreground="Yellow" 
+                    BorderThickness="0"
+                    ItemsSource="{Binding Operands}" 
+                    HorizontalAlignment="Stretch" 
+                    VerticalAlignment="Stretch" 
+                    FontSize="12"                    
+                    ItemTemplateSelector="{StaticResource OperandTemplateSelector}" 
+                    Margin="-1"
+                    Padding="0"
+                    >
+                    <ListView.ItemsPanel >
+                        <ItemsPanelTemplate>
+                                <WrapPanel IsItemsHost="True" Orientation="Horizontal" MaxWidth="180" Margin="0" Background="#110011"></WrapPanel>
+                        </ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Margin" Value="-1" />
+                            <Setter Property="Padding" Value="0" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                </ListView>
+                <!--
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Margin="0" MaxHeight="auto" Orientation="Horizontal" IsItemsHost="True" ></WrapPanel>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox-->
+
                 <TextBlock Text="{Binding Hints}" Foreground="#FF5D6A76" TextWrapping="WrapWithOverflow"/>
             </StackPanel>
         </DataTemplate>
@@ -80,6 +128,8 @@
             OpModelTemplate="{StaticResource OpModelTemplate}" 
             LabelTemplate="{StaticResource LabelModelTemplate}"
             />
+
+
     </UserControl.Resources>
     <!--<Grid Grid.Column="1">
         <Grid.ColumnDefinitions>
@@ -93,7 +143,7 @@
         </Grid.RowDefinitions>
         <GridSplitter Grid.Row="0"></GridSplitter>-->
 
-    
+
     <ListBox 
             x:Name="lbLines" 
             Background="Black" 

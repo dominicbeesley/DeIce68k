@@ -10,110 +10,77 @@ using DisassShared;
 
 namespace DeIce68k.ViewModel
 {
-    public class DeIceSymbols : IDisassSymbols
+    public class DeIceSymbols : ISymbols2<UInt32>
     {
         private DeIceAppModel _app;
 
-        public class Address2Symbol : ObservableObject
+        public class DeIceSymbol : ISymbol2<UInt32>
         {
+            public SymbolType SymbolType { get; init; }
 
-            internal ObservableCollection<string> _symbols = new ObservableCollection<string>();
-            ReadOnlyObservableCollection<string> _symbolsRO;
+            public string Name { get; init; }
 
             public uint Address { get; init; }
-            public ReadOnlyCollection<string> Symbols { get => _symbolsRO; }
-
-            public Address2Symbol()
-            {
-                _symbolsRO = new ReadOnlyObservableCollection<string>(_symbols);
-            }
         }
 
 
-        ObservableCollection<Address2Symbol> _symbolsByAddress = new ObservableCollection<Address2Symbol>();
-        ReadOnlyObservableCollection<Address2Symbol> _symbolsByAddressRO;
+        ObservableCollection<DeIceSymbol> _symbolsByAddress = new ObservableCollection<DeIceSymbol>();
+        public ReadOnlyObservableCollection<DeIceSymbol> SymbolsByAddress { get; init; }
 
-        public ReadOnlyObservableCollection<Address2Symbol> SymbolsByAddress { get => _symbolsByAddressRO; }
+        
 
-        Dictionary<string, uint> _symbol2AddressDictionary = new Dictionary<string, uint>();
-        Dictionary<uint, List<string>> _address2SymbolsdDictionary = new Dictionary<uint, List<string>>();
-
-        public ReadOnlyDictionary<string, uint> Symbol2AddressDictionary
+        public ISymbol2<UInt32> Add(string name, uint address, SymbolType symboltype)
         {
-            get;           
-        }
-
-        public void Add(string symbol, uint address)
-        {
-            Remove(symbol);
-            _symbol2AddressDictionary[symbol] = address;
-            List<string> lst;
-            if (_address2SymbolsdDictionary.TryGetValue(address, out lst))
-            {
-                lst.Add(symbol);
-            } else
-            {
-                _address2SymbolsdDictionary[address] = new List<string>(new[] { symbol });
-            }
+            Remove(name);
             int i = 0;
             while (i < _symbolsByAddress.Count && _symbolsByAddress[i].Address < address)
                 i++;
 
+            var sym = new DeIceSymbol
+            {
+                Name = name,
+                Address = address,
+                SymbolType = symboltype
+
+            };
+
             if (i >= _symbolsByAddress.Count)
             {
-                var sa = new Address2Symbol() { Address = address };
-                sa._symbols.Add(symbol);
-                _symbolsByAddress.Add(sa);
+                _symbolsByAddress.Add(sym);
             } 
-            else if (_symbolsByAddress[i].Address == address)
+            else 
             {
-                var sa = _symbolsByAddress[i];
-                sa._symbols.Insert(sa._symbols.Where(o => o.CompareTo(symbol) < 0).Count(), symbol);
-            } else
-            {
-                var sa = new Address2Symbol() { Address = address };
-                sa._symbols.Add(symbol);
-                _symbolsByAddress.Insert(i, sa);
+                _symbolsByAddress.Insert(i, sym);
             }
-
+            return sym;
         }
 
-        public void Remove(string symbol)
+        public void Remove(string name)
         {
-            uint addr;
-            if (_symbol2AddressDictionary.TryGetValue(symbol, out addr))
+            foreach (var sym in _symbolsByAddress.Where(o => o.Name == name).ToList())
             {
-                List<string> lst;
-                if (_address2SymbolsdDictionary.TryGetValue(addr, out lst))
-                {
-                    lst.Remove(symbol);
-                }
-
-                Address2Symbol s = _symbolsByAddress.Where(s => s.Address == addr).FirstOrDefault();
-                if (s != null)
-                {
-                    s._symbols.Remove(symbol);
-                    if (s._symbols.Count == 0)
-                        _symbolsByAddress.Remove(s);
-                }
+                _symbolsByAddress.Remove(sym);
             }
         }
 
-        public IEnumerable<string> AddressToSymbols(uint address)
+        public IEnumerable<ISymbol2<uint>> GetByAddress(uint addr, SymbolType type)
         {
-            List<string> ret;
-            if (_address2SymbolsdDictionary.TryGetValue(address, out ret))
-            {
-                return ret;
-            } else
-            {
-                return Enumerable.Empty<string>();
-            }
+            return _symbolsByAddress.Where(x =>
+                (x.Address == addr)
+                && (
+                    type == SymbolType.NONE
+                    || x.SymbolType == SymbolType.NONE
+                    || (x.SymbolType & type) != 0
+                    )
+                    );
+
         }
 
-        public bool SymbolToAddress(string symbol, out uint address)
-        {            
-            return _symbol2AddressDictionary.TryGetValue(symbol, out address);
+
+        public bool FindByName(string name, out ISymbol2<uint> sym)
+        {
+            sym = _symbolsByAddress.Where(x => x.Name == name).FirstOrDefault();
+            return sym != null;
         }
 
         /// <summary>
@@ -123,26 +90,31 @@ namespace DeIce68k.ViewModel
         /// <param name="found_symbols"></param>
         /// <param name="found_address"></param>
         /// <param name="limit">Symbols further than this away will be ignored - default = 256</param>
+        /// <param name="symbolType">Limit to symbols matching this type or NONE</param>
         /// <returns></returns>
-        public bool FindNearest(uint dispc, out IEnumerable<string> found_symbols, out uint found_address, uint limit = 0x0100)
+        public bool FindNearest(uint dispc, SymbolType symbolType, out IEnumerable<DeIceSymbol> found_symbols, out uint found_address, uint limit = 0x0100)
         {
-            uint offset = limit;
-            bool ret = false;
-            found_symbols = Enumerable.Empty<string>();
-            found_address = 0;
+            var sym = _symbolsByAddress.Where(x => 
+                (x.Address < dispc && dispc - x.Address < limit) && (
+                    symbolType == SymbolType.NONE
+                    || x.SymbolType == SymbolType.NONE
+                    || (x.SymbolType & symbolType) != 0
+                    )
+                
+                ).OrderBy(x => dispc - x.Address).FirstOrDefault();
 
-            foreach (var x in _address2SymbolsdDictionary.Keys)
+            if (sym == null)
             {
-                if ((x <= dispc) && ((dispc - x) < offset))
-                {
-                    found_symbols = _address2SymbolsdDictionary[x];
-                    found_address = x;
-                    offset = dispc - x;
-                    ret = true;
-                }
+                found_address = 0;
+                found_symbols = Enumerable.Empty<DeIceSymbol>();
+                return false;
+            } else
+            {
+                found_address = sym.Address;
+                found_symbols = GetByAddress(found_address, symbolType).Cast<DeIceSymbol>();
+                return true;
             }
 
-            return ret;
         }
 
         /// <summary>
@@ -151,11 +123,11 @@ namespace DeIce68k.ViewModel
         /// <param name="dispc">The address to match</param>
         /// <param name="limit">Limit for the search</param>
         /// <returns>Closest symbol or null if none in range</returns>
-        public string FindNearest(uint dispc, uint limit = 0x100)
+        public string FindNearest(uint dispc, SymbolType symbolType, uint limit = 0x100)
         {
-            IEnumerable<string> syms;
+            IEnumerable<DeIceSymbol> syms;
             uint near_addr;
-            if (_app.Symbols.FindNearest(dispc, out syms, out near_addr, limit))
+            if (_app.Symbols.FindNearest(dispc, symbolType, out syms, out near_addr, limit))
             {
                 uint offset = dispc - near_addr;
                 string o = (offset == 0) ? "" : $"+{offset:X2}";
@@ -165,11 +137,12 @@ namespace DeIce68k.ViewModel
         }
 
 
-    public DeIceSymbols(DeIceAppModel app)
+
+
+        public DeIceSymbols(DeIceAppModel app)
         {
             _app = app;
-            _symbolsByAddressRO = new ReadOnlyObservableCollection<Address2Symbol>(_symbolsByAddress);
-            Symbol2AddressDictionary = new ReadOnlyDictionary<string, uint>(_symbol2AddressDictionary);
+            SymbolsByAddress = new ReadOnlyObservableCollection<DeIceSymbol>(_symbolsByAddress);
         }
     }
 }

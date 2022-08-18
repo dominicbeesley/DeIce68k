@@ -1,5 +1,6 @@
 ﻿using DeIce68k.Lib;
 using DeIce68k.ViewModel.Scripts;
+using DisassShared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,7 @@ namespace DeIce68k.ViewModel
         {
             get
             {
-                return _app.Symbols.FindNearest(Address);
+                return _app.Symbols.FindNearest(Address, SymbolType.Pointer);
             }
         }
 

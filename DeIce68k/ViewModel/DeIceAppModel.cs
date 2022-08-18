@@ -1,5 +1,6 @@
 ﻿using DeIce68k.Lib;
 using DeIceProtocol;
+using DisassShared;
 using DossySerialPort;
 using Microsoft.Win32;
 using System;
@@ -199,13 +200,13 @@ namespace DeIce68k.ViewModel
             if (mRem.Success)
                 return;
 
-            var mD = reDef.Match(line);
+            var mD = reDef.Match(line); //TODO: symbolt types
             if (mD.Success)
             {
                 //SYMBOL DEF
                 string sym = mD.Groups[1].Value;
                 uint addr = Convert.ToUInt32(mD.Groups[2].Value, 16);
-                Symbols.Add(sym, addr);
+                Symbols.Add(sym, addr, DisassShared.SymbolType.NONE);
                 return;
             }
 
@@ -363,9 +364,11 @@ namespace DeIce68k.ViewModel
         void ParseSymbolOrAddress(string s, out string name, out uint addr)
         {
             name = null;
-            if (Symbols.SymbolToAddress(s, out addr))
+            ISymbol2<UInt32> sym;
+            if (Symbols.FindByName(s, out sym))
             {
-                name = s;
+                name = sym.Name;
+                addr = sym.Address;
             }
             else
             {
@@ -378,7 +381,7 @@ namespace DeIce68k.ViewModel
                 {
                     throw new ArgumentException($"\"{s}\" is not a known symbol or hex number");
                 }
-                name = Symbols.FindNearest(addr);
+                name = Symbols.FindNearest(addr, SymbolType.ANY);
             }
 
         }
@@ -598,7 +601,7 @@ namespace DeIce68k.ViewModel
                         var disdat = new byte[len];
                         DeIceProto.ReadMemBlock(st, disdat, 0, len);
 
-                        DisassMemBlock = new DisassMemBlock(this, st, disdat);
+                        DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass());
                         DisassMemBlock.PC = Regs.PCValue;
                     }
 
@@ -1102,7 +1105,7 @@ namespace DeIce68k.ViewModel
                     var disdat = new byte[1024];
                     DeIceProto.ReadMemBlock(addr, disdat, 0, 1024);
 
-                    DisassMemBlock = new DisassMemBlock(this, addr, disdat);
+                    DisassMemBlock = new DisassMemBlock(this, addr, disdat, GetDisass());
                 }
             }
 
@@ -1270,5 +1273,10 @@ namespace DeIce68k.ViewModel
             }
         }
 
+        private IDisAss GetDisass()
+        {
+            //TODO: work out from DebugHostType
+            return new DisassX86.DisassX86();
+        }
     }
 }
