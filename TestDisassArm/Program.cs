@@ -86,14 +86,14 @@ namespace TestDisass
 
                         instr = disass.Decode(br, dispc);
 
-                        if (instr?.Operands != null) {
+/*                        if (instr?.Operands != null) {
                             //look for missing symbols and add to set to create later
                             miss.UnionWith(
                                 instr.Operands.Where(i => i is DisRec2OperString_Number).Cast<DisRec2OperString_Number>()
                                 .Where(i => i.SymbolType == SymbolType.Pointer || i.SymbolType == SymbolType.ServiceCall)
                                 );
                         }
-
+*/
                     }
                     catch (EndOfStreamException)
                     {

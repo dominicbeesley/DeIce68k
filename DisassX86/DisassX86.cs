@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 //TODO: There's a lot of cut and paste code - try and simplify/factor out
 //TODO: there's some opc overrides set as "???" - make them null and return unknown opcode
@@ -13,7 +14,6 @@ namespace DisassX86
     {
         [Flags]
         public enum Prefixes {
-            NONE = 0,
             ES = 1,
             CS = 2,
             SS = 4,
@@ -21,6 +21,7 @@ namespace DisassX86
             REP = 16,
             REPNZ = 32,
             LOCK = 64,
+            NONE = 0,
             SEGS = Prefixes.ES | Prefixes.CS | Prefixes.SS | Prefixes.DS,
             B4 = Prefixes.REP | Prefixes.REPNZ | Prefixes.LOCK
         };
@@ -427,13 +428,22 @@ namespace DisassX86
             else
             {
                 //check for b4 prefixes
-                var b4flags = string.Join(" ", 
-                    (prefixes & Prefixes.B4)
-                    .GetFlags()
-                    .Cast<Prefixes>()
-                    .Where(o => o != Prefixes.NONE)
-                    .Select(o => o.ToString().ToLower())
-                    );
+                var pb4 = prefixes & Prefixes.B4;
+                string b4flags = null;
+                if (pb4 != 0)
+                {
+                    StringBuilder sb = new StringBuilder();
+                    if ((pb4 & Prefixes.REP) != 0)
+                        sb.Append("rep ");
+                    if ((pb4 & Prefixes.REPNZ) != 0)
+                        sb.Append("repnz ");
+                    if ((pb4 & Prefixes.LOCK) != 0)
+                        sb.Append("lock ");
+
+                    b4flags = sb.ToString();
+                }
+                
+
                 if (!string.IsNullOrEmpty(b4flags))
                 {
                     ret = new DisRec2<UInt32>
@@ -441,7 +451,7 @@ namespace DisassX86
                         Decoded = ret.Decoded,
                         Hints = ret.Hints,
                         Length = ret.Length,
-                        Mnemonic = $"{b4flags} {ret.Mnemonic}",
+                        Mnemonic = $"{b4flags}{ret.Mnemonic}",
                         Operands = ret.Operands
                     };
                 }
@@ -1151,15 +1161,26 @@ namespace DisassX86
         {
             bool w = (opcode & 0x01) != 0;
 
-            var pre = string.Join(" ",
-                (prefixes & Prefixes.SEGS)
-                .GetFlags()
-                .Cast<Prefixes>()
-                .Where(o => o != Prefixes.NONE)
-                .Select(o => o.ToString().ToLower())
-                );
+            var mne = $"{opd.Text}{(w ? "w" : "")}";
 
-            var mne = string.Join(" ", new[] { pre, $"{opd.Text}{(w ? "w" : "")}" });
+            var segs = prefixes & Prefixes.SEGS;
+            if (segs != 0)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                if ((segs & Prefixes.ES) != 0)
+                    sb.Append("es ");
+                if ((segs & Prefixes.CS) != 0)
+                    sb.Append("cs ");
+                if ((segs & Prefixes.SS) != 0)
+                    sb.Append("ss ");
+                if ((segs & Prefixes.DS) != 0)
+                    sb.Append("ds ");
+
+                if (sb.Length > 0)
+                    mne = sb.ToString() + mne;
+            }
+
 
             return new DisRec2<UInt32>
             {

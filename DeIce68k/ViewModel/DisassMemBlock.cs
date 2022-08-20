@@ -4,6 +4,7 @@ using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -58,13 +59,15 @@ namespace DeIce68k.ViewModel
 
         public void MorePlease(uint howmuch = 128)
         {
+
             if (_app == null)
                 return;
 
-            byte [] newData = new byte[Data.Length + howmuch];
+            byte[] newData = new byte[Data.Length + howmuch];
             System.Buffer.BlockCopy(Data, 0, newData, 0, Data.Length);
 
             _app.DeIceProto.ReadMemBlock(BaseAddress + (uint)Data.Length, newData, Data.Length, (int)howmuch);
+
 
             Data = newData;
 
@@ -105,7 +108,7 @@ namespace DeIce68k.ViewModel
 
                         byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, instr.Operands, instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc == PC));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
@@ -116,6 +119,7 @@ namespace DeIce68k.ViewModel
                     }
                 }
             }
+
 
             RaisePropertyChangedEvent(nameof(Data));
 
@@ -130,11 +134,12 @@ namespace DeIce68k.ViewModel
             _items = new ObservableCollection<DisassItemModelBase>();
             Items = new ReadOnlyObservableCollection<DisassItemModelBase>(_items);
 
+
             _app = app;
             BaseAddress = baseAddr;
             PC = baseAddr;
             Data = data;
- 
+
             uint dispc = BaseAddress;
 
             this.disAss = disAss;
@@ -185,7 +190,7 @@ namespace DeIce68k.ViewModel
 
                         ms.Position = p;
 
-                        byte [] inst_bytes = new byte[instr.Length];
+                        byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
                         _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc == PC));
 
