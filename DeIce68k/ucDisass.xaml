@@ -19,7 +19,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="OperandSymbol" DataType="{x:Type disass:DisRec2OperString_Symbol}">
-            <TextBlock Text="{Binding Symbol.Name}" Margin="0" Padding="0"  Foreground="Navy" />
+            <TextBlock Text="{Binding Symbol.Name}" Margin="0" Padding="0"  Foreground="#3333DD" />
         </DataTemplate>
 
         <local:OperandTemplateSelector 
@@ -82,7 +82,7 @@
                 </TextBlock>
                 <TextBlock Text="{Binding Mnemonic}" Width="64" Foreground="#FF54A436"/>
                 <ListView 
-                    Width="180" 
+                    Width="185" 
                     Background="Transparent"
                     Foreground="Yellow" 
                     BorderThickness="0"

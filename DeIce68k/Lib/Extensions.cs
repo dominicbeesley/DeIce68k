@@ -10,7 +10,7 @@ namespace DeIce68k.Lib
 {
     public static class Extensions
     {
-        public static T GetDescendantByType<T>(this Visual element) where T : class
+        public static T GetDescendantByType<T>(this Visual element, int maxLevels = -1) where T : class
         {
             if (element == null)
             {
@@ -25,10 +25,14 @@ namespace DeIce68k.Lib
             {
                 (element as FrameworkElement).ApplyTemplate();
             }
+            if (maxLevels > 0)
+                maxLevels--;
+            if (maxLevels == 0)
+                return null;
             for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
             {
                 var visual = VisualTreeHelper.GetChild(element, i) as Visual;
-                foundElement = visual.GetDescendantByType<T>();
+                foundElement = visual.GetDescendantByType<T>(maxLevels);
                 if (foundElement != null)
                 {
                     break;

@@ -55,11 +55,13 @@ namespace DeIce68k
         public ucDisass()
         {
             InitializeComponent();
-            var sv = lbLines.GetDescendantByType<ScrollViewer>();
+            var sv = lbLines.GetDescendantByType<ScrollViewer>(3);
 
 
             sv.ScrollChanged += ListBox_ScrollChanged;
         }
+
+        bool locked = false;
 
         private void ListBox_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
@@ -68,11 +70,24 @@ namespace DeIce68k
             if (e.ExtentHeightChange == 0)
             {
                 if ((sv.ScrollableHeight <= sv.VerticalOffset)
-                && (sv.ScrollableHeight != 0.0 && sv.VerticalOffset != 0.0))
+                && sv.ScrollableHeight != 0.0 
+                && sv.VerticalOffset != 0.0
+                && e.VerticalChange != 0.0
+                )
                 {
                     try
                     {
-                        (DataContext as DisassMemBlock)?.MorePlease();
+                        if (!locked)
+                        {
+                            locked = true;
+                            try
+                            {
+                                (DataContext as DisassMemBlock)?.MorePlease();
+                            } finally
+                            {
+                                locked = false;
+                            }
+                        }
                     } catch (Exception ex)
                     {
 
