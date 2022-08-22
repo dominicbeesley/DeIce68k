@@ -160,13 +160,13 @@ namespace DeIce68k.ViewModel
 
         public override bool SetTrace(bool trace)
         {
-            bool ret = (FLAGS.Data & 0x1000) != 0;
-            if (trace && (FLAGS.Data & 0x1000) == 0)
+            bool ret = (FLAGS.Data & 0x0100) != 0;
+            if (trace && (FLAGS.Data & 0x0100) == 0)
             {
-                FLAGS.Data |= 0x1000;
-            } else if (!trace && (FLAGS.Data & 0x1000) != 0)
+                FLAGS.Data |= 0x0100;
+            } else if (!trace && (FLAGS.Data & 0x0100) != 0)
             {
-                FLAGS.Data &= ~(uint)0x1000;
+                FLAGS.Data &= ~(uint)0x0100;
             }
 
             return ret;
