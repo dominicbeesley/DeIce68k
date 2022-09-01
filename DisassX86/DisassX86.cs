@@ -1218,7 +1218,13 @@ namespace DisassX86
             IEnumerable<DisRec2OperString_Base> Num;
 
             if ((opcode & 0x01) == 0)
-                Num = OperNum(3, SymbolType.ServiceCall);
+                return new DisRec2<UInt32>
+                {
+                    Decoded = true,
+                    Length = l,
+                    Mnemonic = "int3",
+                    Operands = null
+                };
             else
                 Num = GetData(br, false, ref l, SymbolType.ServiceCall);
 

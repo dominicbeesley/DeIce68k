@@ -1,0 +1,84 @@
+﻿<UserControl x:Class="DeIce68k.ucRegs_arm2"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:DeIce68k"
+             d:DesignHeight="312.129" d:DesignWidth="325.548"
+             xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_Arm2 }"
+             mc:Ignorable="d" 
+             Background="{StaticResource Retro_Brush_BG}"
+             Foreground="{StaticResource Retro_Brush_FG}"
+             >
+    <Grid Width="Auto" Height="Auto">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160" />
+            <ColumnDefinition Width="160" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="32" />
+        </Grid.RowDefinitions>
+        <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=R0}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=R2}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=R4}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="3" DataContext="{Binding Path=R6}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=R8}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=R10}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=R12}"></local:ucReg>
+        <ListView  
+            Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
+            ItemsSource="{Binding Path=StatusBits}" 
+            Background="Transparent"  
+            BorderBrush="Transparent"
+            Padding="3"
+            Margin="0"
+            ScrollViewer.VerticalScrollBarVisibility="Hidden"
+            >
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="BorderThickness" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" Margin="0" Width="300" >
+
+                    </WrapPanel>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <local:ucStatusBit/>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <local:ucTargetStatus Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=TargetStatus }" />
+
+        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=R1}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=R3}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=R5}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=R7}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=R9}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=R11}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="6" DataContext="{Binding Path=R13}"></local:ucReg>
+
+        <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=R15}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=PC}" ></local:ucReg>
+        <TextBlock Grid.Column="1" Grid.Row="11" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
+
+    </Grid>
+</UserControl>

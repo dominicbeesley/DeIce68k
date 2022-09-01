@@ -12,7 +12,7 @@
         Width="800" 
         Closed="Window_Closed" 
         Loaded="Window_Loaded"
-        d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel_x86_16 }"
+        d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDeIceAppModel_Arm2 }"
         >
     <!-- look at https://www.codeproject.com/Articles/101881/Executing-Command-Logic-in-a-View-Model -->
     <Window.Resources>
@@ -105,6 +105,12 @@
                             <local:ucRegs_x86_16  
                               DataContext="{Binding .}" 
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_x86_16 }" 
+                              />
+                        </DataTemplate>
+                        <DataTemplate DataType="{x:Type viewmodel:RegisterSetModelArm2}">
+                            <local:ucRegs_arm2  
+                              DataContext="{Binding .}" 
+                              d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_Arm2 }" 
                               />
                         </DataTemplate>
                     </ContentPresenter.Resources>

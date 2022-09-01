@@ -1018,14 +1018,14 @@ namespace DeIce68k.ViewModel
                 {
                     byte[] r = new byte[bpl];
                     Array.Copy(ret.Data, i * bpl, r, 0, bpl);
-                    if (r != DebugHostStatus.BreakPointInstruction)
+                    if (!r.SequenceEqual(DebugHostStatus.BreakPointInstruction))
                     {
                         var bb = chunk[i];
                         Messages.Add($"WARNING: breakpoint at {bb.Address:X08} could not be reset, code is in an unexpected state. Found={BitConverter.ToString(r)}, expected={BitConverter.ToString(DebugHostStatus.BreakPointInstruction)}");
                     }
                 }
 
-                items = items.Skip(ret.Data.Length / 2);
+                items = items.Skip(ret.Data.Length / bpl);
 
                 //if we got fewer back than we sent then it was dodgy memory, skip that in the list and set to disabled.
                 if (ret.Data.Length < chunk.Length && _activeBreakpoints.Any())
@@ -1033,7 +1033,7 @@ namespace DeIce68k.ViewModel
                     var bbad = items.First();
                     bbad.Enabled = false;
                     Messages.Add($"WARNING: breakpoint at {bbad.Address:X08} could not be reset, code is in an unexpected state. The memory was not writeable!");
-                    items.Skip(0);
+                    items.Skip(1);
                 }
 
             }
@@ -1260,6 +1260,14 @@ namespace DeIce68k.ViewModel
                     _regs.PropertyChanged -= Regs_PropertyChanged;
 
                 _regs = new RegisterSetModelx86_16(this);
+                changed = true;
+            }
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_ARM2 && Regs?.GetType() != typeof(RegisterSetModelArm2))
+            {
+                if (_regs != null)
+                    _regs.PropertyChanged -= Regs_PropertyChanged;
+
+                _regs = new RegisterSetModelArm2(this);
                 changed = true;
             }
 

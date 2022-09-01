@@ -135,7 +135,7 @@ namespace DeIceProtocol
                 _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
                 var r = DoCommandReadInt();
                 if (r is not T)
-                    throw new DeIceProtocolException($"Unexpected return from client, expected a { nameof(T) }, received a { r?.GetType()?.Name ?? null }");
+                    throw new DeIceProtocolException($"Unexpected return from client, expected a { typeof(T).FullName }, received a { r?.GetType()?.Name ?? null }");
                 return (T)r;
             }
             finally

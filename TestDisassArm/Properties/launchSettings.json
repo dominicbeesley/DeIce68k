@@ -2,7 +2,7 @@
   "profiles": {
     "TestDisass": {
       "commandName": "Project",
-      "commandLineArgs": "X86 E:\\Users\\dominic\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\disasstest.bin 0"
+      "commandLineArgs": "ARM \"C:\\tools\\rpcemu\\RPCEmu - 371\\hostfs\\domdev\\dom,ff8\" 0"
     }
   }
 }
