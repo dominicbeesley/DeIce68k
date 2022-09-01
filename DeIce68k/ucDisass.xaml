@@ -64,7 +64,7 @@
                     </Button.Template>
                 </Button>
                 <TextBlock Text="{Binding Address, StringFormat=X8}" Foreground="#FF8A9750" Width="64"/>
-                <TextBlock Text="{Binding InstrBytesString}" Padding="10 0 10 0" TextWrapping="Wrap" Width="90" Foreground="#FF778080"/>
+                <TextBlock Text="{Binding InstrBytesString}" Padding="5 0 5 0" TextWrapping="Wrap" Width="90" Foreground="#FF778080"/>
                 <TextBlock Padding="0 0 10 0" Width="16">
                     <TextBlock.Style>
                         <Style TargetType="{x:Type TextBlock}">

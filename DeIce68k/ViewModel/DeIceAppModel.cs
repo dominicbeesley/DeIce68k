@@ -1,5 +1,6 @@
 ﻿using DeIce68k.Lib;
 using DeIceProtocol;
+using DisassArm;
 using DisassShared;
 using DossySerialPort;
 using Microsoft.Win32;
@@ -593,17 +594,7 @@ namespace DeIce68k.ViewModel
             CmdRefresh = new RelayCommand(
                 o =>
                 {
-                    if (Regs?.IsStopped ?? false)
-                    {
-                        int len = DisassMemBlock?.Data?.Length ?? 128;
-                        uint st = DisassMemBlock?.BaseAddress ?? Regs.PCValue;
-
-                        var disdat = new byte[len];
-                        DeIceProto.ReadMemBlock(st, disdat, 0, len);
-
-                        DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass());
-                        DisassMemBlock.PC = Regs.PCValue;
-                    }
+                    RefreshDisassembly();
 
                 },
                 o =>
@@ -1279,12 +1270,37 @@ namespace DeIce68k.ViewModel
                 RaisePropertyChangedEvent(nameof(Regs));
 
             }
+
+            try
+            {
+                RefreshDisassembly();
+            }
+            catch (Exception) { }
         }
 
         private IDisAss GetDisass()
         {
             //TODO: work out from DebugHostType
-            return new DisassX86.DisassX86();
+            if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_ARM2)
+                return new DisassArm.DisassArm();
+            else
+                return new DisassX86.DisassX86();
+        }
+
+        private void RefreshDisassembly()
+        {
+            if (Regs?.IsStopped ?? false)
+            {
+                int len = DisassMemBlock?.Data?.Length ?? 128;
+                uint st = DisassMemBlock?.BaseAddress ?? Regs.PCValue;
+
+                var disdat = new byte[len];
+                DeIceProto.ReadMemBlock(st, disdat, 0, len);
+
+                DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass());
+                DisassMemBlock.PC = Regs.PCValue;
+            }
+
         }
     }
 }

@@ -89,9 +89,9 @@
             </Grid.ColumnDefinitions>
             <Grid Grid.Row="0" Grid.Column="0" HorizontalAlignment="stretch">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="auto" />
-                    <ColumnDefinition />
-                    <ColumnDefinition />
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="40*"/>
+                    <ColumnDefinition Width="30*"/>
                 </Grid.ColumnDefinitions>
                 <ContentPresenter Content="{Binding Regs }" Grid.Column="0">
                     <ContentPresenter.Resources>
