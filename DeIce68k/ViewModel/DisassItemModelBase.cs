@@ -17,6 +17,8 @@ namespace DeIce68k.ViewModel
 
 
         public ICommand CmdTraceToHere { get; init; }
+        public ICommand CmdPCToHere { get; init; }
+        public ICommand CmdContFromHere { get; init; }
 
         public uint Address { get; }
 
@@ -42,7 +44,21 @@ namespace DeIce68k.ViewModel
             Parent = deIceAppModel;
             CmdTraceToHere = new RelayCommand(
                 (o) => { Parent.TraceTo(Address); },
-                (o) => { return Parent.Regs.IsStopped; },
+                (o) => { return Parent?.Regs.IsStopped ?? false; },
+                "Trace To Here",
+                deIceAppModel.Command_Exception
+            );
+            CmdPCToHere = new RelayCommand(
+                (o) => { Parent.Regs.PCValue = Address; },
+                (o) => { return Parent?.Regs.IsStopped ?? false; },
+                "Trace To Here",
+                deIceAppModel.Command_Exception
+            );
+            CmdContFromHere = new RelayCommand(
+                (o) => { 
+                    Parent.Regs.PCValue = Address;
+                    Parent.DoContinue(); },
+                (o) => { return Parent?.Regs.IsStopped ?? false; },
                 "Trace To Here",
                 deIceAppModel.Command_Exception
             );

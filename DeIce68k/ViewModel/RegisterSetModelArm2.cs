@@ -31,7 +31,11 @@ namespace DeIce68k.ViewModel
 
         public override bool CanTrace => true;
 
-        public override uint PCValue => PC.Data;
+        public override uint PCValue
+        {
+            get { return PC.Data; }
+            set { PC.Data = value; }
+        }
 
         public RegisterSetModelArm2(DeIceAppModel _parent)
         {

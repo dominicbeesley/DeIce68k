@@ -32,7 +32,9 @@
             <StackPanel Orientation="Horizontal">
                 <StackPanel.ContextMenu>
                     <ContextMenu>
-                        <MenuItem Header="Trace to here..." Command="{Binding CmdTraceToHere}" />
+                        <MenuItem Header="Trace to here" Command="{Binding CmdTraceToHere}" />
+                        <MenuItem Header="Set PC to here" Command="{Binding CmdPCToHere}" />
+                        <MenuItem Header="Run from here" Command="{Binding CmdContFromHere}" />
                     </ContextMenu>
                 </StackPanel.ContextMenu>
                 <Button Click="btnBreakpoint_Click" x:Name="btnBreakpoint" Width="20" >

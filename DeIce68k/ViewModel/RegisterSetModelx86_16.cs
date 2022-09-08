@@ -31,7 +31,13 @@ namespace DeIce68k.ViewModel
 
         public override bool CanTrace => true;
 
-        public override uint PCValue => IP.Data | (uint)(CS.Data << 16);
+        public override uint PCValue {
+            get { return IP.Data | (uint)(CS.Data << 16); }
+            set {
+                IP.Data = value & 0xFFFF;
+                CS.Data = value >> 16;
+            }
+        }
 
         public RegisterSetModelx86_16(DeIceAppModel _parent)
         {

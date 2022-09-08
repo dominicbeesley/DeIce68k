@@ -60,7 +60,7 @@ namespace DeIce68k.ViewModel
         /// <param name="trace"></param>
         public abstract bool SetTrace(bool trace);
 
-        public abstract uint PCValue { get; }
+        public abstract uint PCValue { get; set; }
 
     }
 }

@@ -464,23 +464,7 @@ namespace DeIce68k.ViewModel
             CmdCont = new RelayCommand(
                 o =>
                 {
-                    if (Regs != null)
-                    {
-                        try
-                        {
-                            ReExecCurBreakpoint();
-
-                            Regs.SetTrace(false);
-                            DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
-                            ApplyBreakpoints();
-                            DeIceProto.SendReq(new DeIceFnReqRun());
-                        }
-                        catch (Exception ex)
-                        {
-                            Messages.Add($"{MessageNo():X4} ERROR:Executing Continue\n{ ex.ToString() } ");
-                        }
-                        Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
-                    }
+                    DoContinue();
                 },
                 o =>
                 {
@@ -913,6 +897,28 @@ namespace DeIce68k.ViewModel
             return false;
         }
 
+
+        public void DoContinue()
+        {
+            if (Regs != null)
+            {
+                try
+                {
+                    ReExecCurBreakpoint();
+
+                    Regs.SetTrace(false);
+                    DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
+                    ApplyBreakpoints();
+                    DeIceProto.SendReq(new DeIceFnReqRun());
+                }
+                catch (Exception ex)
+                {
+                    Messages.Add($"{MessageNo():X4} ERROR:Executing Continue\n{ ex.ToString() } ");
+                }
+                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+            }
+
+        }
 
         //TODO: we should skip and mark invalid breakpoints that can't be set (SetBytes returns an unexpectedly low count)
         public void ApplyBreakpoints()
