@@ -82,10 +82,10 @@ namespace DeIce68k.ViewModel
 
         public override void FromDeIceProtocolRegData(byte[] deiceData)
         {
-            if (deiceData.Length < 0x41)
+            if (deiceData.Length < 0x3D)
                 throw new ArgumentException("data too short FN_READ_RG/FN_RUN_TARG reply");
 
-            TargetStatus = deiceData[0x40];
+            TargetStatus = deiceData[0x3C];
             R0.Data = DeIceFnFactory.ReadULong(deiceData, 0x00);
             R1.Data = DeIceFnFactory.ReadULong(deiceData, 0x04);
             R2.Data = DeIceFnFactory.ReadULong(deiceData, 0x08);
@@ -105,8 +105,8 @@ namespace DeIce68k.ViewModel
 
         public override byte[] ToDeIceProtcolRegData()
         {
-            byte [] ret = new byte[0x41];
-            ret[0x40] = TargetStatus;
+            byte [] ret = new byte[0x3D];
+            ret[0x3C] = TargetStatus;
             DeIceFnFactory.WriteULong(ret, 0x00, R0.Data);
             DeIceFnFactory.WriteULong(ret, 0x04, R1.Data);
             DeIceFnFactory.WriteULong(ret, 0x08, R2.Data);
