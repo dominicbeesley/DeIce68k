@@ -128,21 +128,27 @@ namespace DeIceProtocol
         {
             if (!_runSemaphore.WaitOne(LONG_TIMEOUT))
                 throw new TimeoutException();
-
             try
             {
-                byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
-                _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
-                var r = DoCommandReadInt();
-                if (r is not T)
-                    throw new DeIceProtocolException($"Unexpected return from client, expected a { typeof(T).FullName }, received a { r?.GetType()?.Name ?? null }");
-                return (T)r;
-            }
-            finally
+
+                try
+                {
+                    byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
+                    _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
+                    var r = DoCommandReadInt();
+                    if (r is not T)
+                        throw new DeIceProtocolException($"Unexpected return from client, expected a { typeof(T).FullName }, received a { r?.GetType()?.Name ?? null }");
+                    return (T)r;
+                }
+                finally
+                {
+                    _runSemaphore.Release();
+                    if (_serial.Available > 0)
+                        _serial_DataReceived(_serial, EventArgs.Empty);
+                }
+            } catch (Exception ex)
             {
-                _runSemaphore.Release();
-                if (_serial.Available > 0)
-                    _serial_DataReceived(_serial, EventArgs.Empty);
+                throw new Exception($"Error executing {fn?.GetType()?.FullName ?? "-null-"} : {ex.Message}", ex);
             }
         }
 
@@ -190,6 +196,7 @@ namespace DeIceProtocol
 
         }
 
+        private readonly static int MAXOOB = 256;
 
         private string DoOobRead_int(byte first)
         {
@@ -199,7 +206,7 @@ namespace DeIceProtocol
                 ms.WriteByte(first);
 
                 bool finished = false;
-                while (!finished)
+                while (!finished && ms.Length < MAXOOB)
                 {
                     try
                     {
