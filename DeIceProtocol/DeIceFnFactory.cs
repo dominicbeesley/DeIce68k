@@ -30,7 +30,7 @@ namespace DeIceProtocol
                 DeIceFnReqWriteMem rm = (DeIceFnReqWriteMem)req;
                 ret = new byte[7 + rm.Data.Length];
                 ret[0] = req.FunctionCode;
-                ret[1] = (byte)(3 + rm.Data.Length);
+                ret[1] = (byte)(4 + rm.Data.Length);
                 ret[2] = (byte)(rm.Address >> 24);
                 ret[3] = (byte)(rm.Address >> 16);
                 ret[4] = (byte)(rm.Address >> 8);
