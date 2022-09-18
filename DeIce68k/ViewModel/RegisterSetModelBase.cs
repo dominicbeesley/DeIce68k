@@ -1,6 +1,7 @@
 ﻿using DeIceProtocol;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 
 namespace DeIce68k.ViewModel
 {
@@ -61,6 +62,17 @@ namespace DeIce68k.ViewModel
         public abstract bool SetTrace(bool trace);
 
         public abstract uint PCValue { get; set; }
+
+        public RegisterModel RegByName(string name)
+        {
+            return
+                this
+                .GetType()
+                .GetProperties()
+                .Where(
+                    r => r.Name == name && r.CanRead && r.PropertyType == typeof(RegisterModel)
+                    ).FirstOrDefault()?.GetGetMethod().Invoke(this, new object[] { }) as RegisterModel;
+        }
 
     }
 }

@@ -92,10 +92,15 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        private int MessageNo()
+        private int _MessageNo()
         {
             lock (mnLock)
                 return mn++;
+        }
+
+        public void AppendMessage(string s)
+        {
+            Messages.Add($"{_MessageNo():X4} {s}");
         }
 
 
@@ -120,11 +125,6 @@ namespace DeIce68k.ViewModel
         public MainWindow MainWindow { get; init; }
 
 
-        static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reLoad = new Regex(@"^l(?:oad)?\s+(\w+)\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reRemark = new Regex(@"(;|REM)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private bool _busyInt;
         protected bool BusyInt
@@ -148,28 +148,7 @@ namespace DeIce68k.ViewModel
 
         public void ReadCommandFile(string pathname)
         {
-            using (var s = new FileStream(pathname, FileMode.Open, FileAccess.Read))
-            {
-                using (var tr = new StreamReader(s))
-                {
-                    string l;
-                    int lineno = 0;
-                    while ((l = tr.ReadLine()) != null)
-                    {
-                        lineno++;
-                        try
-                        {
-                            ParseCommand(l, Path.GetDirectoryName(pathname));
-                        }
-                        catch (Exception ex)
-                        {
-                            Messages.Add($"{MessageNo():X4}:Error parsing line {lineno}:{l}\n{ex.Message}");
-                        }
-                    }
-                }
-
-            }
-
+            new DeIceScript(this).ExecuteScript(pathname);
             AddRecentCommandFile(pathname);
         }
 
@@ -195,77 +174,6 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public void ParseCommand(string line, string directory)
-        {
-            var mRem = reRemark.Match(line);
-            if (mRem.Success)
-                return;
-
-            var mD = reDef.Match(line); //TODO: symbolt types
-            if (mD.Success)
-            {
-                //SYMBOL DEF
-                string sym = mD.Groups[1].Value;
-                uint addr = Convert.ToUInt32(mD.Groups[2].Value, 16);
-                Symbols.Add(sym, addr, DisassShared.SymbolType.NONE);
-                return;
-            }
-
-            var mWA = reWatchSym.Match(line);
-            if (mWA.Success)
-            {
-
-                string name = null;
-                uint addr;
-
-                ParseSymbolOrAddress(mWA.Groups[1].Value, out name, out addr);
-
-                string type = mWA.Groups[2].Value;
-                WatchType t = WatchType.X08;
-                if (!String.IsNullOrEmpty(type))
-                {
-                    t = WatchType_Ext.StringToWatchType(type);
-                    if (t == WatchType.Empty)
-                        throw new ArgumentException($"Unrecognised watch type %{type}");
-                }
-
-                uint[] dims;
-                try
-                {
-                    dims = mWA.Groups[4].Captures.Select(o => Convert.ToUInt32(o)).ToArray(); ;
-                }
-                catch (Exception)
-                {
-                    throw new ArgumentException("Bad array index");
-                }
-                Watches.Add(new WatchModel(addr, name, t, dims));
-                return;
-            }
-
-            var mBP = reBreakpoint.Match(line);
-            if (mBP.Success)
-            {
-                string name = null;
-                uint addr;
-                ParseSymbolOrAddress(mBP.Groups[1].Value, out name, out addr);
-                AddBreakpoint(addr);
-                return;
-            }
-
-            var mLoad = reLoad.Match(line);
-            if (mLoad.Success)
-            {
-                string name = null;
-                uint addr;
-                ParseSymbolOrAddress(mLoad.Groups[1].Value, out name, out addr);
-                string filename = mLoad.Groups[2].Value;
-                LoadBinaryFile(addr, Path.Combine(directory, filename));
-                return;
-
-            }
-            throw new ArgumentException($"Unrecognised command:{line}");
-
-        }
 
         private uint _loadBinaryAddr_last = 0x8000;
         public uint LoadBinaryAddr_last
@@ -362,7 +270,7 @@ namespace DeIce68k.ViewModel
 
         }
 
-        void ParseSymbolOrAddress(string s, out string name, out uint addr)
+        public void ParseSymbolOrAddress(string s, out string name, out uint addr)
         {
             name = null;
             ISymbol2<UInt32> sym;
@@ -449,7 +357,7 @@ namespace DeIce68k.ViewModel
                 }
                 catch (Exception ex)
                 {
-                    Messages.Add($"{MessageNo():X4} ERROR:Executing Next\n{ ex.ToString() } ");
+                    AppendMessage($"ERROR:Executing Next\n{ ex.ToString() } ");
                     Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                 }
             },
@@ -561,7 +469,7 @@ namespace DeIce68k.ViewModel
                         }
                         catch (Exception ex)
                         {
-                            Messages.Add($"{MessageNo():X4} ERROR:Executing Stop\n{ ex.ToString() } ");
+                            AppendMessage($"ERROR:Executing Stop\n{ ex.ToString() } ");
                             if (Regs != null)
                                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                         }
@@ -730,7 +638,7 @@ namespace DeIce68k.ViewModel
                 DoInvoke(new Action(
                 delegate
                 {
-                    Messages.Add($"{MessageNo():X4} ERROR:{ e.Exception.ToString() }");
+                    AppendMessage($"ERROR:{ e.Exception.ToString() }");
                 })
                 );
             };
@@ -739,7 +647,7 @@ namespace DeIce68k.ViewModel
                 DoInvoke(new Action(
                 delegate
                 {
-                    Messages.Add($"{MessageNo():X4} OOB:{ e.Data }");
+                    AppendMessage($"OOB:{ e.Data }");
                 })
                 );
             };
@@ -748,7 +656,7 @@ namespace DeIce68k.ViewModel
                 DoInvoke(new Action(
                 delegate
                 {
-                    Messages.Add($"{MessageNo():X4} FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
+                    AppendMessage($"FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
 
                     if (Regs == null)
                     {
@@ -913,7 +821,7 @@ namespace DeIce68k.ViewModel
                 }
                 catch (Exception ex)
                 {
-                    Messages.Add($"{MessageNo():X4} ERROR:Executing Continue\n{ ex.ToString() } ");
+                    AppendMessage($"ERROR:Executing Continue\n{ ex.ToString() } ");
                 }
                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
             }
@@ -1080,7 +988,7 @@ namespace DeIce68k.ViewModel
             }
             catch (Exception ex)
             {
-                Messages.Add($"{MessageNo():X4} ERROR:reading memory\n{ ex.ToString() } ");
+                AppendMessage($"ERROR:reading memory\n{ ex.ToString() } ");
                 if (Regs != null)
                     Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
             }
