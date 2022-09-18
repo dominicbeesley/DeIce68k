@@ -24,21 +24,55 @@
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="24" />
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
             <RowDefinition Height="40" />
+            <RowDefinition Height="40" />
             <RowDefinition Height="32" />
         </Grid.RowDefinitions>
+
         <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=R0}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=R1}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=R2}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=R3}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=R4}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=R5}" ></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="3" DataContext="{Binding Path=R6}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=R7}" ></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=R8}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=R9}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=R10}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=R11}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=R12}"></local:ucReg>
+
+        <local:ucReg Grid.Column="0" Grid.Row="7" DataContext="{Binding Path=R13_user}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="7" DataContext="{Binding Path=R14_user}"></local:ucReg>
+
+        <local:ucReg Grid.Column="0" Grid.Row="8" DataContext="{Binding Path=R13_svc}"></local:ucReg>
+
+
+        <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=R13_irq}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=R14_irq}"></local:ucReg>
+
+        <local:ucReg Grid.Column="0" Grid.Row="10" DataContext="{Binding Path=R8_fiq}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="10" DataContext="{Binding Path=R9_fiq}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=R10_fiq}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="11" DataContext="{Binding Path=R11_fiq}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="12" DataContext="{Binding Path=R12_fiq}"></local:ucReg>
+
+        <local:ucReg Grid.Column="0" Grid.Row="13" DataContext="{Binding Path=R13_fiq}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="13" DataContext="{Binding Path=R14_fiq}"></local:ucReg>
+
+        <local:ucReg Grid.Column="0" Grid.Row="14" DataContext="{Binding Path=R15}" ></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="14" DataContext="{Binding Path=PC}" ></local:ucReg>
+
         <ListView  
-            Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2"
+            Grid.Column="0" Grid.Row="15" Grid.ColumnSpan="2"
             ItemsSource="{Binding Path=StatusBits}" 
             Background="Transparent"  
             BorderBrush="Transparent"
@@ -66,19 +100,8 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
-        <local:ucTargetStatus Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=TargetStatus }" />
-
-        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=R1}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=R3}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=R5}" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=R7}" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=R9}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=R11}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="6" DataContext="{Binding Path=R13}"></local:ucReg>
-
-        <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=R15}" ></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=PC}" ></local:ucReg>
-        <TextBlock Grid.Column="1" Grid.Row="11" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
+        <local:ucTargetStatus Grid.Column="0" Grid.Row="16" DataContext="{Binding Path=TargetStatus }" />
+        <TextBlock Grid.Column="1" Grid.Row="16" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
 
     </Grid>
 </UserControl>

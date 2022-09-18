@@ -25,8 +25,26 @@ namespace DeIce68k.ViewModel
         public RegisterModel R10 { get; }
         public RegisterModel R11 { get; }
         public RegisterModel R12 { get; }
-        public RegisterModel R13 { get; }
+        public RegisterModel R13_svc { get; }
         public RegisterModel R15 { get; }
+
+
+        public RegisterModel R13_user { get; }
+        public RegisterModel R14_user { get; }
+
+        public RegisterModel R13_irq { get; }
+        public RegisterModel R14_irq { get; }
+
+        public RegisterModel R8_fiq { get; }
+        public RegisterModel R9_fiq { get; }
+        public RegisterModel R10_fiq { get; }
+        public RegisterModel R11_fiq { get; }
+        public RegisterModel R12_fiq { get; }
+        public RegisterModel R13_fiq { get; }
+        public RegisterModel R14_fiq { get; }
+
+
+        //PC is not a real register but instead is the R15 value with the status bits removed
         public RegisterModel PC { get; }
 
         public override bool CanTrace => true;
@@ -54,8 +72,23 @@ namespace DeIce68k.ViewModel
             R10 = new RegisterModel("R10", RegisterSize.Long, 0);
             R11 = new RegisterModel("R11", RegisterSize.Long, 0);
             R12 = new RegisterModel("R12", RegisterSize.Long, 0);
-            R13 = new RegisterModel("R13", RegisterSize.Long, 0);
             R15 = new RegisterModel("R15", RegisterSize.Long, 0);
+            R13_svc = new RegisterModel("R13s", RegisterSize.Long, 0);
+
+            R13_user = new RegisterModel("R13u", RegisterSize.Long, 0);
+            R14_user = new RegisterModel("R14u", RegisterSize.Long, 0);
+
+            R13_irq = new RegisterModel("R13i", RegisterSize.Long, 0);
+            R14_irq = new RegisterModel("R14i", RegisterSize.Long, 0);
+
+            R8_fiq = new RegisterModel("R8f", RegisterSize.Long, 0);
+            R9_fiq = new RegisterModel("R9f", RegisterSize.Long, 0);
+            R10_fiq = new RegisterModel("R10f", RegisterSize.Long, 0);
+            R11_fiq = new RegisterModel("R11f", RegisterSize.Long, 0);
+            R12_fiq = new RegisterModel("R12f", RegisterSize.Long, 0);
+            R13_fiq = new RegisterModel("R13f", RegisterSize.Long, 0);
+            R14_fiq = new RegisterModel("R14f", RegisterSize.Long, 0);
+
             PC = new RegisterModel("PC", RegisterSize.Long, 0);
 
 
@@ -65,10 +98,10 @@ namespace DeIce68k.ViewModel
             {
                 new(this) { BitIndex=31, Label="N", Name="Negative" },
                 new(this) { BitIndex=30, Label="Z", Name="Zero" },
-                new(this) { BitIndex=13, Label="C", Name="Carry" },
-                new(this) { BitIndex=12, Label="V", Name="Overflow" },
-                new(this) { BitIndex=11, Label="I", Name="IRQ" },
-                new(this) { BitIndex=10, Label="F", Name="FIRQ" },
+                new(this) { BitIndex=29, Label="C", Name="Carry" },
+                new(this) { BitIndex=28, Label="V", Name="Overflow" },
+                new(this) { BitIndex=27, Label="I", Name="IRQ" },
+                new(this) { BitIndex=26, Label="F", Name="FIRQ" },
                 new(this) { BitIndex=1, Label="M1", Name="M1" },
                 new(this) { BitIndex=0, Label="M0", Name="M0" }
             }));
@@ -86,10 +119,10 @@ namespace DeIce68k.ViewModel
 
         public override void FromDeIceProtocolRegData(byte[] deiceData)
         {
-            if (deiceData.Length < 0x3D)
-                throw new ArgumentException("data too short FN_READ_RG/FN_RUN_TARG reply");
+            if (deiceData.Length < 0x69)
+                throw new ArgumentException($"data too short FN_READ_RG/FN_RUN_TARG reply got 0x69 got 0x{deiceData.Length:X}");
 
-            TargetStatus = deiceData[0x3C];
+            TargetStatus = deiceData[0x68];
             R0.Data = DeIceFnFactory.ReadULong(deiceData, 0x00);
             R1.Data = DeIceFnFactory.ReadULong(deiceData, 0x04);
             R2.Data = DeIceFnFactory.ReadULong(deiceData, 0x08);
@@ -103,14 +136,28 @@ namespace DeIce68k.ViewModel
             R10.Data = DeIceFnFactory.ReadULong(deiceData, 0x28);
             R11.Data = DeIceFnFactory.ReadULong(deiceData, 0x2C);
             R12.Data = DeIceFnFactory.ReadULong(deiceData, 0x30);
-            R13.Data = DeIceFnFactory.ReadULong(deiceData, 0x38);
             R15.Data = DeIceFnFactory.ReadULong(deiceData, 0x34);
+            R13_svc.Data = DeIceFnFactory.ReadULong(deiceData, 0x38);
+
+            R13_user.Data = DeIceFnFactory.ReadULong(deiceData, 0x3C);
+            R14_user.Data = DeIceFnFactory.ReadULong(deiceData, 0x40);
+
+            R13_irq.Data = DeIceFnFactory.ReadULong(deiceData, 0x44);
+            R14_irq.Data = DeIceFnFactory.ReadULong(deiceData, 0x48);
+
+            R8_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x4C);
+            R9_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x50);
+            R10_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x54);
+            R11_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x58);
+            R12_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x5C);
+            R13_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x60);
+            R14_fiq.Data = DeIceFnFactory.ReadULong(deiceData, 0x64);
         }
 
         public override byte[] ToDeIceProtcolRegData()
         {
-            byte [] ret = new byte[0x3D];
-            ret[0x3C] = TargetStatus;
+            byte [] ret = new byte[0x69];
+            ret[0x68] = TargetStatus;
             DeIceFnFactory.WriteULong(ret, 0x00, R0.Data);
             DeIceFnFactory.WriteULong(ret, 0x04, R1.Data);
             DeIceFnFactory.WriteULong(ret, 0x08, R2.Data);
@@ -124,8 +171,24 @@ namespace DeIce68k.ViewModel
             DeIceFnFactory.WriteULong(ret, 0x28, R10.Data);
             DeIceFnFactory.WriteULong(ret, 0x2C, R11.Data);
             DeIceFnFactory.WriteULong(ret, 0x30, R12.Data);
-            DeIceFnFactory.WriteULong(ret, 0x38, R13.Data);
             DeIceFnFactory.WriteULong(ret, 0x34, R15.Data);
+            DeIceFnFactory.WriteULong(ret, 0x38, R13_svc.Data);
+
+            DeIceFnFactory.WriteULong(ret, 0x3C, R13_user.Data);
+            DeIceFnFactory.WriteULong(ret, 0x40, R14_user.Data);
+
+            DeIceFnFactory.WriteULong(ret, 0x44, R13_irq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x48, R14_irq.Data);
+
+            DeIceFnFactory.WriteULong(ret, 0x4C, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x50, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x54, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x58, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x5C, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x60, R13_fiq.Data);
+            DeIceFnFactory.WriteULong(ret, 0x64, R14_fiq.Data);
+
+
             return ret;
         }
 

@@ -79,7 +79,7 @@
             </StatusBarItem>
         </StatusBar>
 
-        <Grid >
+        <Grid Background="{StaticResource Retro_Brush_BG}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="1.8*"/>
                 <RowDefinition Height="1*"/>
@@ -96,22 +96,29 @@
                 <ContentPresenter Content="{Binding Regs }" Grid.Column="0">
                     <ContentPresenter.Resources>
                         <DataTemplate DataType="{x:Type viewmodel:RegisterSetModel68k}">
-                            <local:ucRegs_68k  
+                            <Viewbox Stretch="Uniform" StretchDirection="Both" VerticalAlignment="Top" >
+
+                                <local:ucRegs_68k  
                               DataContext="{Binding .}" 
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_68k }" 
                               />
+                            </Viewbox>
                         </DataTemplate>
                         <DataTemplate DataType="{x:Type viewmodel:RegisterSetModelx86_16}">
-                            <local:ucRegs_x86_16  
+                            <Viewbox Stretch="Uniform" StretchDirection="Both" VerticalAlignment="Top" >
+                                <local:ucRegs_x86_16  
                               DataContext="{Binding .}" 
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_x86_16 }" 
                               />
+                            </Viewbox>
                         </DataTemplate>
                         <DataTemplate DataType="{x:Type viewmodel:RegisterSetModelArm2}">
+                            <Viewbox Stretch="Uniform" StretchDirection="Both" VerticalAlignment="Top" >
                             <local:ucRegs_arm2  
                               DataContext="{Binding .}" 
                               d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_Arm2 }" 
                               />
+                            </Viewbox>
                         </DataTemplate>
                     </ContentPresenter.Resources>
                     
