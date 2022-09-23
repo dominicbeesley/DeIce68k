@@ -196,7 +196,7 @@ namespace DeIceProtocol
 
         }
 
-        private readonly static int MAXOOB = 256;
+        private readonly static int MAXOOB = 1024;
 
         private string DoOobRead_int(byte first)
         {
