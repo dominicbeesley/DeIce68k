@@ -47,7 +47,7 @@ namespace DeIce68k
                         a = Convert.ToUInt32(txtAddress.Text, 16);
                     }
                 }
-                catch (Exception ex) { }
+                catch (Exception) { }
                 return a;
             }
             set

@@ -88,10 +88,7 @@ namespace DeIce68k
                                 locked = false;
                             }
                         }
-                    } catch (Exception ex)
-                    {
-
-                    }
+                    } catch (Exception) { }
                 }
             }
             else

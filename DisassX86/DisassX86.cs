@@ -586,7 +586,6 @@ namespace DisassX86
                 }
 
                 IEnumerable<DisRec2OperString_Base> offs_str;
-                IEnumerable<DisRec2OperString_Base> ret;
 
                 if (offs == 0)
                     offs_str = Enumerable.Empty<DisRec2OperString_Base>();

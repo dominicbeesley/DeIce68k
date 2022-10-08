@@ -80,11 +80,9 @@ namespace DeIce68k.ViewModel
                 ms.Position = EndPoint - BaseAddress;
                 while (ok)
                 {
-                    bool hassym = false;
                     foreach (var symbol in _app.Symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
                         _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc == PC));
-                        hassym = true;
                     }
 
                     var p = ms.Position;

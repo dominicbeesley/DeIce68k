@@ -59,7 +59,6 @@ namespace DeIce68k.ViewModel.Scripts
 
         public uint GetSymbol(string s)
         {
-            uint ret;
             ISymbol2<UInt32> sym;
             if (_app.Symbols.FindByName(s, out sym))
                 return sym.Address;
