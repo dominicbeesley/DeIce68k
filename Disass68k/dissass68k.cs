@@ -530,7 +530,7 @@ namespace Disass68k
                                 byte count = getBits_0E00(word);
                                 if (((word & 0x0020) >> 5) == 0)
                                 { /* imm */
-                                    operands = RotCount(count);
+                                    operands = RotCount(count).Concat(OperStr($",D{dreg}"));
                                 }
                                 else
                                 { /* count in dreg */
@@ -596,7 +596,7 @@ namespace Disass68k
                                     sz = 4;
                                 }
 
-                                UInt32 ldata = (UInt32)(r.PC + offset);
+                                UInt32 ldata = (UInt32)(r.PC + offset - (sz -2));
 
                                 operands = OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32);
                                 hints.Add(signedhex(offset, sz));
