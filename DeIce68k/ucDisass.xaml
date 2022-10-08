@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:DeIce68k"
              xmlns:local_dd="clr-namespace:DeIce68k.SampleData"
+             xmlns:local_lib="clr-namespace:DeIce68k.Lib"
              xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
              xmlns:disass="clr-namespace:DisassShared;assembly=DisassShared"
              mc:Ignorable="d" 
@@ -84,7 +85,7 @@
                 </TextBlock>
                 <TextBlock Text="{Binding Mnemonic}" Width="64" Foreground="#FF54A436"/>
                 <ListView 
-                    Width="185" 
+                    Width="200"
                     Background="Transparent"
                     Foreground="Yellow" 
                     BorderThickness="0"

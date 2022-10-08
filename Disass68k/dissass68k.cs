@@ -596,7 +596,7 @@ namespace Disass68k
                                     sz = 4;
                                 }
 
-                                UInt32 ldata = (UInt32)(r.PC + offset - (sz -2));
+                                UInt32 ldata = (UInt32)(r.PC + offset - (sz - 2));
 
                                 operands = OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32);
                                 hints.Add(signedhex(offset, sz));
