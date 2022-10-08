@@ -68,8 +68,7 @@ namespace DeIce68k.ViewModel
             return _symbolsByAddress.Where(x =>
                 (x.Address == addr)
                 && (
-                    type == SymbolType.NONE
-                    || x.SymbolType == SymbolType.NONE
+                    (type == SymbolType.Pointer && x.SymbolType == SymbolType.NONE)
                     || (x.SymbolType & type) != 0
                     )
                     );
@@ -96,8 +95,7 @@ namespace DeIce68k.ViewModel
         {
             var sym = _symbolsByAddress.Where(x => 
                 (x.Address < dispc && dispc - x.Address < limit) && (
-                    symbolType == SymbolType.NONE
-                    || x.SymbolType == SymbolType.NONE
+                    (symbolType == SymbolType.Pointer && x.SymbolType == SymbolType.NONE)
                     || (x.SymbolType & symbolType) != 0
                     )
                 
