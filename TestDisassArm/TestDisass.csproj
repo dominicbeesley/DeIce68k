@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
     <ProjectReference Include="..\DisassArm\DisassArm.csproj" />
     <ProjectReference Include="..\DisassShared\DisassShared.csproj" />
     <ProjectReference Include="..\DisassX86\DisassX86.csproj" />

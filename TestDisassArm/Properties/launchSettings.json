@@ -2,7 +2,8 @@
   "profiles": {
     "TestDisass": {
       "commandName": "Project",
-      "commandLineArgs": "ARM \"C:\\tools\\rpcemu\\RPCEmu - 371\\hostfs\\domdev\\dom,ff8\" 0"
+      "commandLineArgs": "M68K \"E:\\Users\\dominic\\programming\\68k\\mos\\mos68k.bin\" 8D0000",
+      "sqlDebugging": true
     }
   }
 }

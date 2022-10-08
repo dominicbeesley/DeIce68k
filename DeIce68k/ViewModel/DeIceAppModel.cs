@@ -799,7 +799,7 @@ namespace DeIce68k.ViewModel
                 }
                 catch (Exception ex)
                 {
-                    Messages.Add("Unexpected error re-executing breakpoint");
+                    Messages.Add($"Unexpected error re-executing breakpoint:{ex.ToString()}");
                 }
             }
             return false;
@@ -1197,6 +1197,8 @@ namespace DeIce68k.ViewModel
             //TODO: work out from DebugHostType
             if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_ARM2)
                 return new DisassArm.DisassArm();
+            if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_68k)
+                return new Disass68k.Disass();
             else
                 return new DisassX86.DisassX86();
         }

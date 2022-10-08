@@ -1,5 +1,6 @@
 ﻿
 using DisassShared;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -9,8 +10,10 @@ using System.Text.RegularExpressions;
 
 namespace Disass68k
 {
-    public class Disass
+    public class Disass : IDisAss
     {
+
+        public bool SpecialABI { get; init; }
 
         public static Regex reHint = new Regex(@"\s*\[([^\]]+)]\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -84,36 +87,28 @@ namespace Disass68k
 	@param mode 0 to 12, indicating addressing mode.
 	@param size 0 = byte, 1 = word, 2 = long.
 */
-        private static string sprintmode(ushort mode, byte reg, byte size, BEReader r, IDisassSymbols symbols)
+        private static IEnumerable<DisRec2OperString_Base> sprintmode(ushort mode, byte reg, byte size, BEReader r, IList<string> hints)
         {
-            StringBuilder s = new StringBuilder();
 
             switch (mode)
             {
-                case 0: s.Append($"D{reg}"); break;
-                case 1: s.Append($"A{reg}"); break;
-                case 2: s.Append($"(A{reg})"); break;
-                case 3: s.Append($"(A{reg})+"); break;
-                case 4: s.Append($"-(A{reg})"); break;
+                case 0: return OperStr($"D{reg}");
+                case 1: return OperStr($"A{reg}");
+                case 2: return OperStr($"(A{reg})");
+                case 3: return OperStr($"(A{reg})+");
+                case 4: return OperStr($"-(A{reg})");
                 case 5: /* reg + disp */
+                    {
+                        short displacement = r.ReadInt16BE();
+                        return OperNum((uint)displacement, SymbolType.Offset, DisRec2_NumSize.S16).Concat(OperStr($"(A{reg})"));
+                    }
                 case 9: /* pcr + disp */
                     {
                         short displacement = r.ReadInt16BE();
-                        if (mode == 5)
-                        {
-                            s.Append($"{signedhex(displacement,4)}(A{reg})");
-                        }
-                        else
-                        {
-                            uint ldata = (uint)((r.PC - 2) + displacement);
-                            string sym = FindSym(symbols, ldata);
-                            if (!string.IsNullOrEmpty(sym))
-                                s.Append($"{sym}(PC)[{signedhex(displacement, 4)}=${ldata:X8}]");
-                            else
-                                s.Append($"${ldata:X8}(PC)[{signedhex(displacement, 4)}]");
-                        }
+                        UInt32 ldata = (UInt32)((r.PC - 2) + displacement);
+                        hints.Append($"{signedhex(displacement, 4)}=${ldata:X8}");
+                        return OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32).Concat(OperStr("(PC)"));
                     }
-                    break;
                 case 6: /* Areg with index + disp */
                 case 10: /* PC with index + disp */
                     {
@@ -129,75 +124,63 @@ namespace Disass68k
                         {
                             if (itype == 0)
                             {
-                                s.Append($"{signedhex(displacement, 2)}(A{reg},D{ireg}.{ir[isize]})");
+                                return OperNum((uint)displacement, SymbolType.Offset, DisRec2_NumSize.S8).Concat(OperStr($"(A{reg},D{ireg}.{ir[isize]})"));
                             }
                             else
                             {
-                                s.Append($"{signedhex(displacement, 2)}(A{reg},A{ireg}.{ir[isize]})");
+                                return OperNum((uint)displacement, SymbolType.Offset, DisRec2_NumSize.S8).Concat(OperStr($"(A{reg},A{ireg}.{ir[isize]})"));
                             }
                         }
                         else
                         { /* PC */
-                            uint ldata = (uint)((r.PC - 4) + displacement);
-                            string sym = FindSym(symbols, ldata);
+                            UInt32 ldata = (UInt32)((r.PC - 4) + displacement);
                             string rt = (itype == 0) ? "D" : "A";
-                            if (!string.IsNullOrEmpty(sym))
-                                s.Append($"{sym}(PC,{rt}{ireg}.{ir[isize]})[{signedhex(displacement, 2)}=${ldata:X8}]");
-                            else
-                                s.Append($"{ldata:X8}(PC,{rt}{ireg}.{ir[isize]})[{signedhex(displacement, 2)}=${ldata:X8}]");
+                                return OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32).Concat(OperStr($"(PC,{rt}{ireg}.{ir[isize]})"));
                         }
                     }
-                    break;
                 case 7: /* abs short */
                     {                        
                         short ldata = r.ReadInt16BE();
-                        string sym = FindSym(symbols, ldata);
-                        if (!string.IsNullOrEmpty(sym))
-                            s.Append($"{sym}[=${ldata:X4}]");
-                        else
-                            s.Append($"{ldata:X4}");
+                        return OperNum((uint)ldata, SymbolType.Pointer, DisRec2_NumSize.U32); // actually signed 16 but want to see as a 32 bit unsigned address really
                     }
-                    break;
                 case 8:
                     {
-                        uint ldata = r.ReadUInt32BE();
-                        string sym = FindSym(symbols, ldata);
-                        if (!string.IsNullOrEmpty(sym))
-                            s.Append($"{sym}[=${ldata:X8}]");
-                        else
-                            s.Append($"${ldata:X8}");
+                        UInt32 ldata = r.ReadUInt32BE();
+                        return OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32);
                     }
-                    break;
                 case 11:
                     {
-                        switch (size)
-                        {
-                            case 0:
-                                {
-                                    var d = (sbyte)(r.ReadInt16BE() & 0xFF);
-                                    s.Append($"#{signedhex(d, 2)}[${((byte)d):X2}]");
-                                }
-                                break;
-                            case 1:
-                                {
-                                    var d = r.ReadInt16BE();
-                                    s.Append($"#{signedhex(d, 4)}[${((ushort)d):X4}]");
-                                }
-                                break;
-                            case 2:
-                                {
-                                    var d = r.ReadInt32BE();
-                                    s.Append($"#{signedhex(d, 8)}[${((uint)d):X8}]");
-                                }
-                                break;
-                        }
+                        return Immed(r, size, false);
                     }
-                    break;
                 default:
-                    s.Append($"Mode out of range in sprintmode = {mode}");
-                    break;
+                    return OperStr($"Mode out of range in sprintmode = {mode}");
             }
-            return s.ToString();
+            
+        }
+
+        private static IEnumerable<DisRec2OperString_Base> Immed(BEReader r, byte size, bool signed)
+        {
+            var ssigned = (signed) ? DisRec2_NumSize.SIGNED : 0;
+
+            switch (size)
+            {
+                case 0:
+                    {
+                        var d = (sbyte)(r.ReadInt16BE() & 0xFF);
+                        return OperStr("#").Concat(OperNum((uint)d, SymbolType.Immediate, DisRec2_NumSize.U8 | ssigned));
+                    }
+                case 1:
+                    {
+                        var d = r.ReadInt16BE();
+                        return OperStr("#").Concat(OperNum((uint)d, SymbolType.Immediate, DisRec2_NumSize.U16 | ssigned));
+                    }
+                default:
+                    {
+                        var d = r.ReadInt32BE();
+                        return OperStr("#").Concat(OperNum((uint)d, SymbolType.Immediate, DisRec2_NumSize.U32 | ssigned));
+                    }
+            }
+
         }
 
         /*!
@@ -252,24 +235,26 @@ namespace Disass68k
 
         public static string FindSym(IDisassSymbols symbols, short addr)
         {
-            return FindSym(symbols, (uint)addr);
+            return FindSym(symbols, (UInt32)addr);
         }
         
-        public static string FindSym(IDisassSymbols symbols, uint addr)
+        public static string FindSym(IDisassSymbols symbols, UInt32 addr)
         {
             return symbols.AddressToSymbols(addr).FirstOrDefault();
         }
 
-        public static DisRec Decode(BinaryReader br, uint pc, IDisassSymbols symbols, bool specialAbi = false)
+        public DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc)
         {
             var r = new BEReader(br, pc);
 
+            List<string> hints = new List<string>();
+            IEnumerable<DisRec2OperString_Base> operands = Enumerable.Empty<DisRec2OperString_Base>();
 
-            uint start_address = r.PC;
+            UInt32 start_address = r.PC;
             ushort word = r.ReadUInt16BE();
             bool decoded = false;
 
-            string opcode_s = null, operand_s = null;
+            string opcode_s = null;
             for (int opnum = 1; opnum <= 87; ++opnum)
             {
                 if ((word & optab[opnum].And) == optab[opnum].Xor)
@@ -295,12 +280,12 @@ namespace Disass68k
                                 if ((word & 0x0008) == 0)
                                 {
                                     /* reg-reg */
-                                    operand_s = $"D{sreg},D{dreg}";
+                                    operands = OperStr($"D{sreg},D{dreg}");
                                 }
                                 else
                                 {
                                     /* mem-mem */
-                                    operand_s = $"-(A{sreg}),-A({dreg})";
+                                    operands = OperStr($"-(A{sreg}),-A({dreg})");
                                 }
                                 decoded = true;
                             }
@@ -349,19 +334,18 @@ namespace Disass68k
                                         break;
                                 }
 
-                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
+                                var dest_s = sprintmode(dmode, dreg, size, r, hints);
 
                                 byte sreg = getBits_0E00(word);
-                                string source_s;
-                                source_s = $"D{sreg}";
+                                var source_s = OperStr($"D{sreg}");
                                 /* reverse source & dest if dir == 0 */
                                 if (dir != 0)
                                 {
-                                    operand_s = $"{source_s},{dest_s}";
+                                    operands = source_s.Concat(OperStr(",")).Concat(dest_s);
                                 }
                                 else
                                 {
-                                    operand_s = $"{dest_s},{source_s}";
+                                    operands = dest_s.Concat(OperStr(",")).Concat(source_s);
                                 }
                                 decoded = true;
                             }
@@ -382,9 +366,8 @@ namespace Disass68k
                                         opcode_s = $"suba.{ size_arr[size] }";
                                         break;
                                 }
-                                string source_s;
-                                source_s = sprintmode(smode, sreg, size, r, symbols);
-                                operand_s = $"{ source_s },A{ dreg }";
+                                
+                                operands = sprintmode(smode, sreg, size, r, hints).Concat(OperStr($",A{ dreg }"));
                                 decoded = true;
                             }
                             break;
@@ -406,52 +389,36 @@ namespace Disass68k
                                 if ((dmode == 11) && /* ADDI, CMPI, SUBI */
                                     ((opnum == 4) || (opnum == 26) || (opnum == 79))) break;
 
+                                bool logical = false;
                                 switch (opnum)
                                 {
                                     case 4:
                                         opcode_s = $"addi.{ size_arr[size] }";
+                                        logical = true;
                                         break;
                                     case 8:
                                         opcode_s = $"andi.{ size_arr[size] }";
+                                        logical = true;
                                         break;
                                     case 26:
                                         opcode_s = $"cmpi.{ size_arr[size] }";
                                         break;
                                     case 32:
                                         opcode_s = $"eori.{ size_arr[size] }";
+                                        logical = true;
                                         break;
                                     case 60:
                                         opcode_s = $"ori.{ size_arr[size] }";
+                                        logical = true;
                                         break;
                                     case 79:
                                         opcode_s = $"subi.{ size_arr[size] }";
                                         break;
                                 }
 
-                                string source_s = "?";
-                                switch (size)
-                                {
-                                    case 0:
-                                        source_s = $"#${r.ReadUInt16BE():X2}";
-                                        break;
-                                    case 1:
-                                        source_s = $"#${r.ReadUInt16BE():X4}";
-                                        break;
-                                    case 2:
-                                        source_s = $"#${r.ReadUInt32BE():X8}";
-                                        break;
-                                }
-
-                                string dest_s;
-                                if (dmode == 11)
-                                {
-                                    dest_s = "SR";
-                                }
-                                else
-                                {
-                                    dest_s = sprintmode(dmode, dreg, size, r, symbols);
-                                }
-                                operand_s = $"{source_s},{dest_s}";
+                                var source_s = Immed(r, size, !logical);
+                                var dest_s = (dmode == 11)?OperStr("SR"):sprintmode(dmode, dreg, size, r, hints);                                
+                                operands = source_s.Concat(OperStr(",")).Concat(dest_s);
                                 decoded = true;
                             }
                             break;
@@ -474,9 +441,11 @@ namespace Disass68k
                                 {
                                     opcode_s = $"subq.{size_arr[size]}";
                                 }
-                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
+                                var dest_s = sprintmode(dmode, dreg, size, r, hints);
                                 byte count = getBits_0E00(word);
-                                operand_s = $"#{(count == 0 ? 8 : count)},{dest_s}";
+                                operands = RotCount(count)
+                                    .Concat(OperStr(","))
+                                    .Concat(dest_s);
                                 decoded = true;
                             }
                             break;
@@ -504,16 +473,16 @@ namespace Disass68k
                                 if ((opnum != 27) && ((word & 0x0008) == 0))
                                 {
                                     /* reg-reg */
-                                    operand_s = $"D{sreg},D{dreg}";
+                                    operands = OperStr($"D{sreg},D{dreg}");
                                 }
                                 else
                                 {
                                     /* mem-mem */
-                                    operand_s = $"-(A{sreg}),-(A{dreg})";
+                                    operands = OperStr($"-(A{sreg}),-(A{dreg})");
                                 }
                                 if (opnum == 27)
                                 {
-                                    operand_s = $"(A{sreg})+,(A{dreg})+";
+                                    operands = OperStr($"(A{sreg})+,(A{dreg})+");
                                 }
                                 decoded = true;
                             }
@@ -561,12 +530,11 @@ namespace Disass68k
                                 byte count = getBits_0E00(word);
                                 if (((word & 0x0020) >> 5) == 0)
                                 { /* imm */
-                                    if (count == 0) count = 8;
-                                    operand_s = $"#{count},D{dreg}";
+                                    operands = RotCount(count);
                                 }
                                 else
                                 { /* count in dreg */
-                                    operand_s = $"D{count},D{dreg}";
+                                    operands = OperStr($"D{count},D{dreg}");
                                 }
                                 decoded = true;
                             }
@@ -611,7 +579,7 @@ namespace Disass68k
                                         opcode_s = "roxr";
                                         break;
                                 }
-                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
+                                operands = sprintmode(dmode, dreg, 0, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -620,25 +588,19 @@ namespace Disass68k
                                 int cc = getBits_0F00(word);
                                 opcode_s = bra_tab[cc];
 
-                                sbyte offset = (sbyte)(word & 0x00FF);
-                                if (offset != 0)
+                                int sz = 2;
+                                short offset = (sbyte)(word & 0x00FF);
+                                if (offset == 0)
                                 {
-                                    string sym = FindSym(symbols, (uint)(r.PC + offset));
-                                    if (!string.IsNullOrEmpty(sym))
-                                        operand_s = $"{sym}[{signedhex(offset, 2)}=${(r.PC + offset):X8}]";
-                                    else
-                                        operand_s = $"${(r.PC + offset):X8}[{signedhex(offset, 2)}]";
+                                    offset = r.ReadInt16BE();
+                                    sz = 4;
+                                }
 
-                                }
-                                else
-                                {
-                                    short offsetw = r.ReadInt16BE();
-                                    string sym = FindSym(symbols, (uint)(r.PC + offsetw - 2));
-                                    if (!string.IsNullOrEmpty(sym)) 
-                                        operand_s = $"{sym}[{signedhex(offsetw, 4)}=${(r.PC + offsetw - 2):X8}]";
-                                    else
-                                        operand_s = $"${(r.PC + offsetw - 2):X8}[=${(r.PC + offsetw - 2):X8}[{signedhex(offsetw, 4)}]";
-                                }
+                                UInt32 ldata = (UInt32)(r.PC + offset);
+
+                                operands = OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32);
+                                hints.Add(signedhex(offset, sz));
+
                                 decoded = true;
                             }
                             break;
@@ -659,58 +621,37 @@ namespace Disass68k
                                 if ((opnum < 20) && (dmode >= 9)) break;
 
                                 byte sreg = getBits_0E00(word);
-                                string source_s;
-                                switch (opnum)
+                                IEnumerable<DisRec2OperString_Base> source_s;
+
+                                if ((opnum & 1) != 0)
+                                {
+                                    byte data = (byte)(r.ReadUInt16BE() & 0x001F);
+                                    source_s = OperStr("#").Concat(OperNum(data, SymbolType.Immediate, DisRec2_NumSize.U8));
+                                } else
+                                {
+                                    source_s = OperStr($"D{sreg}");
+
+                                }
+
+                                switch (opnum & 0xFE)
                                 {
                                     case 14: /* BCHG_DREG */
                                         opcode_s = "bchg";
-                                        source_s = $"D{sreg}";
-                                        break;
-                                    case 15:
-                                        {/* BCHG_IMM */
-                                            opcode_s = "bchg";
-                                            byte data = (byte)(r.ReadUInt16BE() & 0x001F);
-                                            source_s = $"#${data:X2}";
-                                        }
                                         break;
                                     case 16: /* BCLR_DREG */
                                         opcode_s = "bclr";
-                                        source_s = $"D{sreg}";
-                                        break;
-                                    case 17:
-                                        {/* BCLR_IMM */
-                                            opcode_s = "bclr";
-                                            byte data = (byte)(r.ReadUInt16BE() & 0x001F);
-                                            source_s = $"#${data:X2}";
-                                        }
                                         break;
                                     case 18: /* BSET_DREG */
                                         opcode_s = "bset";
-                                        source_s = $"D{sreg}";
-                                        break;
-                                    case 19:
-                                        { /* BSET_IMM */
-                                            opcode_s = "bset";
-                                            byte data = (byte)(r.ReadUInt16BE() & 0x001F);
-                                            source_s = $"#${data:X2}";
-                                        }
                                         break;
                                     case 20: /* BTST_DREG */
                                         opcode_s = "btst";
-                                        source_s = $"D{sreg}";
-                                        break;
-                                    case 21:
-                                        {/* BTST_IMM */
-                                            opcode_s = "btst";
-                                            byte data = (byte)(r.ReadUInt16BE() & 0x001F);
-                                            source_s = $"#${data:X2}";
-                                        }
                                         break;
                                     default:
                                         throw new System.Exception("Unrecognized op in BSET et al");
                                 }
-                                string dest_s = sprintmode(dmode, dreg, 0, r, symbols);
-                                operand_s = $"{source_s},{dest_s}";
+                                var dest_s = sprintmode(dmode, dreg, 0, r, hints);
+                                operands = source_s.Concat(OperStr(",")).Concat(dest_s);
                                 decoded = true;
                             }
                             break;
@@ -760,9 +701,8 @@ namespace Disass68k
                                         opcode_s = "mulu";
                                         break;
                                 }
-                                string source_s;
-                                source_s = sprintmode(smode, sreg, size, r, symbols);
-                                operand_s = $"{source_s},D{dreg}";
+                                var source_s = sprintmode(smode, sreg, size, r, hints);
+                                operands = source_s.Concat(OperStr($",D{dreg}"));
                                 decoded = true;
                             }
                             break;
@@ -776,7 +716,7 @@ namespace Disass68k
                                 if (size == 3) break;
 
                                 opcode_s = $"clr.{size_arr[size]}";
-                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
+                                operands = sprintmode(dmode, dreg, size, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -788,8 +728,8 @@ namespace Disass68k
                                 byte size = (byte)(getBits_0100(word) + 1);
 
                                 opcode_s = $"cmpa.{size_arr[size]}";
-                                string source_s = sprintmode(smode, sreg, size, r, symbols);
-                                operand_s = $"{source_s},A{areg}";
+                                var source_s = sprintmode(smode, sreg, size, r, hints);
+                                operands = source_s.Concat(OperStr($",A{areg}"));
                                 decoded = true;
                             }
                             break;
@@ -802,7 +742,8 @@ namespace Disass68k
                                 if (cc == 1) opcode_s = "dbf";
                                 short offset = r.ReadInt16BE();
                                 byte dreg = getBits_0007(word);
-                                operand_s = $"D{dreg},${(r.PC - 2 + offset):X8}";
+                                UInt32 ldata = (UInt32)(r.PC - 2 + offset);
+                                operands = OperStr($"D{dreg},").Concat(OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32));;
                                 decoded = true;
                             }
                             break;
@@ -821,13 +762,13 @@ namespace Disass68k
                                 switch (dmode)
                                 {
                                     case 8:
-                                        operand_s = $"D{dreg},D{areg}";
+                                        operands = OperStr($"D{dreg},D{areg}");
                                         break;
                                     case 9:
-                                        operand_s = $"A{dreg},A{areg}";
+                                        operands = OperStr($"A{dreg},A{areg}");
                                         break;
                                     case 17:
-                                        operand_s = $"D{dreg},A{areg}";
+                                        operands = OperStr($"D{dreg},A{areg}");
                                         break;
                                 }
                                 decoded = true;
@@ -838,7 +779,7 @@ namespace Disass68k
                                 byte dreg = getBits_0007(word);
                                 int size = ((word & 0x0040) >> 6) + 1;
                                 opcode_s = $"ext.{size_arr[size]}";
-                                operand_s = $"D{dreg}";
+                                operands = OperStr($"D{dreg}");
                                 decoded = true;
                             }
                             break;
@@ -862,7 +803,7 @@ namespace Disass68k
                                         break;
                                 }
 
-                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
+                                operands = sprintmode(dmode, dreg, 0, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -875,10 +816,10 @@ namespace Disass68k
 
                                 byte sreg = getBits_0007(word);
                                 opcode_s = "lea";
-                                string source_s = sprintmode(smode, sreg, 0, r, symbols);
+                                var source_s = sprintmode(smode, sreg, 0, r, hints);
 
                                 byte dreg = getBits_0E00(word);
-                                operand_s = $"{source_s},A{dreg}";
+                                operands = source_s.Concat(OperStr($",A{dreg}"));
                                 decoded = true;
                             }
                             break;
@@ -887,7 +828,7 @@ namespace Disass68k
                                 byte areg = getBits_0007(word);
                                 short offset = r.ReadInt16BE();
                                 opcode_s = "link";
-                                operand_s = $"A{areg},#{signedhex(offset, 4)}";
+                                operands = OperStr($"A{areg},#").Concat(OperNum((uint)offset, SymbolType.Immediate, DisRec2_NumSize.S16));
                                 decoded = true;
                             }
                             break;
@@ -930,9 +871,9 @@ namespace Disass68k
                                 opcode_s = $"move.{size_arr[size]}";
 
 
-                                string source_s = sprintmode(smode, sreg, size, r, symbols);
-                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
-                                operand_s = $"{source_s},{dest_s}";
+                                var source_s = sprintmode(smode, sreg, size, r, hints);
+                                var dest_s = sprintmode(dmode, dreg, size, r, hints);
+                                operands = source_s.Concat(OperStr(",")).Concat(dest_s);
                                 decoded = true;
                             }
                             break;
@@ -947,14 +888,14 @@ namespace Disass68k
                                 if (smode >= 12) break;
 
                                 opcode_s = "move.w";
-                                string source_s = sprintmode(smode, sreg, size, r, symbols);
+                                var source_s = sprintmode(smode, sreg, size, r, hints);
                                 if (opnum == 44)
                                 {
-                                    operand_s = $"{source_s},CCR";
+                                    operands = source_s.Concat(OperStr(",CCR"));
                                 }
                                 else
                                 {
-                                    operand_s = $"{source_s},SR";
+                                    operands = source_s.Concat(OperStr(",SR"));
                                 }
                                 decoded = true;
                             }
@@ -969,8 +910,8 @@ namespace Disass68k
                                 if (dmode >= 9) break;
 
                                 opcode_s = "move.w";
-                                string dest_s = sprintmode(dmode, dreg, size, r, symbols);
-                                operand_s = $"SR,{dest_s}";
+                                var dest_s = sprintmode(dmode, dreg, size, r, hints);
+                                operands = OperStr($"SR,").Concat(dest_s);
                                 decoded = true;
                             }
                             break;
@@ -981,12 +922,12 @@ namespace Disass68k
                                 if ((word & 0x0008) == 0)
                                 {
                                     /* to USP */
-                                    operand_s = $"A{getBits_0007(word)},USP";
+                                    operands = OperStr($"A{getBits_0007(word)},USP");
                                 }
                                 else
                                 {
                                     /* from USP */
-                                    operand_s = $"USP,A{getBits_0007(word)}";
+                                    operands = OperStr($"USP,A{getBits_0007(word)}");
                                 }
                                 decoded = true;
                             }
@@ -1006,8 +947,8 @@ namespace Disass68k
 
                                 opcode_s = $"movea.{size_arr[size]}";
 
-                                string source_s = sprintmode(smode, sreg, size, r, symbols);
-                                operand_s = $"{source_s},A{dreg}";
+                                var source_s = sprintmode(smode, sreg, size, r, hints);
+                                operands = source_s.Concat(OperStr($",A{dreg}"));
                                 decoded = true;
                             }
                             break;
@@ -1038,7 +979,6 @@ namespace Disass68k
                                 }
 
                                 StringBuilder source_sb = new StringBuilder();
-                                string dest_s;
 
                                 /**** DATA LIST ***/
 
@@ -1125,16 +1065,16 @@ namespace Disass68k
                                 }
 
                                 opcode_s = $"movem.{size_arr[size]}";
-                                dest_s = sprintmode(dmode, dreg, size, r, symbols);
+                                var dest_s = sprintmode(dmode, dreg, size, r, hints);
                                 if (dir == 0)
                                 {
                                     /* the comma comes from the reglist */
-                                    operand_s = $"{source_sb},{dest_s}";
+                                    operands = OperStr($"{source_sb},").Concat(dest_s);
                                 }
                                 else
                                 {
                                     /* add the comma */
-                                    operand_s = $"{dest_s},{source_sb}";
+                                    operands = dest_s.Concat(OperStr($",{source_sb}"));
                                 }
                                 decoded = true;
                             }
@@ -1145,17 +1085,17 @@ namespace Disass68k
                                 byte areg = getBits_0007(word);
                                 byte size = (byte)(((word & 0x0040) >> 6) + 1);
 
-                                ushort data = r.ReadUInt16BE();
+                                var offs_s = OperNum(r.ReadUInt16BE(), SymbolType.Offset, DisRec2_NumSize.S16);
                                 opcode_s = $"movep.{size_arr[size]}";
                                 if ((word & 0x0080) == 0)
                                 {
                                     /* mem -> data reg */
-                                    operand_s = $"${data:X4}(A{areg}),D{dreg}";
+                                    operands = offs_s.Concat(OperStr($"(A{areg}),D{dreg}"));
                                 }
                                 else
                                 {
                                     /* data reg -> mem */
-                                    operand_s = $"D{dreg},${data:X4}(A{areg})";
+                                    operands = OperStr($"D{dreg},").Concat(offs_s).Concat(OperStr($"(A{areg})"));
                                 }
                                 decoded = true;
                             }
@@ -1164,7 +1104,7 @@ namespace Disass68k
                             { /* MOVEQ */
                                 byte dreg = getBits_0E00(word);
                                 opcode_s = "moveq";
-                                operand_s = $"#{signedhex(word & 0x00FF, 2)},D{dreg}";
+                                operands = OperStr("#").Concat(OperNum((UInt32)((sbyte)(word & 0x00FF)), SymbolType.Immediate, DisRec2_NumSize.S8)).Concat(OperStr($",D{dreg}"));
                                 decoded = true;
                             }
                             break;
@@ -1196,7 +1136,7 @@ namespace Disass68k
                                         opcode_s = $"not.{size_arr[size]}";
                                         break;
                                 }
-                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
+                                operands = sprintmode(dmode, dreg, size, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -1227,7 +1167,7 @@ namespace Disass68k
                                         break;
                                     case 76:
                                         opcode_s = "stop";
-                                        operand_s = $"#${r.ReadUInt16BE():X2}";                                        
+                                        operands = OperStr("#").Concat(OperNum((UInt32)r.ReadUInt16BE(), SymbolType.Immediate, DisRec2_NumSize.U16));
                                         break;
                                     case 85:
                                         opcode_s = "trapv";
@@ -1245,7 +1185,7 @@ namespace Disass68k
 
                                 opcode_s = "pea";
                                 byte sreg = getBits_0007(word);
-                                operand_s = sprintmode(smode, sreg, 0, r, symbols);
+                                operands = sprintmode(smode, sreg, 0, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -1259,7 +1199,7 @@ namespace Disass68k
                                 int cc = getBits_0F00(word);
 
                                 opcode_s = scc_tab[cc];
-                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
+                                operands = sprintmode(dmode, dreg, 0, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -1267,7 +1207,7 @@ namespace Disass68k
                             {/* SWAP */
                                 byte dreg = getBits_0007(word);
                                 opcode_s = "swap";
-                                operand_s = $"D{dreg}";
+                                operands = OperStr($"D{dreg}");
                                 decoded = true;
                             }
                             break;
@@ -1279,7 +1219,7 @@ namespace Disass68k
                                 if (dmode >= 9) break;
 
                                 opcode_s = "tas ";
-                                operand_s = sprintmode(dmode, dreg, 0, r, symbols);
+                                operands = sprintmode(dmode, dreg, 0, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -1287,29 +1227,29 @@ namespace Disass68k
                             { /* TRAP */
                                 byte dreg = (byte)(word & 0x000F);
 
-                                if (specialAbi && dreg == 0)
+                                if (SpecialABI && dreg == 0)
                                 {
                                     opcode_s = "break";
                                     decoded = true;
                                 }
-                                else if (specialAbi && dreg == 1)
+                                else if (SpecialABI && dreg == 1)
                                 {
                                     ushort x = r.ReadUInt16BE();
-                                    uint xx = (uint)((x & 0x8000) << 2) | (uint)(x & 0x7FFF);
+                                    UInt32 xx = (UInt32)((x & 0x8000) << 2) | (UInt32)(x & 0x7FFF);
                                     opcode_s = "swi";
-                                    operand_s = $"${xx:X6}";
+                                    operands = OperNum(xx, SymbolType.ServiceCall, DisRec2_NumSize.U32);
                                     decoded = true;
                                 }
-                                else if (specialAbi && dreg == 2)
+                                else if (SpecialABI && dreg == 2)
                                 {
-                                    uint xx = r.ReadUInt32BE() & 0x00FFFFFF;
+                                    UInt32 xx = r.ReadUInt32BE() & 0x00FFFFFF;
                                     opcode_s = "swi";
-                                    operand_s = $"${xx:X6}";
+                                    operands = OperNum(xx, SymbolType.ServiceCall, DisRec2_NumSize.U32);
                                     decoded = true;
                                 }
                                 else {
                                     opcode_s = "trap";
-                                    operand_s = $"#${dreg:X1}";
+                                    operands = OperStr("#").Concat(OperNum(dreg, SymbolType.ServiceCall, DisRec2_NumSize.U8));
                                     decoded = true;
                                 }
                             }
@@ -1325,7 +1265,7 @@ namespace Disass68k
                                 if (size == 3) break;
 
                                 opcode_s = $"tst.{size_arr[size]}";
-                                operand_s = sprintmode(dmode, dreg, size, r, symbols);
+                                operands = sprintmode(dmode, dreg, size, r, hints);
                                 decoded = true;
                             }
                             break;
@@ -1333,7 +1273,7 @@ namespace Disass68k
                             {/* UNLK */
                                 byte areg = getBits_0007(word);
                                 opcode_s = "unlk";
-                                operand_s = $"A{areg}";
+                                operands = OperStr($"A{areg}");
                                 decoded = true;
                             }
                             break;
@@ -1349,7 +1289,7 @@ namespace Disass68k
             if (!decoded)
             {
                 opcode_s = "dc.w";
-                operand_s = $"${word:X4}";
+                operands = OperNum(word, SymbolType.Immediate, DisRec2_NumSize.U16);
                 len = 2;
             }
             else
@@ -1357,29 +1297,32 @@ namespace Disass68k
                 len = (ushort)(r.PC - start_address);
             }
 
-            StringBuilder sb = new StringBuilder();
-            if (!string.IsNullOrEmpty(operand_s))
-            {
-                foreach (Match m in reHint.Matches(operand_s))
-                {
-                    if (sb.Length > 0)
-                        sb.Append(" ");
-                    sb.Append($"[{m.Groups[1].ToString()}]");
-                }
-                operand_s = reHint.Replace(operand_s, "");
-            }
-            
-
-
-            return new DisRec() {
+            return new DisRec2<UInt32>() {
                 Decoded = decoded,
                 Mnemonic = opcode_s,
-                Operands = operand_s,
-                Hints = (sb.Length == 0)?null:sb.ToString(),
+                Operands = operands,
+                Hints = string.Join("; ", hints),
                 Length = len
             };
         }
 
+        private static IEnumerable<DisRec2OperString_Base> OperNum(UInt32 num, SymbolType type, DisRec2_NumSize sz)
+        {
+            return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type, Size = sz } };
+        }
+
+        private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
+        {
+            if (str == null)
+                return null;
+            else
+                return new[] { new DisRec2OperString_String { Text = str } };
+        }
+
+        private static IEnumerable<DisRec2OperString_Base> RotCount(byte count)
+        {
+            return OperStr("#").Concat(OperNum((uint)(count == 0 ? 8 : count), SymbolType.Immediate, DisRec2_NumSize.U8));
+        } 
 
     }
 }

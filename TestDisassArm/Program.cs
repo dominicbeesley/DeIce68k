@@ -34,6 +34,9 @@ namespace TestDisass
                 case "ARM":
                     disass = new DisassArm.DisassArm();
                     break;
+                case "M68K":
+                    disass = new Disass68k.Disass();
+                    break;
                 default:
                     Usage(Console.Error, $"Unknown assembler \"{args[0]}\"", 102);
                     break;
@@ -86,14 +89,14 @@ namespace TestDisass
 
                         instr = disass.Decode(br, dispc);
 
-/*                        if (instr?.Operands != null) {
+                        if (instr?.Operands != null) {
                             //look for missing symbols and add to set to create later
                             miss.UnionWith(
                                 instr.Operands.Where(i => i is DisRec2OperString_Number).Cast<DisRec2OperString_Number>()
                                 .Where(i => i.SymbolType == SymbolType.Pointer || i.SymbolType == SymbolType.ServiceCall)
                                 );
                         }
-*/
+
                     }
                     catch (EndOfStreamException)
                     {
@@ -133,11 +136,9 @@ namespace TestDisass
                 long lastGood_p = 0;
                 while (ok)
                 {
-                    bool hassym = false;
                     foreach (var label in symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
                         Console.WriteLine($"{label.Name}:");
-                        hassym = true;
                     }
 
                     var p = ms.Position;
