@@ -120,12 +120,14 @@
                 <TextBlock Text="{Binding Hints}" Foreground="#FF5D6A76" TextWrapping="WrapWithOverflow"/>
             </StackPanel>
         </DataTemplate>
+        
         <DataTemplate x:Key="LabelModelTemplate" DataType="{x:Type viewmodel:DisassItemLabelModel}">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding Symbol}" />
                 <TextBlock Text=":" />
             </StackPanel>
         </DataTemplate>
+        
         <local:DisassTemplateSelector 
             x:Key="DisassTemplateSelector" 
             OpModelTemplate="{StaticResource OpModelTemplate}" 

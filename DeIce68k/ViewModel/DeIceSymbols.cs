@@ -129,7 +129,7 @@ namespace DeIce68k.ViewModel
             {
                 uint offset = dispc - near_addr;
                 string o = (offset == 0) ? "" : $"+{offset:X2}";
-                return $"{syms.First()}{o}";
+                return $"{syms.First().Name}{o}";
             }
             return null;
         }
