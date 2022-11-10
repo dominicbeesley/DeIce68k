@@ -507,7 +507,15 @@ namespace DeIce68k.ViewModel
                     if (dlg.ShowDialog() == true)
                     {
                         DisassembleAt(dlg.Address);
+
+                        //Not sure how to best pass this up to the UI
+                        if (MainWindow is not null)
+                        {
+                            var i = MainWindow.ucDisAss.lbLines.Items.OfType<DisassItemOpModel>().Where(x => x.Address == dlg.Address).FirstOrDefault();
+                            MainWindow.ucDisAss.lbLines.ScrollIntoView(i);
+                        }
                     }
+
 
                 },
                 o =>

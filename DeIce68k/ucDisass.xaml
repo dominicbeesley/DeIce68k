@@ -158,6 +158,7 @@
             HorizontalAlignment="Stretch" 
             VerticalAlignment="Stretch" FontSize="12"
             ItemTemplateSelector="{StaticResource DisassTemplateSelector}" Loaded="LbLines_Loaded"
-            />
+            >
+    </ListBox>
 
 </UserControl>
