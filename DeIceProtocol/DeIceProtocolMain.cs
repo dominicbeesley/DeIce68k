@@ -103,7 +103,8 @@ namespace DeIceProtocol
                             _runSemaphore.Release();
                             claimed = false;
 
-                            RaiseOobData(str);
+                            if (!string.IsNullOrWhiteSpace(str))
+                                RaiseOobData(str);
                             
                         }
                     }
@@ -200,6 +201,9 @@ namespace DeIceProtocol
 
         private string DoOobRead_int(byte first)
         {
+            if (first == 0x0D || first == 0x0A)
+                return "";
+
             using (var ms = new MemoryStream())
             {
 
@@ -211,7 +215,7 @@ namespace DeIceProtocol
                     try
                     {
                         byte b = _serial.PeekByte(SHORT_TIMEOUT);
-                        if (b >= DeIceProtoConstants.FN_MIN)
+                        if (b >= DeIceProtoConstants.FN_MIN || b == 0x0D || b == 0x0A)
                             finished = true;
                         else
                             ms.WriteByte(_serial.ReadByte(SHORT_TIMEOUT));
