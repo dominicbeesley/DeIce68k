@@ -1175,6 +1175,15 @@ namespace DeIce68k.ViewModel
                 _regs = new RegisterSetModelx86_16(this);
                 changed = true;
             }
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_386 && Regs?.GetType() != typeof(RegisterSetModelx86_16))
+            {
+                //TODO: implement 386 register set, for now just use x86_16
+                if (_regs != null)
+                    _regs.PropertyChanged -= Regs_PropertyChanged;
+
+                _regs = new RegisterSetModelx86_16(this);
+                changed = true;
+            }
             else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_ARM2 && Regs?.GetType() != typeof(RegisterSetModelArm2))
             {
                 if (_regs != null)
@@ -1208,7 +1217,7 @@ namespace DeIce68k.ViewModel
             if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_68k)
                 return new Disass68k.Disass();
             else
-                return new DisassX86.DisassX86();
+                return new DisassX86.DisassX86(DisassX86.DisassX86.API.match_x86);
         }
 
         private void RefreshDisassembly()

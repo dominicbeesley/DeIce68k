@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30804.86
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33414.496
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeIce68k", "DeIce68k\DeIce68k.csproj", "{1830ED4A-F2ED-401D-8821-80F8A9BFE4C2}"
 EndProject
@@ -21,7 +21,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestDisass", "TestDisassArm
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisassShared", "DisassShared\DisassShared.csproj", "{E0FD1101-01B5-4AD5-934F-044BF243E2A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DisassX86", "DisassX86\DisassX86.csproj", "{6A0387E5-281F-40F8-9C14-A9344813A33D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisassX86", "DisassX86\DisassX86.csproj", "{6A0387E5-281F-40F8-9C14-A9344813A33D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

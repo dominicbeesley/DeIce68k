@@ -26,10 +26,16 @@ namespace TestDisass
 
             IDisAss disass = null;
 
-            switch (args[0])
+            switch (args[0].ToUpper())
             {
                 case "X86": 
-                    disass = new DisassX86.DisassX86();
+                    disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_x86);
+                    break;
+                case "386":
+                    disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386);
+                    break;
+                case "386_32":
+                    disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386_32);
                     break;
                 case "ARM":
                     disass = new DisassArm.DisassArm();

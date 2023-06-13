@@ -2,7 +2,7 @@
   "profiles": {
     "TestDisass": {
       "commandName": "Project",
-      "commandLineArgs": "M68K \"E:\\Users\\dominic\\programming\\68k\\mos\\mos68k.bin\" 8D0000",
+      "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_386\\build\\test.bin\" 0",
       "sqlDebugging": true
     }
   }

@@ -12,21 +12,60 @@ namespace DisassX86
 {
     public class DisassX86 : IDisAss
     {
+
+        private API m_API { get; init; }
+
+        public DisassX86(API api)
+        {
+            m_API = api;
+        }
+
+
         [Flags]
-        public enum Prefixes {
+        public enum API
+        {
+            // instruction "match" flags
+            match_x86,
+            match_186,
+            match_286,
+            match_386,
+
+            // match any processor
+            match_all = match_x86 | match_186 | match_286 | match_386,
+
+            // 32 bit defaults
+            mode_32bit,
+
+            // API levels
+            cpu_x86 = match_x86,
+            cpu_186 = match_x86 | match_186,
+            cpu_286 = match_x86 | match_286,
+            cpu_386 = match_x86 | match_286 | match_386,
+            cpu_386_32 = match_x86 | match_286 | match_386 | mode_32bit
+        }
+
+
+        [Flags]
+        public enum Prefixes
+        {
             ES = 1,
             CS = 2,
             SS = 4,
             DS = 8,
-            REP = 16,
-            REPNZ = 32,
-            LOCK = 64,
+            FS = 16,
+            GS = 32,
+            REP = 64,
+            REPNZ = 128,
+            LOCK = 256,
+            WIDE_OPER = 512,
+            ADDR_OVER = 1024,
             NONE = 0,
             SEGS = Prefixes.ES | Prefixes.CS | Prefixes.SS | Prefixes.DS,
             B4 = Prefixes.REP | Prefixes.REPNZ | Prefixes.LOCK
         };
 
-        public enum OpClass {
+        public enum OpClass
+        {
             Prefix,
             Inherent,
             Inherent_AA,
@@ -68,6 +107,7 @@ namespace DisassX86
             public string Text { get; init; }
             public OpClass OpClass { get; init; }
 
+            public API MatchAPI { get; init; }
         }
 
         /// <summary>
@@ -144,102 +184,108 @@ namespace DisassX86
         public readonly static OpCodeDetails[] OpMap = new[]
         {
             // prefixes
-            new OpCodeDetails {And = 0xFF, Xor = 0x26, OpClass = OpClass.Prefix, Text = "es:", Pref = Prefixes.ES},
-            new OpCodeDetails {And = 0xFF, Xor = 0x2E, OpClass = OpClass.Prefix, Text = "cs:", Pref = Prefixes.CS},
-            new OpCodeDetails {And = 0xFF, Xor = 0x36, OpClass = OpClass.Prefix, Text = "ss:", Pref = Prefixes.SS},
-            new OpCodeDetails {And = 0xFF, Xor = 0x3e, OpClass = OpClass.Prefix, Text = "ds:", Pref = Prefixes.DS},
+            new OpCodeDetails {And = 0xFF, Xor = 0x26, OpClass = OpClass.Prefix, Text = "es:", Pref = Prefixes.ES, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x2E, OpClass = OpClass.Prefix, Text = "cs:", Pref = Prefixes.CS, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x36, OpClass = OpClass.Prefix, Text = "ss:", Pref = Prefixes.SS, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x3e, OpClass = OpClass.Prefix, Text = "ds:", Pref = Prefixes.DS, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x64, OpClass = OpClass.Prefix, Text = "fs:", Pref = Prefixes.FS, MatchAPI = API.match_386},
+            new OpCodeDetails {And = 0xFF, Xor = 0x65, OpClass = OpClass.Prefix, Text = "gs:", Pref = Prefixes.GS, MatchAPI = API.match_386},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xf2, OpClass = OpClass.Prefix, Text = "repnz:", Pref = Prefixes.REPNZ},
-            new OpCodeDetails {And = 0xFF, Xor = 0xf3, OpClass = OpClass.Prefix, Text = "repz", Pref = Prefixes.REP},
-            new OpCodeDetails {And = 0xFF, Xor = 0xf0, OpClass = OpClass.Prefix, Text = "lock", Pref = Prefixes.LOCK},
+            new OpCodeDetails {And = 0xFF, Xor = 0x66, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.WIDE_OPER, MatchAPI = API.match_386},
+            new OpCodeDetails {And = 0xFF, Xor = 0x67, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.ADDR_OVER, MatchAPI = API.match_386},
+
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xf2, OpClass = OpClass.Prefix, Text = "repnz:", Pref = Prefixes.REPNZ, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xf3, OpClass = OpClass.Prefix, Text = "repz", Pref = Prefixes.REP, MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xf0, OpClass = OpClass.Prefix, Text = "lock", Pref = Prefixes.LOCK, MatchAPI = API.match_all},
 
             // inherents
 
-            new OpCodeDetails {And = 0xFF, Xor = 0x37, OpClass = OpClass.Inherent, Text = "aaa"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xD5, OpClass = OpClass.Inherent_AA, Text = "aad"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x27, OpClass = OpClass.Inherent, Text = "daa"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x2F, OpClass = OpClass.Inherent, Text = "das"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xC3, OpClass = OpClass.Inherent, Text = "ret"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xCB, OpClass = OpClass.Inherent, Text = "retf"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xCF, OpClass = OpClass.Inherent, Text = "iret"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x37, OpClass = OpClass.Inherent, Text = "aaa", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xD5, OpClass = OpClass.Inherent_AA, Text = "aad", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xD4, OpClass = OpClass.Inherent_AA, Text = "aam", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x3F, OpClass = OpClass.Inherent, Text = "aas", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x27, OpClass = OpClass.Inherent, Text = "daa", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x2F, OpClass = OpClass.Inherent, Text = "das", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xC3, OpClass = OpClass.Inherent, Text = "ret", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xCB, OpClass = OpClass.Inherent, Text = "retf", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xCE, OpClass = OpClass.Inherent, Text = "into", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xCF, OpClass = OpClass.Inherent, Text = "iret", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9B, OpClass = OpClass.Inherent, Text = "wait"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9C, OpClass = OpClass.Inherent, Text = "pushf"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9E, OpClass = OpClass.Inherent, Text = "sahf"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x90, OpClass = OpClass.Inherent, Text = "nop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x98, OpClass = OpClass.Inherent, Text = "cbw", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x99, OpClass = OpClass.Inherent, Text = "cwd", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9B, OpClass = OpClass.Inherent, Text = "wait", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9C, OpClass = OpClass.Inherent, Text = "pushf", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9D, OpClass = OpClass.Inherent, Text = "popf", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9E, OpClass = OpClass.Inherent, Text = "sahf", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9F, OpClass = OpClass.Inherent, Text = "lahf", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xF9, OpClass = OpClass.Inherent, Text = "stc"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFB, OpClass = OpClass.Inherent, Text = "sti"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xFD, OpClass = OpClass.Inherent, Text = "std"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF4, OpClass = OpClass.Inherent, Text = "hlt", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF5, OpClass = OpClass.Inherent, Text = "cmc", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF8, OpClass = OpClass.Inherent, Text = "clc", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xF9, OpClass = OpClass.Inherent, Text = "stc", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFA, OpClass = OpClass.Inherent, Text = "cli", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFB, OpClass = OpClass.Inherent, Text = "sti", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFC, OpClass = OpClass.Inherent, Text = "cld", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xFD, OpClass = OpClass.Inherent, Text = "std", MatchAPI = API.match_all},
 
 
             //DP instructions
-            new OpCodeDetails {And = 0xFC, Xor = 0x80, OpClass = OpClass.MemImmOpc_DP, Text = "!!!"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x80, OpClass = OpClass.MemImmOpc_DP, Text = "!!!", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x10, OpClass = OpClass.Mem, Text = "adc"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x14, OpClass = OpClass.AccImm, Text = "adc"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x10, OpClass = OpClass.Mem, Text = "adc", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x14, OpClass = OpClass.AccImm, Text = "adc", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x00, OpClass = OpClass.Mem, Text = "add"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x04, OpClass = OpClass.AccImm, Text = "add"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x00, OpClass = OpClass.Mem, Text = "add", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x04, OpClass = OpClass.AccImm, Text = "add", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x20, OpClass = OpClass.Mem, Text = "and"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x24, OpClass = OpClass.AccImm, Text = "and"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x20, OpClass = OpClass.Mem, Text = "and", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x24, OpClass = OpClass.AccImm, Text = "and", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x38, OpClass = OpClass.Mem, Text = "cmp"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x3C, OpClass = OpClass.AccImm, Text = "cmp"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x38, OpClass = OpClass.Mem, Text = "cmp", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x3C, OpClass = OpClass.AccImm, Text = "cmp", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x08, OpClass = OpClass.Mem, Text = "or"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x0C, OpClass = OpClass.AccImm, Text = "or"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x08, OpClass = OpClass.Mem, Text = "or", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x0C, OpClass = OpClass.AccImm, Text = "or", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x18, OpClass = OpClass.Mem, Text = "sbb"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x1C, OpClass = OpClass.AccImm, Text = "sbb"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x18, OpClass = OpClass.Mem, Text = "sbb", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x1C, OpClass = OpClass.AccImm, Text = "sbb", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x28, OpClass = OpClass.Mem, Text = "sub"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x2C, OpClass = OpClass.AccImm, Text = "sub"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x28, OpClass = OpClass.Mem, Text = "sub", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x2C, OpClass = OpClass.AccImm, Text = "sub", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0x84, OpClass = OpClass.Mem, Text = "test"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xA8, OpClass = OpClass.AccImm, Text = "test"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x84, OpClass = OpClass.Mem, Text = "test", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xA8, OpClass = OpClass.AccImm, Text = "test", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0x86, OpClass = OpClass.Mem, Text = "xchg"},
-            new OpCodeDetails {And = 0xF8, Xor = 0x90, OpClass = OpClass.Reg_16, Text = "xchg"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x86, OpClass = OpClass.Mem, Text = "xchg", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xF8, Xor = 0x90, OpClass = OpClass.Reg_16, Text = "xchg", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x30, OpClass = OpClass.Mem, Text = "xor"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x34, OpClass = OpClass.AccImm, Text = "xor"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x30, OpClass = OpClass.Mem, Text = "xor", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x34, OpClass = OpClass.AccImm, Text = "xor", MatchAPI = API.match_all},
 
 
-            new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x62, OpClass = OpClass.MemW, Text = "bound", MatchAPI = API.match_all},
 
             
             // effective address instructions
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xC5, OpClass = OpClass.Mem2R, Text = "lds"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xC5, OpClass = OpClass.Mem2R, Text = "lds", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0x8D, OpClass = OpClass.Mem2R, Text = "lea"},
+            new OpCodeDetails {And = 0xFF, Xor = 0x8D, OpClass = OpClass.Mem2R, Text = "lea", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xC4, OpClass = OpClass.Mem2R, Text = "les"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xC4, OpClass = OpClass.Mem2R, Text = "les", MatchAPI = API.match_all},
 
 
             //Single MemOpc Instructions
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S1, Text = "!!!"}, // dec/inc/call/jmp etc
+            new OpCodeDetails {And = 0xFE, Xor = 0xFE, OpClass = OpClass.MemOpc_S1, Text = "!!!", MatchAPI = API.match_all}, // dec/inc/call/jmp etc
 
-            new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_16, Text = "dec"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x48, OpClass = OpClass.Reg_16, Text = "dec", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S2, Text = "!!!"},//DIV/IDIV/IMUL/NEG
+            new OpCodeDetails {And = 0xFE, Xor = 0xF6, OpClass = OpClass.MemOpc_S2, Text = "!!!", MatchAPI = API.match_all},//DIV/IDIV/IMUL/NEG
 
-            new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_16, Text = "inc"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x40, OpClass = OpClass.Reg_16, Text = "inc", MatchAPI = API.match_all},
 
 
 
@@ -247,69 +293,69 @@ namespace DisassX86
 
             // also picked up by FF/FE -> above dec/inc/etc
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xE8, OpClass = OpClass.CallNear, Text = "call"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x9A, OpClass = OpClass.CallFar, Text = "call"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE8, OpClass = OpClass.CallNear, Text = "call", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x9A, OpClass = OpClass.CallFar, Text = "call", MatchAPI = API.match_all},
 
             //Jumps
 
-            new OpCodeDetails {And = 0xF0, Xor = 0x70, OpClass = OpClass.Jcc, Text = "j"},
+            new OpCodeDetails {And = 0xF0, Xor = 0x70, OpClass = OpClass.Jcc, Text = "j", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xE3, OpClass = OpClass.J_short, Text = "jcxz"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE3, OpClass = OpClass.J_short, Text = "jcxz", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xEB, OpClass = OpClass.J_short, Text = "jmp"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xEB, OpClass = OpClass.J_short, Text = "jmp", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xE2, OpClass = OpClass.J_short, Text = "loop"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xE1, OpClass = OpClass.J_short, Text = "loope"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xE0, OpClass = OpClass.J_short, Text = "loopne"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE2, OpClass = OpClass.J_short, Text = "loop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE1, OpClass = OpClass.J_short, Text = "loope", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE0, OpClass = OpClass.J_short, Text = "loopne", MatchAPI = API.match_all},
 
 
-            new OpCodeDetails {And = 0xFF, Xor = 0xE9, OpClass = OpClass.CallNear, Text = "jmp"},
-            new OpCodeDetails {And = 0xFF, Xor = 0xEA, OpClass = OpClass.CallFar, Text = "jmp"},
+            new OpCodeDetails {And = 0xFF, Xor = 0xE9, OpClass = OpClass.CallNear, Text = "jmp", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0xEA, OpClass = OpClass.CallFar, Text = "jmp", MatchAPI = API.match_all},
 
             //MOVs
 
-            new OpCodeDetails {And = 0xFC, Xor = 0x88, OpClass = OpClass.Mem, Text = "mov"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xC6, OpClass = OpClass.MemImm, Text = "mov"},
-            new OpCodeDetails {And = 0xF0, Xor = 0xB0, OpClass = OpClass.RegImm, Text = "mov"},
-            new OpCodeDetails {And = 0xFC, Xor = 0xA0, OpClass = OpClass.AccDisp, Text = "mov"},
-            new OpCodeDetails {And = 0xFD, Xor = 0x8C, OpClass = OpClass.MemSeg, Text = "mov"},
+            new OpCodeDetails {And = 0xFC, Xor = 0x88, OpClass = OpClass.Mem, Text = "mov", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xC6, OpClass = OpClass.MemImm, Text = "mov", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xF0, Xor = 0xB0, OpClass = OpClass.RegImm, Text = "mov", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFC, Xor = 0xA0, OpClass = OpClass.AccDisp, Text = "mov", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFD, Xor = 0x8C, OpClass = OpClass.MemSeg, Text = "mov", MatchAPI = API.match_all},
 
             // strings
-            new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xA4, OpClass = OpClass.String, Text = "movs"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xAA, OpClass = OpClass.String, Text = "stos"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xAE, OpClass = OpClass.String, Text = "scas"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xA6, OpClass = OpClass.String, Text = "cmps", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAC, OpClass = OpClass.String, Text = "lods", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xA4, OpClass = OpClass.String, Text = "movs", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAA, OpClass = OpClass.String, Text = "stos", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xAE, OpClass = OpClass.String, Text = "scas", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins"},
-            new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs"},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs", MatchAPI = API.match_all},
 
 
             //In/Out
-            new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???"},
+            new OpCodeDetails {And = 0xF4, Xor = 0xE4, OpClass = OpClass.InOut, Text = "???", MatchAPI = API.match_all},
 
             //Int
-            new OpCodeDetails {And = 0xFE, Xor = 0xCC, OpClass = OpClass.Int, Text = "int"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xCC, OpClass = OpClass.Int, Text = "int", MatchAPI = API.match_all},
 
             //Push/Pop
-            new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop"},
-            new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop"},
-            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S_Pop, Text = "!!!"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S_Pop, Text = "!!!", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push"},
-            new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push"},
+            new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push"},
+            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push", MatchAPI = API.match_all},
 
             // rotates
 
-            new OpCodeDetails {And = 0xFE, Xor = 0xD0, OpClass = OpClass.MemOpc_S_Rot1, Text = "!!!"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xD2, OpClass = OpClass.MemOpc_S_RotCL, Text = "!!!"},
-            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!"},
+            new OpCodeDetails {And = 0xFE, Xor = 0xD0, OpClass = OpClass.MemOpc_S_Rot1, Text = "!!!", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xD2, OpClass = OpClass.MemOpc_S_RotCL, Text = "!!!", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!", MatchAPI = API.match_all},
 
             // RetImm
 
-            new OpCodeDetails {And = 0xF7, Xor = 0xC2, OpClass = OpClass.RetImm, Text = "ret"}
+            new OpCodeDetails {And = 0xF7, Xor = 0xC2, OpClass = OpClass.RetImm, Text = "ret", MatchAPI = API.match_all}
 
         };
 
@@ -442,7 +488,7 @@ namespace DisassX86
 
                     b4flags = sb.ToString();
                 }
-                
+
 
                 if (!string.IsNullOrEmpty(b4flags))
                 {
@@ -456,12 +502,12 @@ namespace DisassX86
                     };
                 }
             }
-            
+
 
             return ret;
         }
 
-        private readonly static string [] regs =
+        private readonly static string[] regs =
         {
             "al",
             "cl",
@@ -478,12 +524,20 @@ namespace DisassX86
             "sp",
             "bp",
             "si",
-            "di"
+            "di",
+            "eax",
+            "ecx",
+            "edx",
+            "ebx",
+            "esp",
+            "ebp",
+            "esi",
+            "edi"
         };
 
-        IEnumerable<DisRec2OperString_Base> GetReg(int rrr, bool width)
+        IEnumerable<DisRec2OperString_Base> GetReg(int rrr, bool width, bool wide_oper)
         {
-            int ix = (rrr & 0x7) + (width?8:0);
+            int ix = (rrr & 0x7) + (width ? (wide_oper ? 16 : 8) : 0);
 
             return new[] { new DisRec2OperString_String { Text = regs[ix] } };
         }
@@ -502,13 +556,22 @@ namespace DisassX86
 
         }
 
-        IEnumerable<DisRec2OperString_Base> GetData(BinaryReader br, bool w, ref ushort l, SymbolType symboltype)
+        IEnumerable<DisRec2OperString_Base> GetData(BinaryReader br, bool w, bool wide_oper, ref ushort l, SymbolType symboltype)
         {
             if (w)
             {
-                l+=2;
-                return OperNum(br.ReadUInt16(), symboltype);
-            } else
+                if (wide_oper)
+                {
+                    l += 4;
+                    return OperNum(br.ReadUInt32(), symboltype);
+                }
+                else
+                {
+                    l += 2;
+                    return OperNum(br.ReadUInt16(), symboltype);
+                }
+            }
+            else
             {
                 l++;
                 return OperNum(br.ReadByte(), symboltype);
@@ -524,10 +587,12 @@ namespace DisassX86
         IEnumerable<DisRec2OperString_Base> GetRelDisp(BinaryReader br, bool w, ref ushort l, UInt32 pc)
         {
             int offs;
-            if (w) {
+            if (w)
+            {
                 offs = br.ReadInt16();
                 l += 2;
-            } else
+            }
+            else
             {
                 offs = br.ReadSByte();
                 l += 1;
@@ -535,11 +600,19 @@ namespace DisassX86
             return OperNum((uint)((l + pc + offs) & 0xFFFF) | (pc & 0xFFFF0000), SymbolType.Pointer);
         }
 
+        private IEnumerable<DisRec2OperString_Base> GetAcc(bool wide, Prefixes prefixes)
+        {
+            return wide ? (
+                        prefixes.HasFlag(Prefixes.WIDE_OPER) ? OperStr("eax") : OperStr("ax")
+                        ) : OperStr("al");
+        }
+
+
         IEnumerable<DisRec2OperString_Base> GetDisp(BinaryReader br, bool w, ref ushort l, Prefixes prefixes)
         {
             var ps = PointerPrefixStr(prefixes, Prefixes.DS);
 
-            return OperStr("[").Concat(ps).Concat(GetData(br, w, ref l, SymbolType.Pointer)).Concat(OperStr("]"));
+            return OperStr("[").Concat(ps).Concat(GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Pointer)).Concat(OperStr("]"));
         }
 
         public IEnumerable<DisRec2OperString_Base> GetModRm(BinaryReader br, int mod, int r_m, bool w, bool ptrsz, Prefixes prefixes, ref ushort l, bool call = false)
@@ -560,7 +633,7 @@ namespace DisassX86
 
             if (mod == 3)
             {
-                return GetReg(r_m, w);
+                return GetReg(r_m, w, prefixes.HasFlag(Prefixes.WIDE_OPER));
             }
             else if (mod == 00 && r_m == 6)
             {
@@ -590,7 +663,7 @@ namespace DisassX86
                 if (offs == 0)
                     offs_str = Enumerable.Empty<DisRec2OperString_Base>();
                 else if (offs > 0)
-                    offs_str = OperStr("+").Concat(OperNum((uint)offs, SymbolType.Offset)); 
+                    offs_str = OperStr("+").Concat(OperNum((uint)offs, SymbolType.Offset));
                 else
                     offs_str = OperStr("-").Concat(OperNum((uint)-offs, SymbolType.Offset));
 
@@ -637,7 +710,7 @@ namespace DisassX86
         {
             prefixes = prefixes & Prefixes.SEGS;
             if (prefixes == Prefixes.NONE || (prefixes & def) != 0)
-               return Enumerable.Empty<DisRec2OperString_Base>();
+                return Enumerable.Empty<DisRec2OperString_Base>();
 
             switch (prefixes)
             {
@@ -659,7 +732,7 @@ namespace DisassX86
             bool w = (opcode & 0x08) != 0;
             int rix = opcode & 0x7;
 
-            var Ops = GetReg(rix, w).Concat(OperStr(",")).Concat(GetData(br, w, ref l, SymbolType.Immediate));
+            var Ops = GetReg(rix, w, prefixes.HasFlag(Prefixes.WIDE_OPER)).Concat(OperStr(",")).Concat(GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate));
 
             return new DisRec2<UInt32>
             {
@@ -674,7 +747,7 @@ namespace DisassX86
         {
             int rix = opcode & 0x7;
 
-            var Reg = GetReg(rix, true);
+            var Reg = GetReg(rix, true, prefixes.HasFlag(Prefixes.WIDE_OPER));
             var Ops = Reg;
             if ((opcode & 0xF8) == 0x90)
             {
@@ -713,30 +786,29 @@ namespace DisassX86
         {
             bool w = (opcode & 0x01) != 0;
 
-            string r = (w) ? "ax" : "al";
-            var imm = GetData(br, w, ref l, SymbolType.Immediate);
+            var acc = GetAcc(w, prefixes);
+            var imm = GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
 
             return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Length = (ushort)(l),
                 Mnemonic = opd.Text,
-                Operands = OperStr(r).Concat(OperStr(",")).Concat(imm)
+                Operands = acc.Concat(OperStr(",")).Concat(imm)
             };
 
         }
-
 
         private DisRec2<UInt32> DoClassAccDisp(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
             bool d = (opcode & 0x02) != 0;
 
-            var Mem = GetDisp(br, true, ref l, prefixes);
-            var Acc = w ? OperStr("ax") : OperStr("al");
+            var Mem = GetDisp(br, true, ref l, prefixes & ~Prefixes.WIDE_OPER);
+            var Acc = GetAcc(w, prefixes);
 
             IEnumerable<DisRec2OperString_Base> Ops;
-            
+
             if (d)
                 Ops = Mem.Concat(OperStr(",")).Concat(Acc);
             else
@@ -771,14 +843,15 @@ namespace DisassX86
         }
 
 
-        private DisRec2<UInt32> DoClassMem_int(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w) { 
+        private DisRec2<UInt32> DoClassMem_int(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w)
+        {
             byte modrm = br.ReadByte();
 
             int mod = (modrm & 0xC0) >> 6;
             int rrr = (modrm & 0x38) >> 3;
             int r_m = modrm & 0x7;
 
-            var Op1 = GetReg(rrr, w);
+            var Op1 = GetReg(rrr, w, prefixes.HasFlag(Prefixes.WIDE_OPER));
             if (Op1 == null)
                 return null;
 
@@ -854,7 +927,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, w, ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -888,7 +961,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, w ^ s, ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, w ^ s, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -922,7 +995,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, false, ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, false, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -954,7 +1027,7 @@ namespace DisassX86
             int r_m = modrm & 0x7;
 
 
-            var Op2 = GetModRm(br, mod, r_m, w, call ? far : true, prefixes, ref l, call : call );
+            var Op2 = GetModRm(br, mod, r_m, w, call ? far : true, prefixes, ref l, call: call);
             if (Op2 == null)
                 return null;
 
@@ -991,17 +1064,21 @@ namespace DisassX86
             if (rrr == 0)
             {
                 UInt32 imm;
-                if (w) {
+                if (w)
+                {
                     imm = br.ReadUInt16();
                     l += 2;
-                } else {
+                }
+                else
+                {
                     imm = br.ReadByte();
                     l++;
                 }
 
                 // horendous bodge for test!
                 Ops = Op2.Concat(OperStr(",")).Concat(OperNum(imm, SymbolType.Immediate));
-            } else
+            }
+            else
             {
                 Ops = Op2;
             }
@@ -1119,12 +1196,12 @@ namespace DisassX86
                 return null;
             else
 
-            return new DisRec2<uint>
-            {
-                Decoded = true,
-                Length = (ushort)(l+1),
-                Mnemonic = opd.Text
-            };
+                return new DisRec2<uint>
+                {
+                    Decoded = true,
+                    Length = (ushort)(l + 1),
+                    Mnemonic = opd.Text
+                };
         }
 
         public DisRec2<UInt32> DoClassCallNear(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
@@ -1196,9 +1273,9 @@ namespace DisassX86
             bool d = (opcode & 0x02) != 0;
             bool dx = (opcode & 0x08) != 0;
 
-            var OpP = dx ? OperStr("dx") : GetData(br, false, ref l, SymbolType.Port);
+            var OpP = dx ? OperStr("dx") : GetData(br, false, false, ref l, SymbolType.Port);
 
-            var OpAcc = OperStr((w) ? "ax" : "al");
+            var OpAcc = GetAcc(w, prefixes);
 
             var Ops = d ? OpP.Concat(OperStr(",")).Concat(OpAcc) : OpAcc.Concat(OperStr(",")).Concat(OpP);
 
@@ -1225,7 +1302,7 @@ namespace DisassX86
                     Operands = null
                 };
             else
-                Num = GetData(br, false, ref l, SymbolType.ServiceCall);
+                Num = GetData(br, false, false, ref l, SymbolType.ServiceCall);
 
             return new DisRec2<UInt32>
             {
@@ -1263,7 +1340,7 @@ namespace DisassX86
             {
                 Decoded = true,
                 Length = l,
-                Mnemonic = $"{opd.Text}{(f?"f":"")}",
+                Mnemonic = $"{opd.Text}{(f ? "f" : "")}",
                 Operands = Ops
             };
 
@@ -1293,10 +1370,11 @@ namespace DisassX86
             {
                 Ops = OperStr("word ").Concat(OperNum(br.ReadUInt16(), SymbolType.Immediate));
                 l += 2;
-            } else
+            }
+            else
             {
                 Ops = OperStr("byte ").Concat(OperNum(br.ReadByte(), SymbolType.Immediate));
-                l ++;
+                l++;
             }
 
             return new DisRec2<UInt32>
