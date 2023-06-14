@@ -27,23 +27,23 @@ namespace DisassX86
         public enum API
         {
             // instruction "match" flags
-            match_x86,
-            match_186,
-            match_286,
-            match_386,
+            match_x86 = 1,
+            match_186 = 2,
+            match_286 = 4,
+            match_386 = 8,
 
             // match any processor
             match_all = match_x86 | match_186 | match_286 | match_386,
 
             // 32 bit defaults
-            mode_32bit,
+            mode_32bit = 32,
 
             // API levels
             cpu_x86 = match_x86,
             cpu_186 = match_x86 | match_186,
-            cpu_286 = match_x86 | match_286,
-            cpu_386 = match_x86 | match_286 | match_386,
-            cpu_386_32 = match_x86 | match_286 | match_386 | mode_32bit
+            cpu_286 = match_x86 | match_186 | match_286,
+            cpu_386 = match_x86 | match_186 | match_286 | match_386,
+            cpu_386_32 = match_x86 | match_186 | match_286 | match_386 | mode_32bit
         }
 
 
@@ -101,7 +101,8 @@ namespace DisassX86
             Jcc,
             J_short,
             ImmPush,
-            RetImm
+            RetImm,
+            ImmImm
         }
 
 
@@ -334,8 +335,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFE, Xor = 0xAA, OpClass = OpClass.String, Text = "stos", MatchAPI = API.match_all},
             new OpCodeDetails {And = 0xFE, Xor = 0xAE, OpClass = OpClass.String, Text = "scas", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins", MatchAPI = API.match_all},
-            new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6C, OpClass = OpClass.String, Text = "ins", MatchAPI = API.match_186},
+            new OpCodeDetails {And = 0xFE, Xor = 0x6E, OpClass = OpClass.String, Text = "outs", MatchAPI = API.match_186},
 
 
             //In/Out
@@ -352,13 +353,22 @@ namespace DisassX86
             new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push", MatchAPI = API.match_all},
             new OpCodeDetails {And = 0xC7, Xor = 0x06, OpClass = OpClass.Seg_16, Text = "push", MatchAPI = API.match_all},
 
-            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFD, Xor = 0x68, OpClass = OpClass.ImmPush, Text = "push", MatchAPI = API.match_186},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0x60, OpClass = OpClass.Inherent, Text = "pusha", MatchAPI = API.match_186},
+            new OpCodeDetails {And = 0xFF, Xor = 0x61, OpClass = OpClass.Inherent, Text = "popa", MatchAPI = API.match_186},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0xC8, OpClass = OpClass.ImmImm, Text = "enter", MatchAPI = API.match_186},
+            new OpCodeDetails {And = 0xFF, Xor = 0xC9, OpClass = OpClass.Inherent, Text = "leave", MatchAPI = API.match_186},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0x64, OpClass = OpClass.Mem, Text = "bound", MatchAPI = API.match_186},
+
 
             // rotates
 
             new OpCodeDetails {And = 0xFE, Xor = 0xD0, OpClass = OpClass.MemOpc_S_Rot1, Text = "!!!", MatchAPI = API.match_all},
             new OpCodeDetails {And = 0xFE, Xor = 0xD2, OpClass = OpClass.MemOpc_S_RotCL, Text = "!!!", MatchAPI = API.match_all},
-            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFE, Xor = 0xC0, OpClass = OpClass.MemImmOpc_Rot, Text = "!!!", MatchAPI = API.match_186},
 
             // RetImm
 
@@ -378,7 +388,7 @@ namespace DisassX86
             {
                 l++;
                 opcode = br.ReadByte();
-                opd = OpMap.Where(o => (o.And & opcode) == o.Xor).FirstOrDefault();
+                opd = OpMap.Where(o => (o.And & opcode) == o.Xor && ((m_API & o.MatchAPI) != 0)).FirstOrDefault();
                 if (opd?.OpClass == OpClass.Prefix)
                     prefixes |= opd.Pref;
             } while (l < 15 && opd?.OpClass == OpClass.Prefix);
@@ -470,6 +480,9 @@ namespace DisassX86
                         break;
                     case OpClass.RetImm:
                         ret = DoClassRetImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.ImmImm:
+                        ret = DoClassImmImm(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -1469,6 +1482,23 @@ namespace DisassX86
                 Length = l,
                 Mnemonic = $"{opd.Text}{(f ? "f" : "")}",
                 Operands = Ops
+            };
+
+        }
+
+        public DisRec2<UInt32> DoClassImmImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+            var OpA = OperNum(br.ReadUInt16(), SymbolType.Offset);
+            l += 2;
+            var OpB = OperNum(br.ReadByte(), SymbolType.Offset);
+            l += 1;
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = l,
+                Mnemonic = $"{opd.Text}",
+                Operands = OpA.Concat(OperStr(",")).Concat(OpB)
             };
 
         }

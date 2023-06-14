@@ -7,7 +7,12 @@
     },
     "x86_file": {
       "commandName": "Project",
-      "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\disasstest.bin\" 0",
+      "commandLineArgs": "x86 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\disasstest.bin\" 0",
+      "sqlDebugging": true
+    },
+    "186_file": {
+      "commandName": "Project",
+      "commandLineArgs": "186 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\186.bin\" 0 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\186.noi\"",
       "sqlDebugging": true
     }
   }

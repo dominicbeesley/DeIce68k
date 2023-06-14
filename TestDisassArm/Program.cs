@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace TestDisass
 {
@@ -12,7 +14,7 @@ namespace TestDisass
     {
         static void Usage(TextWriter wr, string message, int ExitCode)
         {
-            wr.WriteLine("TestDisAss <type> <file> <base>");
+            wr.WriteLine("TestDisAss <type> <file> <base> [<symbols>]");
             if (!string.IsNullOrEmpty(message))
                 wr.WriteLine(message);
 
@@ -21,15 +23,18 @@ namespace TestDisass
 
         static int Main(string[] args)
         {
-            if (args.Length != 3)
+            if (args.Length < 3)
                 Usage(Console.Error, "Wrong number of arguments", 100);
 
             IDisAss disass = null;
 
             switch (args[0].ToUpper())
             {
-                case "X86": 
+                case "X86":
                     disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_x86);
+                    break;
+                case "186":
+                    disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_186);
                     break;
                 case "386":
                     disass = new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386);
@@ -51,12 +56,48 @@ namespace TestDisass
 
             Symbols symbols = new Symbols();
 
+            if (args.Length >= 4)
+            {
+                string symfn = args[3];
+
+                Regex reDEF = new Regex(@"^\s*DEF\s+(\w+)\s+([0-9a-f]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+                TextReader f_sym = null;
+                try
+                {
+                    f_sym = new StreamReader(symfn);
+                }
+                catch (Exception ex)
+                {
+                    Usage(Console.Error, $"Error reading symbol file \"{symfn}\" : {ex.ToString()}", 104);
+                }
+                using(f_sym)
+                {
+                    int lno = 1;
+                    string l;
+                    try {
+                        while ((l = f_sym.ReadLine()) != null) {
+                            var m = reDEF.Match(l);
+                            if (m.Success)
+                            {
+                                symbols.Add(m.Groups[1].Value, Convert.ToUInt32(m.Groups[2].Value, 16), SymbolType.Pointer);
+                            }
+
+                            lno++;
+                        }
+                    } catch (Exception ex) { 
+                        Usage(Console.Error, $"Error reading symbold file \"{symfn}\" at line {lno} : {ex.ToString()}", 105);
+                    }
+                }
+            }
+
             byte[] Data = null;
 
             try
             {
                 Data = File.ReadAllBytes(args[1]);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 Usage(Console.Error, $"Error reading file \"{args[1]}\" : {ex.ToString()}", 101);
             }
@@ -66,7 +107,8 @@ namespace TestDisass
             try
             {
                 BaseAddress = Convert.ToUInt32(args[2], 16);
-            } catch (Exception)
+            }
+            catch (Exception)
             {
                 Usage(Console.Error, $"Bad base address {args[2]}", 103);
             }
@@ -95,7 +137,8 @@ namespace TestDisass
 
                         instr = disass.Decode(br, dispc);
 
-                        if (instr?.Operands != null) {
+                        if (instr?.Operands != null)
+                        {
                             //look for missing symbols and add to set to create later
                             miss.UnionWith(
                                 instr.Operands.Where(i => i is DisRec2OperString_Number).Cast<DisRec2OperString_Number>()
@@ -126,7 +169,8 @@ namespace TestDisass
                     if (n.SymbolType == SymbolType.ServiceCall)
                     {
                         symbols.Add($"SWI_{n.Number:X}", n.Number, n.SymbolType);
-                    } else if (n.SymbolType == SymbolType.Pointer)
+                    }
+                    else if (n.SymbolType == SymbolType.Pointer)
                     {
                         if (n.Number >= BaseAddress && n.Number < EndAddress)
                             symbols.Add($"L_{n.Number:X}", n.Number, n.SymbolType);
@@ -198,7 +242,8 @@ namespace TestDisass
                             lastGood = dispc + instr.Length;
                             lastGood_p = ms.Position;
 
-                        } else
+                        }
+                        else
                         {
                             ms.Position = p + instr.Length;
                         }

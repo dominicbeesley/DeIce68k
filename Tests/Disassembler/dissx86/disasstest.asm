@@ -1,10 +1,24 @@
-	absolute 0
-DATA1	resw	44
-DATA2	resw	44
+[map all]
 
 
 
-cpu 186
+%ifdef 	CPU_x86
+	cpu 8086
+%elifdef CPU_186
+	cpu 186
+	%define level_186
+%elifdef CPU_286
+	cpu 286
+	%define level_186
+	%define level_286
+%elifdef CPU_386
+	cpu 386
+	%define level_186
+	%define level_286
+	%define level_386
+%else
+	%error "No cpu specified"
+%endif
 
 
 
@@ -167,14 +181,11 @@ c:
 		and	word [BP+SI],99
 
 		; acc, imm
+	%ifdef level_186
 		and	AL,3
 		and	AX,9999
+	%endif
 		and	AH,3
-
-		;;; BOUND
-
-		bound 	AX,[DATA1]
-		bound	BX,[DI+3]
 
 
 		;;; CALL
@@ -350,6 +361,7 @@ c:
 		in	AL,DX
 		in	AX,DX
 
+
 		;;;;;;;;;;;;;; inc ;;;;;;;;;;;;;;;;
 
 		; reg
@@ -370,17 +382,19 @@ l6:		inc	word [CS:BP+SI+6]
 
 		;;;;;;;;;;;;;; INS ;;;;;;;;;;;;;;;;
 
-l7:		rep insb
-l8:		rep insw
-l9:		repnz insb
-l10:		rep insw
+	%ifdef level_186
+		rep insb
+		rep insw
+		repnz insb
+		rep insw
+	%endif
 
 		;;;;;;;;;;;;;; int ;;;;;;;;;;;;;;;;
 
-		int 1
-		int 2
-		int3
-		int 0xFF
+l7:		int 1
+l8:		int 2
+l9:		int3
+l10:		int 0xFF
 
 		;;;;;;;;;;;;;; iret ;;;;;;;;;;;;;;;;
 
@@ -620,12 +634,15 @@ x2:
 		out	DX,AL
 		out	DX,AX
 
+
 		;;;;;;;;;;;;;; outs ;;;;;;;;;;;;;;;;
 
+	%ifdef level_186
 		rep outsb
 		rep outsw
 		repnz outsb
 		rep outsw
+	%endif
 
 		;;;;;;;;;;;;;; pop ;;;;;;;;;;;;;;;;;
 
@@ -649,6 +666,10 @@ x2:
 
 		popf
 
+	%ifdef level_186
+		popa
+	%endif
+
 		;;;;;;;;;;;;;; push ;;;;;;;;;;;;;;;;;
 
 		push	AX
@@ -669,11 +690,16 @@ x2:
 		push	word [DI+DATA2]
 		push	word [CS:BP+SI+6]
 
+	%ifdef level_186
 		push	0x1234
 		push	0x99
 		push	'.'
+	%endif
 
 		pushf	
+	%ifdef level_186
+		pusha
+	%endif
 
 		;;;;;;;;;;;;;; RCL/RCR/ROL/ROR ;;;;;;;;;;;;;;;;;;
 
@@ -730,6 +756,7 @@ x2:
 		ror	word [CS:BP+SI+6],CL
 
 
+	%ifdef level_186
 		rcl	AL,2
 		rcl	AH,3
 		rcl	AX,4
@@ -742,11 +769,16 @@ x2:
 		ror	DL,11
 		ror	DH,12
 		ror	DX,13
-
-		rcl	SI,2
+ 
+ 		rcl	SI,2
 		rcr	DI,3
 		rol	BP,4
 		ror	SP,5
+
+		rcl	SI,CL
+		rcr	DI,CL
+		rol	BP,CL
+		ror	SP,CL
 
 		rol	byte [DATA1],6
 		rol	byte [DI+DATA2],7
@@ -755,6 +787,51 @@ x2:
 		ror	word [DATA1],9
 		ror	word [DI+DATA2],10
 		ror	word [CS:BP+SI+6],11
+
+	%endif
+
+
+		rcl	AL,CL
+		rcl	AH,CL
+		rcl	AX,CL
+		rcr	BL,CL
+		rcr	BH,CL
+		rcr	BX,CL
+		rol	CL,CL
+		rol	CH,CL
+		rol	CX,CL
+		ror	DL,CL
+		ror	DH,CL
+		ror	DX,CL
+
+		rol	byte [DATA1],CL
+		rol	byte [DI+DATA2],CL
+		rol	byte [CS:BP+SI+6],CL
+
+		ror	word [DATA1],CL
+		ror	word [DI+DATA2],CL
+		ror	word [CS:BP+SI+6],CL
+
+		rcl	AL,1
+		rcl	AH,1
+		rcl	AX,1
+		rcr	BL,1
+		rcr	BH,1
+		rcr	BX,1
+		rol	CL,1
+		rol	CH,1
+		rol	CX,1
+		ror	DL,1
+		ror	DH,1
+		ror	DX,1
+
+		rol	byte [DATA1],1
+		rol	byte [DI+DATA2],1
+		rol	byte [CS:BP+SI+6],1
+
+		ror	word [DATA1],1
+		ror	word [DI+DATA2],1
+		ror	word [CS:BP+SI+6],1
 
 		;;;;;;;;;;;;;; RET ;;;;;;;;;;;;;;;;;;
 
@@ -813,7 +890,7 @@ x2:
 		sar	byte [CS:BP+SI+6],CL
 
 
-
+	%ifdef level_186
 		sal	AL,2
 		sal	AH,3
 		sal	AX,4
@@ -831,6 +908,25 @@ x2:
 		sar	byte [DATA1],6
 		sar	byte [DI+DATA2],7
 		sar	byte [CS:BP+SI+6],8
+	%endif
+
+		sal	AL,1
+		sal	AH,1
+		sal	AX,1
+		shr	BL,1
+		shr	BH,1
+		shr	BX,1
+		sar	CL,1
+		sar	CH,1
+		sar	CX,1
+
+		sal	SI,1
+		shr	DI,1
+		sar	BP,1
+
+		sar	byte [DATA1],1
+		sar	byte [DI+DATA2],1
+		sar	byte [CS:BP+SI+6],1
 
 
 		;;;;;;;;;;;;;; sbb ;;;;;;;;;;;;;;;;
@@ -1033,3 +1129,30 @@ x2:
 		xor	AX,9999
 		xor	AH,3
 
+	%ifdef level_186
+		enter 3,0
+		enter 10,0
+		enter 3,1
+		enter 10,1
+		enter 3,6
+		enter 10,5
+		enter 1024,5
+		enter 0xFFFF,5
+
+		leave
+
+		bound	AX,[d1]
+		bound	BP,[d2]
+		bound	BP,[BP+SI]
+		bound	BP,[BX+2]
+		bound	BP,[BX+d2]
+
+	%endif
+
+		section .bss
+
+d1:		resb 1000
+d2:		resb 1000
+
+DATA1:	resw	44
+DATA2:	resw	44

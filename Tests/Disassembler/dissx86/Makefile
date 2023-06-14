@@ -1,9 +1,12 @@
 AS=nasm
-ASFLAGS=
+ASFLAGS=-O0
 
-TARGETS=disasstest.bin
+MAP2SYM=../scripts/map2sym.pl
+
+TARGETS=x86.bin 186.bin 286.bin 386.bin
 
 BUILD=./build
+
 
 TARGETS2=$(addprefix $(BUILD)/,$(TARGETS))
 
@@ -11,10 +14,27 @@ $(shell mkdir -p $(BUILD))
 
 all:: $(TARGETS2)
 
-$(BUILD)/disasstest.bin: disasstest.asm
-	$(AS) $(ASFLAGS) -fbin -o $@ -l $(basename $@).lst $<
+$(BUILD)/x86.bin: disasstest.asm
+	$(AS) $(ASFLAGS) -DCPU_x86 -fbin -o $@ -l $(basename $@).lst $< >$(basename $@).map
+	$(MAP2SYM) $(basename $@).map $(basename $@).noi .text=0000 .bss=0000
+
+$(BUILD)/186.bin: disasstest.asm
+	$(AS) $(ASFLAGS) -DCPU_186 -fbin -o $@ -l $(basename $@).lst $< >$(basename $@).map
+	$(MAP2SYM) $(basename $@).map $(basename $@).noi .text=0000 .bss=0000
+
+$(BUILD)/286.bin: disasstest.asm
+	$(AS) $(ASFLAGS) -DCPU_286 -fbin -o $@ -l $(basename $@).lst $< >$(basename $@).map
+	$(MAP2SYM) $(basename $@).map $(basename $@).noi .text=0000 .bss=0000
+
+$(BUILD)/386.bin: disasstest.asm
+	$(AS) $(ASFLAGS) -DCPU_386 -fbin -o $@ -l $(basename $@).lst $< >$(basename $@).map
+	$(MAP2SYM) $(basename $@).map $(basename $@).noi .text=0000 .bss=0000
+
 
 clean::
 	-rm $(TARGETS2) 
+	-rm $(patsubst %.bin, %.lst, $(TARGETS2))
+	-rm $(patsubst %.bin, %.map, $(TARGETS2))
+	-rm $(patsubst %.bin, %.noi, $(TARGETS2))
 	-rm $(OBJS2) 
 	-rm $(BUILD)/*

@@ -65,6 +65,12 @@
 	mov	BL,[xxx+4*EDI]
 	mov	BL,[xxx+8*EAX]
 
+	popa
+	popad
+
+	pusha
+	pushad
+
 
 	section .data
 
