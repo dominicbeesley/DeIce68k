@@ -4,6 +4,11 @@
       "commandName": "Project",
       "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_386\\build\\test.bin\" 0",
       "sqlDebugging": true
+    },
+    "x86_file": {
+      "commandName": "Project",
+      "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\disasstest.bin\" 0",
+      "sqlDebugging": true
     }
   }
 }

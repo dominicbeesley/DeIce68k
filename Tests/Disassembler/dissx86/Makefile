@@ -9,11 +9,6 @@ TARGETS2=$(addprefix $(BUILD)/,$(TARGETS))
 
 $(shell mkdir -p $(BUILD))
 
-hostfs::all
-	cp $(TARGETS2) $(HOSTFS)/
-	
-
-
 all:: $(TARGETS2)
 
 $(BUILD)/disasstest.bin: disasstest.asm

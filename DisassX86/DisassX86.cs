@@ -1,8 +1,10 @@
 ﻿using DisassShared;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 //TODO: There's a lot of cut and paste code - try and simplify/factor out
@@ -45,6 +47,7 @@ namespace DisassX86
         }
 
 
+
         [Flags]
         public enum Prefixes
         {
@@ -57,12 +60,16 @@ namespace DisassX86
             REP = 64,
             REPNZ = 128,
             LOCK = 256,
-            WIDE_OPER = 512,
-            ADDR_OVER = 1024,
+            WIDE_REG = 512,
+            WIDE_OPER = 1024,
             NONE = 0,
             SEGS = Prefixes.ES | Prefixes.CS | Prefixes.SS | Prefixes.DS,
             B4 = Prefixes.REP | Prefixes.REPNZ | Prefixes.LOCK
         };
+
+        bool Wide32Reg(Prefixes prefixes) => prefixes.HasFlag(Prefixes.WIDE_REG) ^ m_API.HasFlag(API.mode_32bit);
+        bool Wide32Oper(Prefixes prefixes) => prefixes.HasFlag(Prefixes.WIDE_OPER) ^ m_API.HasFlag(API.mode_32bit);
+
 
         public enum OpClass
         {
@@ -191,8 +198,8 @@ namespace DisassX86
             new OpCodeDetails {And = 0xFF, Xor = 0x64, OpClass = OpClass.Prefix, Text = "fs:", Pref = Prefixes.FS, MatchAPI = API.match_386},
             new OpCodeDetails {And = 0xFF, Xor = 0x65, OpClass = OpClass.Prefix, Text = "gs:", Pref = Prefixes.GS, MatchAPI = API.match_386},
 
-            new OpCodeDetails {And = 0xFF, Xor = 0x66, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.WIDE_OPER, MatchAPI = API.match_386},
-            new OpCodeDetails {And = 0xFF, Xor = 0x67, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.ADDR_OVER, MatchAPI = API.match_386},
+            new OpCodeDetails {And = 0xFF, Xor = 0x66, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.WIDE_REG, MatchAPI = API.match_386},
+            new OpCodeDetails {And = 0xFF, Xor = 0x67, OpClass = OpClass.Prefix, Text = null, Pref = Prefixes.WIDE_OPER, MatchAPI = API.match_386},
 
 
             new OpCodeDetails {And = 0xFF, Xor = 0xf2, OpClass = OpClass.Prefix, Text = "repnz:", Pref = Prefixes.REPNZ, MatchAPI = API.match_all},
@@ -535,11 +542,13 @@ namespace DisassX86
             "edi"
         };
 
-        IEnumerable<DisRec2OperString_Base> GetReg(int rrr, bool width, bool wide_oper)
+        (String, Prefixes) GetReg(int rrr, bool width, bool wide_oper)
         {
             int ix = (rrr & 0x7) + (width ? (wide_oper ? 16 : 8) : 0);
 
-            return new[] { new DisRec2OperString_String { Text = regs[ix] } };
+            var defseg = (ix == 12 || ix == 13 || ix == 32 || ix == 21) ? Prefixes.SS : Prefixes.DS;
+
+            return ( regs[ix], defseg );
         }
 
         private readonly static string[] segregs =
@@ -603,7 +612,7 @@ namespace DisassX86
         private IEnumerable<DisRec2OperString_Base> GetAcc(bool wide, Prefixes prefixes)
         {
             return wide ? (
-                        prefixes.HasFlag(Prefixes.WIDE_OPER) ? OperStr("eax") : OperStr("ax")
+                        Wide32Reg(prefixes) ? OperStr("eax") : OperStr("ax")
                         ) : OperStr("al");
         }
 
@@ -612,7 +621,7 @@ namespace DisassX86
         {
             var ps = PointerPrefixStr(prefixes, Prefixes.DS);
 
-            return OperStr("[").Concat(ps).Concat(GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Pointer)).Concat(OperStr("]"));
+            return OperStr("[").Concat(ps).Concat(GetData(br, w, Wide32Reg(prefixes), ref l, SymbolType.Pointer)).Concat(OperStr("]"));
         }
 
         public IEnumerable<DisRec2OperString_Base> GetModRm(BinaryReader br, int mod, int r_m, bool w, bool ptrsz, Prefixes prefixes, ref ushort l, bool call = false)
@@ -626,14 +635,17 @@ namespace DisassX86
             else if (call)
                 ptr_sz_str = OperStr("far ");
             else if (w)
-                ptr_sz_str = OperStr("word ");
+                if (Wide32Reg(prefixes))
+                    ptr_sz_str = OperStr("dword ");
+                else
+                    ptr_sz_str = OperStr("word ");
             else
                 ptr_sz_str = OperStr("byte ");
 
 
             if (mod == 3)
             {
-                return GetReg(r_m, w, prefixes.HasFlag(Prefixes.WIDE_OPER));
+                return OperStr(GetReg(r_m, w, Wide32Reg(prefixes)).Item1);
             }
             else if (mod == 00 && r_m == 6)
             {
@@ -645,6 +657,15 @@ namespace DisassX86
             else
             {
 
+                byte sib = 0;
+
+                if (Wide32Oper(prefixes) && r_m == 4)
+                {
+                    sib = br.ReadByte();
+                    l++;
+                }
+
+
                 switch (mod)
                 {
                     case 1:
@@ -652,56 +673,159 @@ namespace DisassX86
                         l++;
                         break;
                     case 2:
-                        offs = br.ReadInt16();
-                        l += 2;
+                        if (Wide32Oper(prefixes))
+                        {
+                            offs = br.ReadInt32();
+                            l += 4;
+                        }
+                        else {
+                            offs = br.ReadInt16();
+                            l += 2;
+
+                        }
                         break;
 
                 }
+
 
                 IEnumerable<DisRec2OperString_Base> offs_str;
 
                 if (offs == 0)
                     offs_str = Enumerable.Empty<DisRec2OperString_Base>();
                 else if (offs > 0)
-                    offs_str = OperStr("+").Concat(OperNum((uint)offs, SymbolType.Offset));
+                    offs_str = OperStr("+").Concat(OperNum((uint)offs, SymbolType.Pointer));
                 else
-                    offs_str = OperStr("-").Concat(OperNum((uint)-offs, SymbolType.Offset));
+                    offs_str = OperStr("-").Concat(OperNum((uint)-offs, SymbolType.Pointer));
 
-                var pre = PointerPrefixStr(prefixes, Prefixes.DS);
 
-                string m;
+                Prefixes defpre = Prefixes.DS;
 
-                switch (r_m)
-                {
-                    case 0:
-                        m = "bx+si";
-                        break;
-                    case 1:
-                        m = "bx+di";
-                        break;
-                    case 2:
-                        m = "bp+si";
-                        break;
-                    case 3:
-                        m = "bp+di";
-                        break;
-                    case 4:
-                        m = "si";
-                        break;
-                    case 5:
-                        m = "di";
-                        break;
-                    case 6:
-                        m = "bp";
-                        break;
-                    case 7:
-                        m = "bx";
-                        break;
-                    default:
-                        return null;
+                IEnumerable<DisRec2OperString_Base> mmm;
+
+                if (Wide32Oper(prefixes)) {
+
+                    if (r_m == 4)
+                    {
+                        /* special index byte */
+
+                        string sibmul;
+
+                        switch ((sib & 0xC0) >> 6)
+                        {
+                            case 0:
+                                sibmul = "1";
+                                break;
+                            case 1:
+                                sibmul = "2";
+                                break;
+                            case 2:
+                                sibmul = "4";
+                                break;
+                            default:
+                                sibmul = "8";
+                                break;
+                        }
+
+                        var base_reg_ix = sib & 7;
+                        var base_ix_ix = (sib & 0x38) >> 3;
+                        IEnumerable<DisRec2OperString_Base> base_reg;
+                        if (base_reg_ix == 5 && mod == 0)
+                        {
+                            base_reg = OperNum(br.ReadUInt32(), SymbolType.Pointer);
+                            l += 4;
+                        }
+                        else
+                        {
+                            string x;
+                            (x, defpre) = GetReg(base_reg_ix, true, true);
+                            base_reg = OperStr(x);
+                        }
+
+
+                        //m = $"SIBSIBSIB={sib:X2}{string.Join("", base_reg.Select(o => o.ToString()))}+{sibmul}*{GetReg(base_ix_ix, true, true).Item1},ix={base_ix_ix},ba={sib & 7},mod={mod:X},r_m={r_m:X}";
+                        mmm = base_reg
+                            .Concat(OperStr("+"))
+                            .Concat(OperStr(sibmul))
+                            .Concat(OperStr("*"))
+                            .Concat(OperStr(GetReg(base_ix_ix, true, true).Item1))
+                            ;
+
+                    }
+                    else
+                    {
+
+                        string m;
+                        switch (r_m)
+                        {
+                            case 0:
+                                m = "eax";
+                                break;
+                            case 1:
+                                m = "ecx";
+                                break;
+                            case 2:
+                                m = "edx";
+                                break;
+                            case 3:
+                                m = "ebx";
+                                break;
+                            case 5:
+                                m = "ebp";
+                                defpre = Prefixes.SS;
+                                break;
+                            case 6:
+                                m = "esi";
+                                break;
+                            case 7:
+                                m = "edi";
+                                break;
+                            default:
+                                return null;
+                        }
+
+                        mmm = OperStr(m);
+                    }
+                }
+                else {
+                    string m;
+                    switch (r_m)
+                    {
+                        case 0:
+                            m = "bx+si";
+                            break;
+                        case 1:
+                            m = "bx+di";
+                            break;
+                        case 2:
+                            m = "bp+si";
+                            defpre = Prefixes.SS;
+                            break;
+                        case 3:
+                            m = "bp+di";
+                            defpre = Prefixes.SS;
+                            break;
+                        case 4:
+                            m = "si";
+                            break;
+                        case 5:
+                            m = "di";
+                            break;
+                        case 6:
+                            m = "bp";
+                            defpre = Prefixes.SS;
+                            break;
+                        case 7:
+                            m = "bx";
+                            break;
+                        default:
+                            return null;
+                    }
+                    mmm = OperStr(m);
                 }
 
-                return ptr_sz_str.Concat(OperStr("[")).Concat(pre).Concat(OperStr(m)).Concat(offs_str).Concat(OperStr("]"));
+                var pre = PointerPrefixStr(prefixes, defpre);
+
+                return ptr_sz_str.Concat(pre.Concat(OperStr("[").Concat(mmm).Concat(offs_str).Concat(OperStr("]"))));
             }
 
         }
@@ -731,8 +855,11 @@ namespace DisassX86
         {
             bool w = (opcode & 0x08) != 0;
             int rix = opcode & 0x7;
+            bool wide32reg = Wide32Reg(prefixes);
 
-            var Ops = GetReg(rix, w, prefixes.HasFlag(Prefixes.WIDE_OPER)).Concat(OperStr(",")).Concat(GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate));
+            var Ops = OperStr(GetReg(rix, w, wide32reg).Item1)
+                .Concat(OperStr(","))
+                .Concat(GetData(br, w, wide32reg, ref l, SymbolType.Immediate));
 
             return new DisRec2<UInt32>
             {
@@ -747,8 +874,8 @@ namespace DisassX86
         {
             int rix = opcode & 0x7;
 
-            var Reg = GetReg(rix, true, prefixes.HasFlag(Prefixes.WIDE_OPER));
-            var Ops = Reg;
+            var Reg = GetReg(rix, true, Wide32Reg(prefixes));
+            var Ops = OperStr(Reg.Item1);
             if ((opcode & 0xF8) == 0x90)
             {
                 //xchg acc,reg
@@ -787,7 +914,7 @@ namespace DisassX86
             bool w = (opcode & 0x01) != 0;
 
             var acc = GetAcc(w, prefixes);
-            var imm = GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
+            var imm = GetData(br, w, Wide32Reg(prefixes), ref l, SymbolType.Immediate);
 
             return new DisRec2<UInt32>
             {
@@ -804,7 +931,7 @@ namespace DisassX86
             bool w = (opcode & 0x01) != 0;
             bool d = (opcode & 0x02) != 0;
 
-            var Mem = GetDisp(br, true, ref l, prefixes & ~Prefixes.WIDE_OPER);
+            var Mem = GetDisp(br, true, ref l, prefixes & ~Prefixes.WIDE_REG);
             var Acc = GetAcc(w, prefixes);
 
             IEnumerable<DisRec2OperString_Base> Ops;
@@ -851,7 +978,7 @@ namespace DisassX86
             int rrr = (modrm & 0x38) >> 3;
             int r_m = modrm & 0x7;
 
-            var Op1 = GetReg(rrr, w, prefixes.HasFlag(Prefixes.WIDE_OPER));
+            var Op1 = OperStr(GetReg(rrr, w, Wide32Reg(prefixes)).Item1);
             if (Op1 == null)
                 return null;
 
@@ -927,7 +1054,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, w, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, w, Wide32Reg(prefixes), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -961,7 +1088,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, w ^ s, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, w ^ s, Wide32Reg(prefixes), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
@@ -995,7 +1122,7 @@ namespace DisassX86
             if (Op2 == null)
                 return null;
 
-            var Op1 = GetData(br, false, prefixes.HasFlag(Prefixes.WIDE_OPER), ref l, SymbolType.Immediate);
+            var Op1 = GetData(br, false, Wide32Reg(prefixes), ref l, SymbolType.Immediate);
             if (Op1 == null)
                 return null;
 
