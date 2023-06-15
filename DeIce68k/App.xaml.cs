@@ -72,7 +72,7 @@ namespace DeIce68k
                     }
                     catch (Exception ex)
                     {
-                        throw new Exception($"Error reading command file {l}");
+                        throw new Exception($"Error reading command file {l} ; {ex.ToString()}");
                     }
 
             }
