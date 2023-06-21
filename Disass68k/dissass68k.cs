@@ -1,5 +1,6 @@
 ﻿
 using DisassShared;
+using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,10 +11,13 @@ using System.Text.RegularExpressions;
 
 namespace Disass68k
 {
-    public class Disass : IDisAss
+    public class Disass68k : IDisAss
     {
 
         public bool SpecialABI { get; init; }
+
+        AddressFactory68k _addressFactory = new AddressFactory68k();
+        public IDisassAddressFactory AddressFactory => _addressFactory;
 
         public static Regex reHint = new Regex(@"\s*\[([^\]]+)]\s*", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -105,9 +109,9 @@ namespace Disass68k
                 case 9: /* pcr + disp */
                     {
                         short displacement = r.ReadInt16BE();
-                        UInt32 ldata = (UInt32)((r.PC - 2) + displacement);
+                        DisassAddressBase ldata = ((r.PC - 2) + displacement);
                         hints.Append($"{signedhex(displacement, 4)}=${ldata:X8}");
-                        return OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32).Concat(OperStr("(PC)"));
+                        return OperAddr(ldata, SymbolType.Pointer).Concat(OperStr("(PC)"));
                     }
                 case 6: /* Areg with index + disp */
                 case 10: /* PC with index + disp */
@@ -133,9 +137,9 @@ namespace Disass68k
                         }
                         else
                         { /* PC */
-                            UInt32 ldata = (UInt32)((r.PC - 4) + displacement);
+                            DisassAddressBase ldata = r.PC - 4 + displacement;
                             string rt = (itype == 0) ? "D" : "A";
-                                return OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32).Concat(OperStr($"(PC,{rt}{ireg}.{ir[isize]})"));
+                                return OperAddr(ldata, SymbolType.Pointer).Concat(OperStr($"(PC,{rt}{ireg}.{ir[isize]})"));
                         }
                     }
                 case 7: /* abs short */
@@ -243,14 +247,14 @@ namespace Disass68k
             return symbols.AddressToSymbols(addr).FirstOrDefault();
         }
 
-        public DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc)
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
         {
             var r = new BEReader(br, pc);
 
             List<string> hints = new List<string>();
             IEnumerable<DisRec2OperString_Base> operands = Enumerable.Empty<DisRec2OperString_Base>();
 
-            UInt32 start_address = r.PC;
+            DisassAddressBase start_address = r.PC;
             ushort word = r.ReadUInt16BE();
             bool decoded = false;
 
@@ -596,9 +600,9 @@ namespace Disass68k
                                     sz = 4;
                                 }
 
-                                UInt32 ldata = (UInt32)(r.PC + offset - (sz - 2));
+                                DisassAddressBase ldata = r.PC + (offset - (sz - 2));
 
-                                operands = OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32);
+                                operands = OperAddr(ldata, SymbolType.Pointer);
                                 hints.Add(signedhex(offset, sz));
 
                                 decoded = true;
@@ -742,8 +746,8 @@ namespace Disass68k
                                 if (cc == 1) opcode_s = "dbf";
                                 short offset = r.ReadInt16BE();
                                 byte dreg = getBits_0007(word);
-                                UInt32 ldata = (UInt32)(r.PC - 2 + offset);
-                                operands = OperStr($"D{dreg},").Concat(OperNum(ldata, SymbolType.Pointer, DisRec2_NumSize.U32));;
+                                DisassAddressBase ldata = r.PC - 2 + offset;
+                                operands = OperStr($"D{dreg},").Concat(OperAddr(ldata, SymbolType.Pointer));;
                                 decoded = true;
                             }
                             break;
@@ -1309,6 +1313,11 @@ namespace Disass68k
         private static IEnumerable<DisRec2OperString_Base> OperNum(UInt32 num, SymbolType type, DisRec2_NumSize sz)
         {
             return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type, Size = sz } };
+        }
+
+        private static IEnumerable<DisRec2OperString_Base> OperAddr(DisassAddressBase addr, SymbolType type)
+        {
+            return new[] { new DisRec2OperString_Address { Address = addr, SymbolType = type } };
         }
 
         private static IEnumerable<DisRec2OperString_Base> OperStr(string str)

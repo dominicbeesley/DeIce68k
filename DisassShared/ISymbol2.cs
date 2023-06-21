@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace DisassShared
 {
-    public interface ISymbol2<Taddr>
+    public interface ISymbol2 
     {
         SymbolType SymbolType { get; }
         string Name { get; }
-        Taddr Address { get; }
+        DisassAddressBase Address { get; }
     }
 }

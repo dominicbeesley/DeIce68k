@@ -57,26 +57,26 @@ namespace DeIce68k.ViewModel.Scripts
         MessagesTextWriter _messages;
         private bool disposedValue;
 
-        public uint GetSymbol(string s)
+        public DisassAddressBase GetSymbol(string s)
         {
-            ISymbol2<UInt32> sym;
+            ISymbol2 sym;
             if (_app.Symbols.FindByName(s, out sym))
                 return sym.Address;
             else
                 throw new ArgumentException($"Symbol {s} is not defined");
         }
 
-        public byte GetByte(uint addr)
+        public byte GetByte(DisassAddressBase addr)
         {
             return _app.GetByte(addr);
         }
 
-        public ushort GetWord(uint addr)
+        public ushort GetWord(DisassAddressBase addr)
         {
             return _app.GetWord(addr);
         }
 
-        public uint GetLong(uint addr)
+        public uint GetLong(DisassAddressBase addr)
         {
             return _app.GetLong(addr);
         }

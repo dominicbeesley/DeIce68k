@@ -12,7 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using DeIce68k.ViewModel;
-
+using DisassShared;
 
 namespace DeIce68k
 {
@@ -30,7 +30,7 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        public uint Address { get; private set; }
+        public DisassAddressBase Address { get; private set; }
 
         private void ButtonOK_Click(object sender, RoutedEventArgs e)
         {

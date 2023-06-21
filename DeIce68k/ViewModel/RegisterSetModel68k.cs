@@ -1,4 +1,6 @@
 ﻿using DeIceProtocol;
+using Disass68k;
+using DisassShared;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -36,10 +38,10 @@ namespace DeIce68k.ViewModel
 
         public override bool CanTrace => true;
 
-        public override uint PCValue
+        public override DisassAddressBase PCValue
         {
-            get { return PC.Data; }
-            set { PC.Data = value; }
+            get { return new Address68K(PC.Data); }
+            set { PC.Data = (UInt32)value.Canonical; }
         }
 
         public RegisterSetModel68k(DeIceAppModel _parent)

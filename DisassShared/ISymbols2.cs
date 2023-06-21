@@ -10,12 +10,12 @@ namespace DisassShared
     /// A container for symbols to be used by the disassembler
     /// </summary>
     /// <typeparam name="Taddr">The address type i.e. UInt32</typeparam>
-    public interface ISymbols2<Taddr>
+    public interface ISymbols2 
     {
-        ISymbol2<Taddr> Add(string name, Taddr addr, SymbolType type);
+        ISymbol2 Add(string name, DisassAddressBase addr, SymbolType type);
 
-        IEnumerable<ISymbol2<Taddr>> GetByAddress(Taddr addr, SymbolType type = SymbolType.ANY);
+        IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type = SymbolType.ANY);
 
-        bool FindByName(string name, out ISymbol2<Taddr> sym);
+        bool FindByName(string name, out ISymbol2 sym);
     }
 }

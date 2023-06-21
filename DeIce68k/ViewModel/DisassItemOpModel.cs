@@ -40,7 +40,7 @@ namespace DeIce68k.ViewModel
         }
 
 
-        public DisassItemOpModel(DeIceAppModel deIceAppModel, uint addr, string hints, byte[] instrBytes, string mnemonic, IEnumerable<DisRec2OperString_Base> operands, ushort length, bool decoded, bool pc)
+        public DisassItemOpModel(DeIceAppModel deIceAppModel, DisassAddressBase addr, string hints, byte[] instrBytes, string mnemonic, IEnumerable<DisRec2OperString_Base> operands, ushort length, bool decoded, bool pc)
             : base(deIceAppModel, addr, hints, pc)
         {
             Mnemonic = mnemonic;

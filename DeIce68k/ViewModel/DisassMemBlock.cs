@@ -16,14 +16,14 @@ namespace DeIce68k.ViewModel
     {
         DeIceAppModel _app;
 
-        public uint BaseAddress { get; }
+        public DisassAddressBase BaseAddress { get; }
         public byte[] Data { get; protected set; }
 
         ObservableCollection<DisassItemModelBase> _items;
         public ReadOnlyObservableCollection<DisassItemModelBase> Items { get; }
 
-        private uint _pc;
-        public uint PC
+        private DisassAddressBase _pc;
+        public DisassAddressBase PC
         {
             get
             {
@@ -46,8 +46,8 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public uint _endpoint;
-        public uint EndPoint
+        public DisassAddressBase _endpoint;
+        public DisassAddressBase EndPoint
         {
             get { return _endpoint; }
             protected set
@@ -66,13 +66,13 @@ namespace DeIce68k.ViewModel
             byte[] newData = new byte[Data.Length + howmuch];
             System.Buffer.BlockCopy(Data, 0, newData, 0, Data.Length);
 
-            _app.DeIceProto.ReadMemBlock(BaseAddress + (uint)Data.Length, newData, Data.Length, (int)howmuch);
+            _app.DeIceProto.ReadMemBlock((UInt32)(BaseAddress + (Int64)Data.Length).Canonical, newData, Data.Length, (int)howmuch);
 
 
             Data = newData;
 
             //continue disassembly
-            uint dispc = EndPoint;
+            DisassAddressBase dispc = EndPoint;
 
             bool ok = true;
             using (var ms = new MemoryStream(Data))
@@ -126,7 +126,7 @@ namespace DeIce68k.ViewModel
 
         IDisAss disAss;
 
-        public DisassMemBlock(DeIceAppModel app, uint baseAddr, byte[] data, IDisAss disAss)
+        public DisassMemBlock(DeIceAppModel app, DisassAddressBase baseAddr, byte[] data, IDisAss disAss)
             : base()
         {
             _items = new ObservableCollection<DisassItemModelBase>();
@@ -138,7 +138,7 @@ namespace DeIce68k.ViewModel
             PC = baseAddr;
             Data = data;
 
-            uint dispc = BaseAddress;
+            DisassAddressBase dispc = baseAddr;
 
             this.disAss = disAss;
 
@@ -204,16 +204,16 @@ namespace DeIce68k.ViewModel
 
         }
 
-        static IEnumerable<DisRec2OperString_Base> ExpandSymbols(DeIceSymbols symbols, IEnumerable<DisRec2OperString_Base> oper)
+        public IEnumerable<DisRec2OperString_Base> ExpandSymbols(DeIceSymbols symbols, IEnumerable<DisRec2OperString_Base> oper)
         {
             if (oper != null)
             {
                 foreach (var o in oper)
                 {
-                    if (o is DisRec2OperString_Number)
+                    if (o is DisRec2OperString_Address)
                     {
-                        var n = (DisRec2OperString_Number)o;
-                        var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
+                        var n = (DisRec2OperString_Address)o;                        
+                        var s = symbols.GetByAddress(n.Address, n.SymbolType).FirstOrDefault();
                         if (s != null)
                             yield return new DisRec2OperString_Symbol
                             {

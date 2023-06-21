@@ -13,7 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using DeIce68k.ViewModel;
-
+using DisassShared;
 
 namespace DeIce68k
 {
@@ -24,7 +24,7 @@ namespace DeIce68k
     {
         public DeIceAppModel Context { get; }
 
-        public uint Address {
+        public DisassAddressBase Address {
             get => txtAddress.Address;
             set => txtAddress.Address = value;
         }

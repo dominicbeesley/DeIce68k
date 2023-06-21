@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Disass68k;
 using System.IO;
+using DisassShared;
 
 namespace DeIce68k.ViewModel
 {
@@ -88,7 +89,7 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public uint Address { get; }
+        public DisassAddressBase Address { get; }
 
         public WatchType WatchType { get; }
 
@@ -108,7 +109,7 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public WatchModel(uint address, string name, WatchType type, uint [] dimensions)
+        public WatchModel(DisassAddressBase address, string name, WatchType type, uint [] dimensions)
         {
             Address = address;
             Name = name;

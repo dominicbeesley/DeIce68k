@@ -46,7 +46,7 @@ namespace TestDisass
                     disass = new DisassArm.DisassArm();
                     break;
                 case "M68K":
-                    disass = new Disass68k.Disass();
+                    disass = new Disass68k.Disass68k();
                     break;
                 default:
                     Usage(Console.Error, $"Unknown assembler \"{args[0]}\"", 102);
@@ -60,7 +60,7 @@ namespace TestDisass
             {
                 string symfn = args[3];
 
-                Regex reDEF = new Regex(@"^\s*DEF\s+(\w+)\s+([0-9a-f]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                Regex reDEF = new Regex(@$"^\s*DEF\s+(\w+)\s+({disass.AddressFactory.AddressRegEx})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
                 TextReader f_sym = null;
                 try
@@ -80,7 +80,7 @@ namespace TestDisass
                             var m = reDEF.Match(l);
                             if (m.Success)
                             {
-                                symbols.Add(m.Groups[1].Value, Convert.ToUInt32(m.Groups[2].Value, 16), SymbolType.Pointer);
+                                symbols.Add(m.Groups[1].Value, disass.AddressFactory.Parse(m.Groups[2].Value), SymbolType.Pointer);
                             }
 
                             lno++;
@@ -102,21 +102,22 @@ namespace TestDisass
                 Usage(Console.Error, $"Error reading file \"{args[1]}\" : {ex.ToString()}", 101);
             }
 
-            UInt32 BaseAddress = 0;
+            DisassAddressBase BaseAddress;
 
             try
             {
-                BaseAddress = Convert.ToUInt32(args[2], 16);
+                BaseAddress = disass.AddressFactory.Parse(args[2]);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Usage(Console.Error, $"Bad base address {args[2]}", 103);
+                Usage(Console.Error, $"Bad base address {args[2]} : {ex}", 103);
+                return -1;
             }
 
-            UInt32 PC = BaseAddress;
+            DisassAddressBase PC = BaseAddress;
 
-            UInt32 dispc = BaseAddress;
-            UInt32 EndAddress = BaseAddress;
+            DisassAddressBase dispc = BaseAddress;
+            DisassAddressBase EndAddress = BaseAddress;
 
 
 
@@ -125,6 +126,7 @@ namespace TestDisass
                 var br = new BinaryReader(ms);
 
                 var miss = new HashSet<DisRec2OperString_Number>();
+                var missA = new HashSet<DisRec2OperString_Address>();
 
                 bool ok = true;
                 //first pass to autogen symbols
@@ -142,6 +144,10 @@ namespace TestDisass
                             //look for missing symbols and add to set to create later
                             miss.UnionWith(
                                 instr.Operands.Where(i => i is DisRec2OperString_Number).Cast<DisRec2OperString_Number>()
+                                .Where(i => i.SymbolType == SymbolType.Pointer || i.SymbolType == SymbolType.ServiceCall)
+                                );
+                            missA.UnionWith(
+                                instr.Operands.Where(i => i is DisRec2OperString_Address).Cast<DisRec2OperString_Address>()
                                 .Where(i => i.SymbolType == SymbolType.Pointer || i.SymbolType == SymbolType.ServiceCall)
                                 );
                         }
@@ -168,21 +174,43 @@ namespace TestDisass
                 {
                     if (n.SymbolType == SymbolType.ServiceCall)
                     {
-                        symbols.Add($"SWI_{n.Number:X}", n.Number, n.SymbolType);
+                        //TODO: DB: Sort out address forms for service calls for Arm, X86, 68K?
+                        symbols.Add($"SWIX_{n.Number:X}", disass.AddressFactory.FromCanonical(n.Number), n.SymbolType);
                     }
                     else if (n.SymbolType == SymbolType.Pointer)
                     {
-                        if (n.Number >= BaseAddress && n.Number < EndAddress)
-                            symbols.Add($"L_{n.Number:X}", n.Number, n.SymbolType);
+                        var ad = disass.AddressFactory.FromCanonical(n.Number);
+
+                        if (ad >= BaseAddress && ad < EndAddress)
+                            symbols.Add($"LX_{n.Number:X}", ad, n.SymbolType);
                         else
-                            symbols.Add($"P_{n.Number:X}", n.Number, n.SymbolType);
+                            symbols.Add($"PX_{n.Number:X}", ad, n.SymbolType);
                     }
                 }
+
+                foreach (var n in missA)
+                {
+                    if (n.SymbolType == SymbolType.ServiceCall)
+                    {
+                        //TODO: DB: Sort out address forms for service calls for Arm, X86, 68K?
+                        symbols.Add($"SWI_{n.Address}", n.Address, n.SymbolType);
+                    }
+                    else if (n.SymbolType == SymbolType.Pointer)
+                    {
+                        var ad = n.Address;
+
+                        if (ad >= BaseAddress && ad < EndAddress)
+                            symbols.Add($"L_{ad}", ad, n.SymbolType);
+                        else
+                            symbols.Add($"P_{ad}", ad, n.SymbolType);
+                    }
+                }
+
 
                 dispc = BaseAddress;
                 ok = true;
                 ms.Position = 0;
-                UInt32 lastGood = BaseAddress;
+                DisassAddressBase lastGood = BaseAddress;
                 long lastGood_p = 0;
                 while (ok)
                 {
@@ -237,7 +265,7 @@ namespace TestDisass
                             byte[] inst_bytes = new byte[instr.Length];
                             ms.Read(inst_bytes, 0, instr.Length);
 
-                            Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{ExpandSymbols(symbols, instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
+                            Console.WriteLine($"{dispc:X8}\t{instr.Mnemonic}\t{ExpandSymbols(disass, symbols, instr.Operands)}\t{instr.Hints}\t{string.Join(" ", inst_bytes.Select(b => $"{b:X2}"))} {string.Join("", inst_bytes.Select(b => (b > 32 && b < 128) ? (char)b : ' '))}");
 
                             lastGood = dispc + instr.Length;
                             lastGood_p = ms.Position;
@@ -261,17 +289,17 @@ namespace TestDisass
 
         }
 
-        static string ExpandSymbols(Symbols symbols, IEnumerable<DisRec2OperString_Base> oper)
+        static string ExpandSymbols(IDisAss disass, Symbols symbols, IEnumerable<DisRec2OperString_Base> oper)
         {
             StringBuilder sb = new StringBuilder();
             if (oper != null)
             {
                 foreach (var o in oper)
                 {
-                    if (o is DisRec2OperString_Number)
+                    var n = o as DisRec2OperString_Address;
+                    if (n != null)
                     {
-                        var n = (DisRec2OperString_Number)o;
-                        var s = symbols.GetByAddress(n.Number, n.SymbolType).FirstOrDefault();
+                        var s = symbols.GetByAddress(n.Address, n.SymbolType).FirstOrDefault();
                         if (s != null)
                             sb.Append(s.Name);
                         else
@@ -279,7 +307,18 @@ namespace TestDisass
                     }
                     else
                     {
-                        sb.Append(o.ToString());
+                        var n2 = o as DisRec2OperString_Number;
+                        if (n2 != null)
+                        {
+                            var s = symbols.GetByAddress(disass.AddressFactory.FromCanonical(n2.Number), n2.SymbolType).FirstOrDefault();
+                            if (s != null)
+                                sb.Append(s.Name);
+                            else
+                                sb.Append(n2.ToString());
+
+                        }
+                        else
+                            sb.Append(o.ToString());
                     }
                 }
             }

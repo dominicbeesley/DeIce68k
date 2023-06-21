@@ -7,20 +7,20 @@ using System.Threading.Tasks;
 
 namespace TestDisass
 {
-    public class Symbols : ISymbols2<UInt32>
+    public class Symbols : ISymbols2 
     {
-        public record Symbol : ISymbol2<UInt32>
+        public record Symbol : ISymbol2
         {
             public SymbolType SymbolType { get; init; }
 
             public string Name { get; init; }
 
-            public UInt32 Address { get; init; }
+            public DisassAddressBase Address { get; init; }
         }
 
         Dictionary<string, Symbol> dic = new Dictionary<string, Symbol>();
 
-        public ISymbol2<UInt32> Add(string name, UInt32 addr, SymbolType type)
+        public ISymbol2 Add(string name, DisassAddressBase addr, SymbolType type)
         {
             var s = new Symbol { Name = name, Address = addr, SymbolType = type };
             dic[name] = s;
@@ -28,7 +28,7 @@ namespace TestDisass
         }
 
 
-        public bool FindByName(string name, out ISymbol2<UInt32> sym)
+        public bool FindByName(string name, out ISymbol2 sym)
         {
             Symbol s;
             bool ret = dic.TryGetValue(name, out s);
@@ -36,7 +36,7 @@ namespace TestDisass
             return ret;
         }
 
-        public IEnumerable<ISymbol2<UInt32>> GetByAddress(UInt32 addr, SymbolType type = SymbolType.ANY)
+        public IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type = SymbolType.ANY)
         {
             return dic.Values.Where(v => v.Address == addr && (v.SymbolType & type) != 0);
         }

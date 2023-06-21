@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DisassShared;
+using System;
 using System.IO;
 
 namespace Disass68k
@@ -6,13 +7,13 @@ namespace Disass68k
     public class BEReader
     {
         private BinaryReader b;
-        public uint PC
+        public DisassAddressBase PC
         {
             get;
             private set;
         }
 
-        public BEReader(BinaryReader b, uint pc)
+        public BEReader(BinaryReader b, DisassAddressBase pc)
         {
             this.PC = pc;
             this.b = b;

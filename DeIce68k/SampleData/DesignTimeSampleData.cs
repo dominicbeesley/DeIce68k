@@ -8,7 +8,10 @@ using DeIce68k.ViewModel;
 using DeIce68k.ViewModel.Scripts;
 using DeIceProtocol;
 using DisassShared;
+using Disass68k;
 using DossySerialPort;
+using DisassX86;
+using DisassArm;
 
 namespace DeIce68k.SampleData
 {
@@ -56,27 +59,27 @@ namespace DeIce68k.SampleData
                         0,0x8000, new byte [] { 0x4E, 0x4F }, "TEST 68k", 0, 0)
                         );
                     
-                    _app68k.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
-                    _app68k.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
-                    _app68k.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new uint[] { 20 } ));
+                    _app68k.Watches.Add(new WatchModel(new Address68K(0), "ZERO", WatchType.X08, null));
+                    _app68k.Watches.Add(new WatchModel(new Address68K(16), "sixteen", WatchType.X16, null));
+                    _app68k.Watches.Add(new WatchModel(new Address68K(100), "page1", WatchType.X08, new uint[] { 20 } ));
                     IEnumerable<string> errorsR;
-                    _app68k.AddBreakpoint(0xDEADBEEF).ConditionCode = ScriptCompiler.Compile(_app68k, "return false;", out errorsR);
-                    _app68k.AddBreakpoint(0x0B00B135).Enabled = false;
-                    _app68k.AddBreakpoint(0x00154BE7).Selected = true;
-                    _app68k.AddBreakpoint(0x008D0812);
-                    _app68k.Symbols.Add("bob", 0x8d080c, SymbolType.Pointer);
-                    _app68k.Symbols.Add("sheila_crtc_reg", 0xFFFFFE00, SymbolType.Pointer);
-                    _app68k.Symbols.Add("CRTC_R0", 0xFFFFFE00, SymbolType.Pointer);
-                    _app68k.Symbols.Add("sheila_crtc_rw", 0xFFFFFE01, SymbolType.Pointer);
-                    _app68k.Symbols.Add("CRTC_R1", 0xFFFFFE00, SymbolType.Pointer);
+                    _app68k.AddBreakpoint(new Address68K(0xDEADBEEF)).ConditionCode = ScriptCompiler.Compile(_app68k, "return false;", out errorsR);
+                    _app68k.AddBreakpoint(new Address68K(0x0B00B135)).Enabled = false;
+                    _app68k.AddBreakpoint(new Address68K(0x00154BE7)).Selected = true;
+                    _app68k.AddBreakpoint(new Address68K(0x008D0812));
+                    _app68k.Symbols.Add("bob", new Address68K(0x8d080c), SymbolType.Pointer);
+                    _app68k.Symbols.Add("sheila_crtc_reg", new Address68K(0xFFFFFE00), SymbolType.Pointer);
+                    _app68k.Symbols.Add("CRTC_R0", new Address68K(0xFFFFFE00), SymbolType.Pointer);
+                    _app68k.Symbols.Add("sheila_crtc_rw", new Address68K(0xFFFFFE01), SymbolType.Pointer);
+                    _app68k.Symbols.Add("CRTC_R1", new Address68K(0xFFFFFE00), SymbolType.Pointer);
                     _app68k.DisassMemBlock = new DisassMemBlock(
                         _app68k,
-                        0x8d080c,
+                        new Address68K(0x8d080c),
                         new byte[]
                         {
                             0x52, 0x01, 0x11, 0xc1, 0xfe, 0x00, 0x11, 0xC0, 0xFE, 0x01, 0x4e, 0x75, 0x99, 0x99, 0x99, 0x99
                         },
-                        new Disass68k.Disass()
+                        new Disass68k.Disass68k()
                     );
 
                     Task.Run(async delegate
@@ -115,26 +118,26 @@ namespace DeIce68k.SampleData
                         0, 0x8000, new byte[] { 0x4E, 0x4F }, "TEST Intel x86 16", 0, 0)
                         );
 
-                    _appx86_16.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
-                    _appx86_16.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
-                    _appx86_16.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new uint[] { 20 }));
+                    _appx86_16.Watches.Add(new WatchModel(new AddressX86(0,0), "ZERO", WatchType.X08, null));
+                    _appx86_16.Watches.Add(new WatchModel(new AddressX86(0x1234,16), "sixteen", WatchType.X16, null));
+                    _appx86_16.Watches.Add(new WatchModel(new AddressX86(0xFFFF,0xFFFF), "page1", WatchType.X08, new uint[] { 20 }));
                     IEnumerable<string> errorsR;
-                    _appx86_16.AddBreakpoint(0xDEADBEEF).ConditionCode = ScriptCompiler.Compile(_appx86_16, "return false;", out errorsR);
-                    _appx86_16.AddBreakpoint(0x0B00B135).Enabled = false;
-                    _appx86_16.AddBreakpoint(0x00154BE7).Selected = true;
-                    _appx86_16.AddBreakpoint(0x008D0812);
-                    _appx86_16.Symbols.Add(".excl", 0xFC0019B9, SymbolType.Pointer);
-                    _appx86_16.Symbols.Add(".ex", 0xFC0019C4, SymbolType.Pointer);
-                    _appx86_16.Symbols.Add(".ex_nokeys", 0xFC0019CA, SymbolType.Pointer);
-                    _appx86_16.Symbols.Add("dom_keyb_auto_off", 0xFC0019D1, SymbolType.Pointer);
-                    _appx86_16.Symbols.Add("dom_keyb_auto_on", 0xFC0019EC, SymbolType.Pointer);
-                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_DDRA", 0xFE43, SymbolType.Port);
-                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", 0xFE4F, SymbolType.Port);
-                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_ORB", 0xFE40, SymbolType.Port);
-                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_IFR", 0xFE4D, SymbolType.Port);
+                    _appx86_16.AddBreakpoint(new AddressX86(0xDEAD, 0xBEEF)).ConditionCode = ScriptCompiler.Compile(_appx86_16, "return false;", out errorsR);
+                    _appx86_16.AddBreakpoint(new AddressX86(0x0B00, 0xB135)).Enabled = false;
+                    _appx86_16.AddBreakpoint(new AddressX86(0x0015, 0x4BE7)).Selected = true;
+                    _appx86_16.AddBreakpoint(new AddressX86(0x008D, 0x0812));
+                    _appx86_16.Symbols.Add(".excl", new AddressX86(0xFC00, 0x19B9), SymbolType.Pointer);
+                    _appx86_16.Symbols.Add(".ex", new AddressX86(0xFC00, 0x19C4), SymbolType.Pointer);
+                    _appx86_16.Symbols.Add(".ex_nokeys", new AddressX86(0xFC00, 0x19CA), SymbolType.Pointer);
+                    _appx86_16.Symbols.Add("dom_keyb_auto_off", new AddressX86(0xFC00, 0x19D1), SymbolType.Pointer);
+                    _appx86_16.Symbols.Add("dom_keyb_auto_on", new AddressX86(0xFC00, 0x19EC), SymbolType.Pointer);
+                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new AddressX86(0, 0xFE43), SymbolType.Port);
+                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new AddressX86(0, 0xFE4F), SymbolType.Port);
+                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_ORB", new AddressX86(0, 0xFE40), SymbolType.Port);
+                    _appx86_16.Symbols.Add("io_SHEILA_SYSVIA_IFR", new AddressX86(0, 0xFE4D), SymbolType.Port);
                     _appx86_16.DisassMemBlock = new DisassMemBlock(
                         _appx86_16,
-                        0xFC0019B9,
+                        new AddressX86(0xFC00, 0x19B9),
                         new byte[]
                         {
                             0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xE8, 0x28, 0x00, 0x1F, 0x5A, 0x5B, 0x58, 0x9D, 0xC3, 0x31, 0xC0, 0xA3, 0x86, 0x00, 0xEB, 0xE8,
@@ -179,26 +182,26 @@ namespace DeIce68k.SampleData
                         0, 0x8000, new byte[] { 0x4E, 0x4F }, "TEST ARM 2", 0, 0)
                         );
 
-                    _appArm2.Watches.Add(new WatchModel(0, "ZERO", WatchType.X08, null));
-                    _appArm2.Watches.Add(new WatchModel(16, "sixteen", WatchType.X16, null));
-                    _appArm2.Watches.Add(new WatchModel(100, "page1", WatchType.X08, new uint[] { 20 }));
+                    _appArm2.Watches.Add(new WatchModel(new AddressArm2(0), "ZERO", WatchType.X08, null));
+                    _appArm2.Watches.Add(new WatchModel(new AddressArm2(16), "sixteen", WatchType.X16, null));
+                    _appArm2.Watches.Add(new WatchModel(new AddressArm2(100), "page1", WatchType.X08, new uint[] { 20 }));
                     IEnumerable<string> errorsR;
-                    _appArm2.AddBreakpoint(0xDEADBEEF).ConditionCode = ScriptCompiler.Compile(_appArm2, "return false;", out errorsR);
-                    _appArm2.AddBreakpoint(0x0B00B135).Enabled = false;
-                    _appArm2.AddBreakpoint(0x00154BE7).Selected = true;
-                    _appArm2.AddBreakpoint(0x008D0812);
-                    _appArm2.Symbols.Add(".excl", 0xFC0019B9, SymbolType.Pointer);
-                    _appArm2.Symbols.Add(".ex", 0xFC0019C4, SymbolType.Pointer);
-                    _appArm2.Symbols.Add(".ex_nokeys", 0xFC0019CA, SymbolType.Pointer);
-                    _appArm2.Symbols.Add("dom_keyb_auto_off", 0xFC0019D1, SymbolType.Pointer);
-                    _appArm2.Symbols.Add("dom_keyb_auto_on", 0xFC0019EC, SymbolType.Pointer);
-                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_DDRA", 0xFE43, SymbolType.Port);
-                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", 0xFE4F, SymbolType.Port);
-                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_ORB", 0xFE40, SymbolType.Port);
-                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_IFR", 0xFE4D, SymbolType.Port);
+                    _appArm2.AddBreakpoint(new AddressArm2(0xDEADBEEF)).ConditionCode = ScriptCompiler.Compile(_appArm2, "return false;", out errorsR);
+                    _appArm2.AddBreakpoint(new AddressArm2(0x0B00B135)).Enabled = false;
+                    _appArm2.AddBreakpoint(new AddressArm2(0x00154BE7)).Selected = true;
+                    _appArm2.AddBreakpoint(new AddressArm2(0x008D0812));
+                    _appArm2.Symbols.Add(".excl", new AddressArm2(0xFC0019B9), SymbolType.Pointer);
+                    _appArm2.Symbols.Add(".ex", new AddressArm2(0xFC0019C4), SymbolType.Pointer);
+                    _appArm2.Symbols.Add(".ex_nokeys", new AddressArm2(0xFC0019CA), SymbolType.Pointer);
+                    _appArm2.Symbols.Add("dom_keyb_auto_off", new AddressArm2(0xFC0019D1), SymbolType.Pointer);
+                    _appArm2.Symbols.Add("dom_keyb_auto_on", new AddressArm2(0xFC0019EC), SymbolType.Pointer);
+                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new AddressArm2(0x03FFFE43), SymbolType.Port);
+                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new AddressArm2(0x03FFFE4F), SymbolType.Port);
+                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_ORB", new AddressArm2(0x03FFFE40), SymbolType.Port);
+                    _appArm2.Symbols.Add("io_SHEILA_SYSVIA_IFR", new AddressArm2(0x03FFFE4D), SymbolType.Port);
                     _appArm2.DisassMemBlock = new DisassMemBlock(
                         _appArm2,
-                        0xFC0019B9,
+                        new AddressArm2(0xFC0019B9),
                         new byte[]
                         {
                             0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xE8, 0x28, 0x00, 0x1F, 0x5A, 0x5B, 0x58, 0x9D, 0xC3, 0x31, 0xC0, 0xA3, 0x86, 0x00, 0xEB, 0xE8,

@@ -1,4 +1,5 @@
 ﻿using DeIce68k.Lib;
+using DisassShared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +21,7 @@ namespace DeIce68k.ViewModel
         public ICommand CmdPCToHere { get; init; }
         public ICommand CmdContFromHere { get; init; }
 
-        public uint Address { get; }
+        public DisassAddressBase Address { get; }
 
         public string Hints { get; }
 
@@ -39,7 +40,7 @@ namespace DeIce68k.ViewModel
         }
 
 
-        public DisassItemModelBase(DeIceAppModel deIceAppModel, uint addr, string hints, bool pc)
+        public DisassItemModelBase(DeIceAppModel deIceAppModel, DisassAddressBase addr, string hints, bool pc)
         {
             Parent = deIceAppModel;
             CmdTraceToHere = new RelayCommand(

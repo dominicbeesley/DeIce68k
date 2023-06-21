@@ -12,7 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using DeIce68k.ViewModel;
-
+using DisassShared;
 
 namespace DeIce68k
 {
@@ -29,20 +29,21 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        public uint Address { get; private set; }
+        public DisassAddressBase Address { get; private set; }
 
         private void ButtonOK_Click(object sender, RoutedEventArgs e)
         {
-            try
+            if (!ucAddr.Valid)
             {
-                Address = Convert.ToUInt32(txtAddress.Text, 16);
-            } catch (Exception)
-            {
+                MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-
-            DialogResult = true;
-            Close();
+            else
+            {
+                Address = ucAddr.Address;
+                DialogResult = true;
+                Close();
+            }
         }
 
         private void ButtonCancel_Click(object sender, RoutedEventArgs e)

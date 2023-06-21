@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 
 namespace DisassShared
 {
-    public interface IDisAss
+    public interface IDisAss 
     {
-        DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc);
+        DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc);
+
+        IDisassAddressFactory AddressFactory { get; }
     }
 }

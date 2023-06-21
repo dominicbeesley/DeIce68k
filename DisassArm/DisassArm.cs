@@ -13,7 +13,11 @@ namespace DisassArm
     {
         private static DisRec2<UInt32> Undefined { get => new DisRec2<UInt32> { Decoded = false, Length = 4 }; }
 
-        public DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc)
+        public static AddressFactoryArm2 _addressFactory = new AddressFactoryArm2();
+
+        public IDisassAddressFactory AddressFactory => _addressFactory;
+
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
         {
 
             UInt32 opcode = br.ReadUInt32();
@@ -39,7 +43,7 @@ namespace DisassArm
                 };            
         }
 
-        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, DisassAddressBase pc)
         {
             return new DisRec2<UInt32>
             {
@@ -54,7 +58,7 @@ namespace DisassArm
 
         private static readonly string[] m_modes = { "da", "ia", "db", "ib"};
 
-        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, DisassAddressBase pc)
         {
             int puflag = (int)(opcode & 0x01800000) >> 23;
             bool sflag = (opcode & 0x00400000) != 0;
@@ -87,7 +91,7 @@ namespace DisassArm
             };
 
         }
-        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, DisassAddressBase pc)
         {
             bool iflag = (opcode & 0x02000000) != 0;
             bool pflag = (opcode & 0x01000000) != 0;
@@ -108,8 +112,8 @@ namespace DisassArm
 
             if (rnix == 15 & !iflag & !wflag & pflag)
             {
-                UInt32 addr = uflag ? pc + 8 + (opcode & 0xFFF) : pc + 8 - (opcode & 0xFFF);
-                    mem = new[] { new DisRec2OperString_Number { Number = addr } };
+                DisassAddressBase addr = uflag ? pc + 8 + (opcode & 0xFFF) : pc + 8 - (opcode & 0xFFF);
+                    mem = OperAddr(addr, SymbolType.Pointer);
             } else
             {
                 if (!iflag)
@@ -198,7 +202,7 @@ namespace DisassArm
             }
         }
 
-        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, DisassAddressBase pc)
         {
 
             int opix = (int)(opcode & 0x01E00000) >> 21;
@@ -238,7 +242,7 @@ namespace DisassArm
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = OperNum(pc + 8 - imm, SymbolType.Pointer),
+                        Operands = OperAddr(pc + 8 - imm, SymbolType.Pointer),
                         Hints = "",
                         Length = 4
                     };
@@ -247,7 +251,7 @@ namespace DisassArm
                     {
                         Decoded = true,
                         Mnemonic = $"adr",
-                        Operands = OperNum(pc + 8 + imm, SymbolType.Pointer),
+                        Operands = OperAddr(pc + 8 + imm, SymbolType.Pointer),
                         Hints = "",
                         Length = 4
                     };
@@ -299,7 +303,7 @@ namespace DisassArm
 
         }
 
-        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, DisassAddressBase pc)
         {
 
             bool sflag = (opcode & 0x00100000) != 0;
@@ -380,9 +384,9 @@ namespace DisassArm
             return (UInt32)v2;
         }
 
-        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, UInt32 pc)
+        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, DisassAddressBase pc)
         {
-            UInt32 dest = (pc + 8 + ((opcode & 0xFFFFFF) << 2)) & 0x3FFFFFF;
+            DisassAddressBase dest = pc + 8 + ((opcode & 0xFFFFFF) << 2);
 
             bool lflag = (opcode & 0x01000000) != 0;
 
@@ -390,7 +394,7 @@ namespace DisassArm
             {
                 Decoded = true,
                 Mnemonic = $"b{(lflag ? "l" : "")}{cond}",
-                Operands = OperNum(dest, SymbolType.Pointer),
+                Operands = OperAddr(dest, SymbolType.Pointer),
                 Hints = "",
                 Length = 4,
             };
@@ -465,6 +469,10 @@ namespace DisassArm
         private static IEnumerable<DisRec2OperString_Base> OperNum(UInt32 num, SymbolType type)
         {
             return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type } };
+        }
+        private static IEnumerable<DisRec2OperString_Base> OperAddr(DisassAddressBase addr, SymbolType type)
+        {
+            return new[] { new DisRec2OperString_Address { Address = addr, SymbolType = type } };
         }
 
         private static IEnumerable<DisRec2OperString_Base> OperStr(string str)

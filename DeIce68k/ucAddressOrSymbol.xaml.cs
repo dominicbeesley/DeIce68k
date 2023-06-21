@@ -23,14 +23,14 @@ namespace DeIce68k
     public partial class ucAddressOrSymbol : UserControl
     {
 
-        public uint Address {
+        public DisassAddressBase Address {
             get
             {
-                uint ret = 0;
+                DisassAddressBase ret;
                 GetAddress(out ret);
                 return ret;
             }
-            set => txtAddr.Text = $"0x{value:X08}";
+            set => txtAddr.Text = $"0x{value}";
         }
 
         public string Symbol
@@ -43,8 +43,7 @@ namespace DeIce68k
         {
             get
             {
-                uint tmp;
-                return GetAddress(out tmp);
+                return GetAddress(out var x);
             }
         }
 
@@ -89,25 +88,30 @@ namespace DeIce68k
         protected string GetSymbol()
         {
             var s = txtAddr.Text;
-            ISymbol2<UInt32> sym = null;
+            ISymbol2 sym = null;
             if ((DataContext as DeIce68k.ViewModel.DeIceAppModel)?.Symbols.FindByName(s, out sym) ?? false) 
                 return sym?.Name ?? null;
             else
                 return null;
         }
 
-        protected bool GetAddress(out uint addr)
+        protected bool GetAddress(out DisassAddressBase addr)
         {
-            addr = 0;
-            var s = txtAddr.Text;
+            addr = null;
+
+            var s = txtAddr.Text.Trim();
             if (string.IsNullOrEmpty(s))
+            {
                 return false;
+            }
+
+            var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
 
             if (Char.IsDigit(s[0]))
             {
                 try
                 {
-                    addr = Convert.ToUInt32(s, 16);
+                    addr = am?.GetDisass().AddressFactory.Parse(s);
                     return true;
                 } catch (Exception)
                 {
@@ -116,10 +120,9 @@ namespace DeIce68k
             }
             else
             {
-                var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
                 if (am != null)
                 {
-                    ISymbol2<UInt32> sym;
+                    ISymbol2 sym;
                     if (am.Symbols.FindByName(s, out sym))
                     {
                         addr = sym.Address;

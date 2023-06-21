@@ -10,17 +10,17 @@ using DisassShared;
 
 namespace DeIce68k.ViewModel
 {
-    public class DeIceSymbols : ISymbols2<UInt32>
+    public class DeIceSymbols : ISymbols2 
     {
         private DeIceAppModel _app;
 
-        public class DeIceSymbol : ISymbol2<UInt32>
+        public class DeIceSymbol : ISymbol2
         {
             public SymbolType SymbolType { get; init; }
 
             public string Name { get; init; }
 
-            public uint Address { get; init; }
+            public DisassAddressBase Address { get; init; }
         }
 
 
@@ -29,7 +29,7 @@ namespace DeIce68k.ViewModel
 
         
 
-        public ISymbol2<UInt32> Add(string name, uint address, SymbolType symboltype)
+        public ISymbol2 Add(string name, DisassAddressBase address, SymbolType symboltype)
         {
             Remove(name);
             int i = 0;
@@ -63,7 +63,7 @@ namespace DeIce68k.ViewModel
             }
         }
 
-        public IEnumerable<ISymbol2<uint>> GetByAddress(uint addr, SymbolType type)
+        public IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type)
         {
             return _symbolsByAddress.Where(x =>
                 (x.Address == addr)
@@ -76,7 +76,7 @@ namespace DeIce68k.ViewModel
         }
 
 
-        public bool FindByName(string name, out ISymbol2<uint> sym)
+        public bool FindByName(string name, out ISymbol2 sym)
         {
             sym = _symbolsByAddress.Where(x => x.Name == name).FirstOrDefault();
             return sym != null;
@@ -91,19 +91,19 @@ namespace DeIce68k.ViewModel
         /// <param name="limit">Symbols further than this away will be ignored - default = 256</param>
         /// <param name="symbolType">Limit to symbols matching this type or NONE</param>
         /// <returns></returns>
-        public bool FindNearest(uint dispc, SymbolType symbolType, out IEnumerable<DeIceSymbol> found_symbols, out uint found_address, uint limit = 0x0100)
+        public bool FindNearest(DisassAddressBase dispc, SymbolType symbolType, out IEnumerable<DeIceSymbol> found_symbols, out DisassAddressBase found_address, uint limit = 0x0100)
         {
-            var sym = _symbolsByAddress.Where(x => 
-                (x.Address < dispc && dispc - x.Address < limit) && (
-                    (symbolType == SymbolType.Pointer && x.SymbolType == SymbolType.NONE)
-                    || (x.SymbolType & symbolType) != 0
-                    )
-                
-                ).OrderBy(x => dispc - x.Address).FirstOrDefault();
+            var sym = _symbolsByAddress
+                .Select(x => new { sym = x, distance = dispc - x.Address})
+                .Where(x => (x.distance < limit) && (
+                    (symbolType == SymbolType.Pointer && x.sym.SymbolType == SymbolType.NONE)
+                    || (x.sym.SymbolType & symbolType) != 0
+                    )                
+                ).OrderBy(x => x.distance).Select(x => x.sym).FirstOrDefault();
 
             if (sym == null)
             {
-                found_address = 0;
+                found_address = DisassAddressBase.Empty;
                 found_symbols = Enumerable.Empty<DeIceSymbol>();
                 return false;
             } else
@@ -121,13 +121,13 @@ namespace DeIce68k.ViewModel
         /// <param name="dispc">The address to match</param>
         /// <param name="limit">Limit for the search</param>
         /// <returns>Closest symbol or null if none in range</returns>
-        public string FindNearest(uint dispc, SymbolType symbolType, uint limit = 0x100)
+        public string FindNearest(DisassAddressBase dispc, SymbolType symbolType, uint limit = 0x100)
         {
             IEnumerable<DeIceSymbol> syms;
-            uint near_addr;
+            DisassAddressBase near_addr;
             if (_app.Symbols.FindNearest(dispc, symbolType, out syms, out near_addr, limit))
             {
-                uint offset = dispc - near_addr;
+                Int64 offset = dispc - near_addr;
                 string o = (offset == 0) ? "" : $"+{offset:X2}";
                 return $"{syms.First().Name}{o}";
             }

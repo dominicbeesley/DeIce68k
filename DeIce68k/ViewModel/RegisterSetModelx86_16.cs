@@ -1,4 +1,6 @@
 ﻿using DeIceProtocol;
+using DisassShared;
+using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -6,6 +8,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace DeIce68k.ViewModel
@@ -31,11 +34,20 @@ namespace DeIce68k.ViewModel
 
         public override bool CanTrace => true;
 
-        public override uint PCValue {
-            get { return IP.Data | (uint)(CS.Data << 16); }
+        public override DisassAddressBase PCValue {
+            get { return new AddressX86((UInt16)CS.Data, (UInt16)IP.Data); }
             set {
-                IP.Data = value & 0xFFFF;
-                CS.Data = value >> 16;
+                var x86 = value as AddressX86;
+                if (x86 != null)
+                {
+                    IP.Data = x86.Offset;
+                    CS.Data = x86.Segment;
+                }
+                else
+                {
+                    IP.Data = (UInt16)(value.Canonical & 0xFFFF);
+                    CS.Data = (UInt16)(value.Canonical >> 16);
+                }
             }
         }
 

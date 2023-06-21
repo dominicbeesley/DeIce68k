@@ -1,4 +1,5 @@
 ﻿using DeIceProtocol;
+using DisassShared;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -61,7 +62,7 @@ namespace DeIce68k.ViewModel
         /// <param name="trace"></param>
         public abstract bool SetTrace(bool trace);
 
-        public abstract uint PCValue { get; set; }
+        public abstract DisassAddressBase PCValue { get; set; }
 
         public RegisterModel RegByName(string name)
         {

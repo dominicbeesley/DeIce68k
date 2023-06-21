@@ -17,6 +17,10 @@ namespace DisassX86
 
         private API m_API { get; init; }
 
+        public static AddressX86Factory AddressFactory2 => new AddressX86Factory();
+
+        public IDisassAddressFactory AddressFactory => AddressFactory2;
+
         public DisassX86(API api)
         {
             m_API = api;
@@ -377,7 +381,7 @@ namespace DisassX86
         };
 
 
-        public DisRec2<UInt32> Decode(BinaryReader br, UInt32 pc)
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
         {
             DisRec2<UInt32> ret = null;
             ushort l = 0;
@@ -602,11 +606,21 @@ namespace DisassX86
 
         IEnumerable<DisRec2OperString_Base> GetData32(BinaryReader br, ref ushort l, SymbolType symboltype)
         {
-            l += 4;
-            return OperNum(br.ReadUInt32(), symboltype);
+            if (symboltype == SymbolType.Pointer)
+            {
+                l += 4;
+                var offs = br.ReadUInt16();
+                var seg =  br.ReadUInt16();
+                return OperAddr(new AddressX86(seg, offs), symboltype);
+            }
+            else
+            {
+                l += 4;
+                return OperNum(br.ReadUInt32(), symboltype);
+            }
         }
 
-        IEnumerable<DisRec2OperString_Base> GetRelDisp(BinaryReader br, bool w, ref ushort l, UInt32 pc)
+        IEnumerable<DisRec2OperString_Base> GetRelDisp(BinaryReader br, bool w, ref ushort l, DisassAddressBase pc)
         {
             int offs;
             if (w)
@@ -619,7 +633,7 @@ namespace DisassX86
                 offs = br.ReadSByte();
                 l += 1;
             }
-            return OperNum((uint)((l + pc + offs) & 0xFFFF) | (pc & 0xFFFF0000), SymbolType.Pointer);
+            return OperAddr(pc + l + offs, SymbolType.Pointer);
         }
 
         private IEnumerable<DisRec2OperString_Base> GetAcc(bool wide, Prefixes prefixes)
@@ -665,7 +679,7 @@ namespace DisassX86
                 offs = br.ReadUInt16();
                 l += 2;
                 //special addressing mode
-                return ptr_sz_str.Concat(OperStr("[")).Concat(PointerPrefixStr(prefixes, Prefixes.DS)).Concat(OperNum((UInt32)offs, SymbolType.Pointer)).Concat(OperStr("]"));
+                return ptr_sz_str.Concat(OperStr("[")).Concat(PointerPrefixStr(prefixes, Prefixes.DS)).Concat(OperAddr(new AddressX86((UInt16)offs), SymbolType.Pointer)).Concat(OperStr("]"));
             }
             else
             {
@@ -864,7 +878,7 @@ namespace DisassX86
             }
         }
 
-        private DisRec2<UInt32> DoClassRegImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassRegImm(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x08) != 0;
             int rix = opcode & 0x7;
@@ -883,7 +897,7 @@ namespace DisassX86
             };
 
         }
-        private DisRec2<UInt32> DoClassReg_16(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassReg_16(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             int rix = opcode & 0x7;
 
@@ -905,7 +919,7 @@ namespace DisassX86
 
         }
 
-        private DisRec2<UInt32> DoClassSeg_16(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassSeg_16(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             int rix = (opcode & 0x38) >> 3;
 
@@ -922,7 +936,7 @@ namespace DisassX86
         }
 
 
-        private DisRec2<UInt32> DoClassAccImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassAccImm(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -939,7 +953,7 @@ namespace DisassX86
 
         }
 
-        private DisRec2<UInt32> DoClassAccDisp(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassAccDisp(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
             bool d = (opcode & 0x02) != 0;
@@ -964,7 +978,7 @@ namespace DisassX86
 
         }
 
-        private DisRec2<UInt32> DoClassMem(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassMem(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool dflag = (opcode & 0x02) != 0;
             bool w = (opcode & 0x01) != 0;
@@ -972,18 +986,18 @@ namespace DisassX86
             return DoClassMem_int(br, pc, l, prefixes, opd, opcode, dflag, w);
         }
 
-        private DisRec2<UInt32> DoClassMemW(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassMemW(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             return DoClassMem_int(br, pc, l, prefixes, opd, opcode, true, true);
         }
 
-        private DisRec2<UInt32> DoClassMem2R(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassMem2R(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             return DoClassMem_int(br, pc, l, prefixes, opd, opcode, true, true);
         }
 
 
-        private DisRec2<UInt32> DoClassMem_int(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w)
+        private DisRec2<UInt32> DoClassMem_int(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode, bool dflag, bool w)
         {
             byte modrm = br.ReadByte();
 
@@ -1014,7 +1028,7 @@ namespace DisassX86
             };
         }
 
-        private DisRec2<UInt32> DoClassMemSeg(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        private DisRec2<UInt32> DoClassMemSeg(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool sdflag = (opcode & 0x02) != 0;
 
@@ -1050,7 +1064,7 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassMemImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemImm(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1082,7 +1096,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassMemImmOpc_DP(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemImmOpc_DP(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
             bool s = (opcode & 0x02) != 0;
@@ -1117,7 +1131,7 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassMemImmOpc_Rot(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemImmOpc_Rot(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1151,7 +1165,7 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassMemOpc_S1(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S1(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1181,7 +1195,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassMemOpc_S2(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S2(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1233,7 +1247,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassMemOpc_S_Pop(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S_Pop(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1264,7 +1278,7 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassMemOpc_S_Rot1(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S_Rot1(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1292,7 +1306,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassMemOpc_S_RotCL(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassMemOpc_S_RotCL(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1320,7 +1334,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassInherent(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassInherent(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             return new DisRec2<uint>
             {
@@ -1330,7 +1344,7 @@ namespace DisassX86
             };
         }
 
-        public DisRec2<UInt32> DoClassInherent_AA(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassInherent_AA(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             if (br.ReadByte() != 0x0A)
                 return null;
@@ -1344,7 +1358,7 @@ namespace DisassX86
                 };
         }
 
-        public DisRec2<UInt32> DoClassCallNear(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassCallNear(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             var disp = OperStr("near ").Concat(GetRelDisp(br, true, ref l, pc));
 
@@ -1358,7 +1372,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassCallFar(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassCallFar(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             var disp = OperStr("far ").Concat(GetData32(br, ref l, SymbolType.Pointer));
 
@@ -1373,7 +1387,7 @@ namespace DisassX86
         }
 
 
-        public DisRec2<UInt32> DoClassString(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassString(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
 
@@ -1407,7 +1421,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassInOut(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassInOut(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x01) != 0;
             bool d = (opcode & 0x02) != 0;
@@ -1429,7 +1443,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassInt(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassInt(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             IEnumerable<DisRec2OperString_Base> Num;
 
@@ -1454,7 +1468,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassJcc(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassJcc(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             int ccix = opcode & 0xF;
 
@@ -1469,7 +1483,7 @@ namespace DisassX86
             };
 
         }
-        public DisRec2<UInt32> DoClassRetImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassRetImm(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool f = (opcode & 0x08) != 0;
 
@@ -1486,7 +1500,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassImmImm(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassImmImm(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             var OpA = OperNum(br.ReadUInt16(), SymbolType.Offset);
             l += 2;
@@ -1503,7 +1517,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassJ_short(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassJ_short(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
 
             var Ops = OperStr("short ").Concat(GetRelDisp(br, false, ref l, pc));
@@ -1518,7 +1532,7 @@ namespace DisassX86
 
         }
 
-        public DisRec2<UInt32> DoClassImmPush(BinaryReader br, UInt32 pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        public DisRec2<UInt32> DoClassImmPush(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
         {
             bool w = (opcode & 0x02) == 0;
 
@@ -1556,6 +1570,9 @@ namespace DisassX86
             return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type } };
         }
 
-
+        private static IEnumerable<DisRec2OperString_Base> OperAddr(DisassAddressBase addr, SymbolType type)
+        {
+            return new[] { new DisRec2OperString_Address { Address = addr, SymbolType = type } };
+        }
     }
 }

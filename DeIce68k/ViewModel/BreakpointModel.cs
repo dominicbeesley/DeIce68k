@@ -14,7 +14,7 @@ namespace DeIce68k.ViewModel
     {
         private DeIceAppModel _app;
 
-        public uint Address {
+        public DisassAddressBase Address {
             get;
             init;
         }

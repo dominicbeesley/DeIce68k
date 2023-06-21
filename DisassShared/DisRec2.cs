@@ -45,17 +45,19 @@ namespace DisassShared
         U8 = 1,
         U16 = 2,
         U32 = 3,
+        U64 = 4,
         S8 = 5,
         S16 = 6,
         S32 = 7,
-        SIGNED = 4,
-        M_TYPE = 3
+        S64 = 8,
+        SIGNED = 8,
+        M_TYPE = 7
     }
 
     public record DisRec2OperString_Number : DisRec2OperString_Base
     {
         public SymbolType SymbolType { get; init; }
-        public UInt32 Number { get; init; }
+        public UInt64 Number { get; init; }
         public DisRec2_NumSize Size { get; init; }
 
         public override string ToString()
@@ -63,7 +65,7 @@ namespace DisassShared
             string m = "";
             if ((Size & DisRec2_NumSize.SIGNED) != 0)
             {
-                int i = (int)Number;
+                Int64 i = (Int64)Number;
                 if (i < 0)
                 {
                     m = "-";
@@ -84,6 +86,9 @@ namespace DisassShared
                         case DisRec2_NumSize.S16:
                             i = i & 0x7FFF;
                             return $"{m}0x{i:X}";
+                        case DisRec2_NumSize.S32:
+                            i = i & 0x7FFFFFFF;
+                            return $"{m}0x{i:X}";
                         default:
                             return $"{m}0x{i:X}";
                     }
@@ -91,7 +96,7 @@ namespace DisassShared
             }
             else
             {
-                UInt32 i = Number;
+                UInt64 i = Number;
 
                 if (i < 32)
                 {
@@ -106,6 +111,9 @@ namespace DisassShared
                             return $"0x{i:X}";
                         case DisRec2_NumSize.U16:
                             i = i & 0xFFFF;
+                            return $"0x{i:X}";
+                        case DisRec2_NumSize.U32:
+                            i = i & 0xFFFFFFFF;
                             return $"0x{i:X}";
                         default:
                             return $"0x{i:X}";
@@ -126,10 +134,10 @@ namespace DisassShared
         }
     }
 
-    public record DisRec2OperString_Symbol : DisRec2OperString_Base
+    public record DisRec2OperString_Symbol: DisRec2OperString_Base
     {
 
-        public ISymbol2<UInt32> Symbol { get; init; }
+        public ISymbol2 Symbol { get; init; }
 
         public override string ToString()
         {
@@ -143,4 +151,23 @@ namespace DisassShared
 
     }
 
+    public record DisRec2OperString_Address : DisRec2OperString_Base
+    {
+        public SymbolType SymbolType { get; init; }
+        public DisassAddressBase Address { get; init; }
+
+        public override string ToString()
+        {
+            return Address.ToString();
+        }
+
+        public override int GetHashCode()
+        {
+            return SymbolType.GetHashCode() + Address.GetHashCode();
+        }
+
+        public DisRec2OperString_Address()
+        {
+        }
+    }
 }
