@@ -29,7 +29,7 @@ namespace DisassX86
         {
             get
             {
-                return (Segment << 4) + Offset;
+                return ((int)Segment << 4) + (int)Offset;
             }
         }
 

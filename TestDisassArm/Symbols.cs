@@ -20,6 +20,8 @@ namespace TestDisass
 
         Dictionary<string, Symbol> dic = new Dictionary<string, Symbol>();
 
+        public IEnumerable<ISymbol2> All => dic.Values;
+
         public ISymbol2 Add(string name, DisassAddressBase addr, SymbolType type)
         {
             var s = new Symbol { Name = name, Address = addr, SymbolType = type };
@@ -38,7 +40,7 @@ namespace TestDisass
 
         public IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type = SymbolType.ANY)
         {
-            return dic.Values.Where(v => v.Address == addr && (v.SymbolType & type) != 0);
+            return dic.Values.Where(v => v.Address.Equals(addr) && (v.SymbolType & type) != 0);
         }
 
     }

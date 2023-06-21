@@ -10,7 +10,7 @@ namespace DisassShared
     /// <summary>
     /// Represents a single address in a CPU's address space
     /// </summary>
-    public abstract class DisassAddressBase : ICloneable, IEquatable<DisassAddressBase>, IComparable<DisassAddressBase>
+    public abstract class DisassAddressBase : ICloneable, IEquatable<DisassAddressBase>, IComparable<DisassAddressBase>, IComparable
     {
 
         public abstract Int64 Canonical { get; }
@@ -67,5 +67,23 @@ namespace DisassShared
 
         public abstract int CompareTo(DisassAddressBase other);
 
+        public override abstract string ToString();
+        public override bool Equals(object obj)
+        {
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
+            {
+                return false;
+            } else
+            {
+                return Equals((DisassAddressBase)obj);
+            }
+        }
+
+        public int CompareTo(object obj)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override abstract int GetHashCode();
     }
 }

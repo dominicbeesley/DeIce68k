@@ -1,10 +1,12 @@
-﻿using System;
+﻿using DisassShared;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace DeIce68k.ViewModel
 {
@@ -12,17 +14,35 @@ namespace DeIce68k.ViewModel
     {
         private DeIceAppModel _app;
 
-        static Regex reDef = new Regex(@"^\s*DEF(?:INE)?\s+(\w+)\s+(?:0x)?([0-9A-F]+)(?:h)?", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reWatchSym = new Regex(@"^w(?:atch)?\s+(\w+)(?:\s+%(\w+))?(\[([0-9]+)\])*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reBreakpoint = new Regex(@"^b(?:reakpoint)?\s+(\w+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        Regex reDef;
+        Regex reWatchSym;
+        Regex reBreakpoint;
         //TODO: reLoad is in wrong order compared to NoIce!
-        static Regex reLoad = new Regex(@"^l(?:oad)?\s+(\w+)\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reRemark = new Regex(@"(;|REM)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex reReg = new Regex(@"REG\s+(\w+)\s+(\w+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        Regex reLoad;
+        Regex reRemark;
+        Regex reReg;
 
         public DeIceScript(DeIceAppModel app)
         {
             this._app = app;
+
+            var reAd = app.GetDisass().AddressFactory.AddressRegEx;
+            var reSymbol = @"\w+";
+            var reSymbolOrAddr = $@"(?:{reSymbol}|{reAd})";
+
+            reDef = new Regex(@$"^\s*DEF(?:INE)?\s+(\w+)\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+            reWatchSym = new Regex(@$"^w(?:atch)?\s+({reSymbolOrAddr})(?:\s+%(\w+))?(\[([0-9]+)\])*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+            reBreakpoint = new Regex(@$"^b(?:reakpoint)?\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+            //TODO: reLoad is in wrong order compared to NoIce!
+            reLoad = new Regex(@$"^l(?:oad)?\s+({reSymbolOrAddr})\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            
+            reRemark = new Regex(@"(;|REM)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+            reReg = new Regex(@$"REG\s+(\w+)\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
         }
 
         public void ExecuteScript(string pathname)
@@ -62,8 +82,12 @@ namespace DeIce68k.ViewModel
             {
                 //SYMBOL DEF
                 string sym = mD.Groups[1].Value;
-                uint addr = Convert.ToUInt32(mD.Groups[2].Value, 16);
-                _app.Symbols.Add(sym, addr, DisassShared.SymbolType.NONE);
+
+                string name;
+                DisassAddressBase addr;
+                _app.ParseSymbolOrAddress(mD.Groups[2].Value, out name, out addr);
+
+                _app.Symbols.Add(sym, addr, DisassShared.SymbolType.Pointer);
                 return;
             }
 
@@ -72,7 +96,7 @@ namespace DeIce68k.ViewModel
             {
 
                 string name = null;
-                uint addr;
+                DisassAddressBase addr;
 
                 _app.ParseSymbolOrAddress(mWA.Groups[1].Value, out name, out addr);
 
@@ -102,7 +126,7 @@ namespace DeIce68k.ViewModel
             if (mBP.Success)
             {
                 string name = null;
-                uint addr;
+                DisassAddressBase addr;
                 _app.ParseSymbolOrAddress(mBP.Groups[1].Value, out name, out addr);
                 _app.AddBreakpoint(addr);
                 return;
@@ -112,7 +136,7 @@ namespace DeIce68k.ViewModel
             if (mLoad.Success)
             {
                 string name = null;
-                uint addr;
+                DisassAddressBase addr;
                 _app.ParseSymbolOrAddress(mLoad.Groups[1].Value, out name, out addr);
                 string filename = mLoad.Groups[2].Value;
                 _app.LoadBinaryFile(addr, Path.Combine(directory, filename));
@@ -126,7 +150,7 @@ namespace DeIce68k.ViewModel
                 string reg = mReg.Groups[1].Value;
                 string val = mReg.Groups[2].Value;
 
-                uint addr;
+                DisassAddressBase addr;
                 string name = null;
                 _app.ParseSymbolOrAddress(val, out name, out addr);
 
@@ -134,7 +158,8 @@ namespace DeIce68k.ViewModel
                 if (r == null)
                     throw new ArgumentException($"Unrecognised register {reg}");
 
-                r.Data = addr;
+                //TODO: sort this out it's no right
+                r.Data = (uint)addr.Canonical;
                 return;
             }
             throw new ArgumentException($"Unrecognised command:{line}");

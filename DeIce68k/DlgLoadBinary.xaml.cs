@@ -30,33 +30,39 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        public uint Address {
+        public DisassAddressBase Address {
             get
             {
 
-                uint a = 0;
-                ISymbol2<UInt32> sym;
+                DisassAddressBase ret = null;
+                ISymbol2 sym;
                 try
                 {
                     if (Context.Symbols.FindByName(txtAddress.Text, out sym))
                     {
-                        a = sym.Address;
+                        ret = sym.Address;
                     }
                     else
                     {
-                        a = Convert.ToUInt32(txtAddress.Text, 16);
+                        ret = Context.GetDisass()?.AddressFactory?.Parse(txtAddress.Text);
                     }
                 }
                 catch (Exception) { }
-                return a;
+                return ret;
             }
             set
             {
-                var sym = Context?.Symbols?.GetByAddress(value, SymbolType.ANY).FirstOrDefault();
-                if (sym != null)
-                    txtAddress.Text = sym.Name;
-                else
-                    txtAddress.Text = $"{value:X08}";
+                if (value != null)
+                {
+                    var sym = Context?.Symbols?.GetByAddress(value, SymbolType.ANY).FirstOrDefault();
+                    if (sym != null)
+                        txtAddress.Text = sym.Name;
+                    else
+                        txtAddress.Text = $"{value:X08}";
+                } else
+                {
+                    txtAddress.Text = "";
+                }
             }
         }
 
@@ -69,15 +75,15 @@ namespace DeIce68k
         {
             try
             {
-                UInt32 a;
-                ISymbol2<UInt32> sym;
+                DisassAddressBase ret;
+                ISymbol2 sym;
                 if (Context.Symbols.FindByName(txtAddress.Text, out sym))
                 {
-                    a = sym.Address;
+                    ret = sym.Address;
                 }
                 else
                 {
-                    a = Convert.ToUInt32(txtAddress.Text, 16);
+                    ret = Context.GetDisass().AddressFactory.Parse(txtAddress.Text);
                 }
             } catch (Exception)
             {

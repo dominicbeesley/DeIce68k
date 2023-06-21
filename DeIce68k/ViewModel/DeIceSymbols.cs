@@ -27,7 +27,7 @@ namespace DeIce68k.ViewModel
         ObservableCollection<DeIceSymbol> _symbolsByAddress = new ObservableCollection<DeIceSymbol>();
         public ReadOnlyObservableCollection<DeIceSymbol> SymbolsByAddress { get; init; }
 
-        
+        public IEnumerable<ISymbol2> All => SymbolsByAddress;
 
         public ISymbol2 Add(string name, DisassAddressBase address, SymbolType symboltype)
         {

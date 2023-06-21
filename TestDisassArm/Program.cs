@@ -206,6 +206,11 @@ namespace TestDisass
                     }
                 }
 
+                foreach (var sn in symbols.All.OrderBy( x => x.Name))
+                {
+                    Console.WriteLine($"{sn.Name}\t\tequ\t{sn.Address}\t; {sn.SymbolType}");
+                }
+
 
                 dispc = BaseAddress;
                 ok = true;

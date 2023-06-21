@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,5 +18,7 @@ namespace DisassShared
         IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type = SymbolType.ANY);
 
         bool FindByName(string name, out ISymbol2 sym);
+
+        IEnumerable<ISymbol2> All { get; }
     }
 }

@@ -175,8 +175,8 @@ namespace DeIce68k.ViewModel
         }
 
 
-        private uint _loadBinaryAddr_last = 0x8000;
-        public uint LoadBinaryAddr_last
+        private DisassAddressBase _loadBinaryAddr_last = null;
+        public DisassAddressBase LoadBinaryAddr_last
         {
             get => _loadBinaryAddr_last;
             set => Set(ref _loadBinaryAddr_last, value);
@@ -191,7 +191,7 @@ namespace DeIce68k.ViewModel
 
 
 
-        public BackgroundWorker LoadBinaryFile(uint addr, string filename)
+        public BackgroundWorker LoadBinaryFile(DisassAddressBase addr, string filename)
         {
             BackgroundWorker b = new BackgroundWorker();
             b.WorkerSupportsCancellation = true;
@@ -224,7 +224,7 @@ namespace DeIce68k.ViewModel
                             do
                             {
                                 cur = rd.Read(buf, 0, maxlen);
-                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr, buf, 0, cur));
+                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem((uint)addr.Canonical, buf, 0, cur));
                                 if (!reply.Success)
                                     throw new Exception($"Error copying data at {addr:X08}");
                                 addr += (uint)cur;
@@ -288,7 +288,7 @@ namespace DeIce68k.ViewModel
                 }
                 catch (Exception)
                 {
-                    throw new ArgumentException($"\"{s}\" is not a known symbol or hex number");
+                    throw new ArgumentException($"\"{s}\" is not a known symbol or address number");
                 }
                 name = Symbols.FindNearest(addr, SymbolType.ANY);
             }
