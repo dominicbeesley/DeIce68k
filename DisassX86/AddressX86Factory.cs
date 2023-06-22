@@ -32,7 +32,7 @@ namespace DisassX86
 
             if (!string.IsNullOrEmpty(m.Groups[2].Value))
             {
-                return new AddressX86(Convert.ToUInt16(m.Groups[2].Value), Convert.ToUInt16(m.Groups[3].Value));
+                return new AddressX86(Convert.ToUInt16(m.Groups[2].Value,16), Convert.ToUInt16(m.Groups[3].Value,16));
             } else
             {
                 return new AddressX86(0, Convert.ToUInt16(m.Groups[3].Value));

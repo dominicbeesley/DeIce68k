@@ -113,7 +113,7 @@ namespace DeIce68k.SampleData
                 if (_appx86_16 == null)
                 {
                     _appx86_16 = new DeIceAppModel(new DummySerial(), null, true, new DeIceFnReplyGetStatus(
-                        DeIceProtoConstants.HOST_x86_16, 0x80,
+                        DeIceProtoConstants.HOST_x86_186, 0x80,
                         DeIceTargetOptionFlags.HasFNCall | DeIceTargetOptionFlags.HasFNResetTarget | DeIceTargetOptionFlags.HasFNStep | DeIceTargetOptionFlags.HasFNStopTarget,
                         0, 0x8000, new byte[] { 0x4E, 0x4F }, "TEST Intel x86 16", 0, 0)
                         );

@@ -16,6 +16,11 @@ namespace DisassShared
         public abstract Int64 Canonical { get; }
 
         /// <summary>
+        /// An address suitable for passing to DeIce protocol functions
+        /// </summary>
+        public abstract UInt32 DeIceAddress { get; }
+
+        /// <summary>
         /// Returns the signed distance in bytes between the two addresses
         /// </summary>
         public static Int64 operator -(DisassAddressBase a, DisassAddressBase b)

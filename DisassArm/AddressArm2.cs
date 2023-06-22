@@ -18,6 +18,9 @@ namespace DisassArm
 
         public override long Canonical => (long)_address;
 
+        public override UInt32 DeIceAddress => _address;
+
+
         public override object Clone()
         {
             return new AddressArm2((UInt32)Canonical);

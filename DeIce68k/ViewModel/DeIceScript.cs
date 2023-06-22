@@ -28,20 +28,20 @@ namespace DeIce68k.ViewModel
 
             var reAd = app.GetDisass().AddressFactory.AddressRegEx;
             var reSymbol = @"\w+";
-            var reSymbolOrAddr = $@"(?:{reSymbol}|{reAd})";
+            var reSymbolOrAddr = $@"(?:{reAd}|{reSymbol})";
 
-            reDef = new Regex(@$"^\s*DEF(?:INE)?\s+(\w+)\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            reDef = new Regex(@$"^\s*DEF(?:INE)?\s+(\w+)\s+({reSymbolOrAddr})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-            reWatchSym = new Regex(@$"^w(?:atch)?\s+({reSymbolOrAddr})(?:\s+%(\w+))?(\[([0-9]+)\])*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            reWatchSym = new Regex(@$"^w(?:atch)?\s+({reSymbolOrAddr})(?:\s+%(\w+))?(\[([0-9]+)\])*\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-            reBreakpoint = new Regex(@$"^b(?:reakpoint)?\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            reBreakpoint = new Regex(@$"^b(?:reakpoint)?\s+({reSymbolOrAddr})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             //TODO: reLoad is in wrong order compared to NoIce!
             reLoad = new Regex(@$"^l(?:oad)?\s+({reSymbolOrAddr})\s+(.+?)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             
             reRemark = new Regex(@"(;|REM)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-            reReg = new Regex(@$"REG\s+(\w+)\s+({reSymbolOrAddr})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            reReg = new Regex(@$"REG\s+(\w+)\s+({reSymbolOrAddr})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         }
 

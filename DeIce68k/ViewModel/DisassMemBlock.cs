@@ -34,7 +34,7 @@ namespace DeIce68k.ViewModel
                 _pc = value;
                 foreach (var i in Items)
                 {
-                    if (i.Address == PC)
+                    if (i.Address.Equals(PC))
                     {
                         if (!i.PC)
                             i.PC = true;
@@ -66,7 +66,7 @@ namespace DeIce68k.ViewModel
             byte[] newData = new byte[Data.Length + howmuch];
             System.Buffer.BlockCopy(Data, 0, newData, 0, Data.Length);
 
-            _app.DeIceProto.ReadMemBlock((UInt32)(BaseAddress + (Int64)Data.Length).Canonical, newData, Data.Length, (int)howmuch);
+            _app.DeIceProto.ReadMemBlock((BaseAddress + Data.Length).DeIceAddress, newData, Data.Length, (int)howmuch);
 
 
             Data = newData;
@@ -82,7 +82,7 @@ namespace DeIce68k.ViewModel
                 {
                     foreach (var symbol in _app.Symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
-                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc == PC));
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc.Equals(PC)));
                     }
 
                     var p = ms.Position;
@@ -106,7 +106,7 @@ namespace DeIce68k.ViewModel
 
                         byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc.Equals(PC)));
 
                         dispc += instr.Length;
                         EndPoint = dispc;
@@ -152,7 +152,7 @@ namespace DeIce68k.ViewModel
                     bool hassym = false;
                     foreach (var symbol in _app.Symbols.GetByAddress(dispc, SymbolType.Pointer))
                     {
-                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc == PC));
+                        _items.Add(new DisassItemLabelModel(_app, dispc, null, symbol.Name, dispc.Equals(PC)));
                         hassym = true;
                     }
                     if (first)
@@ -162,7 +162,7 @@ namespace DeIce68k.ViewModel
                             var nearsym = _app.Symbols.FindNearest(dispc, SymbolType.Pointer);
                             if (nearsym != null)
                             {
-                                _items.Add(new DisassItemLabelModel(_app, dispc, null, nearsym, dispc == PC));
+                                _items.Add(new DisassItemLabelModel(_app, dispc, null, nearsym, dispc.Equals(PC)));
                             }
                         }
                         first = false;
@@ -190,7 +190,7 @@ namespace DeIce68k.ViewModel
 
                         byte[] inst_bytes = new byte[instr.Length];
                         ms.Read(inst_bytes, 0, instr.Length);
-                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc == PC));
+                        _items.Add(new DisassItemOpModel(_app, dispc, instr.Hints, inst_bytes, instr.Mnemonic, ExpandSymbols(_app.Symbols, instr.Operands), instr.Length, instr.Decoded, dispc.Equals(PC)));
 
                         dispc += instr.Length;
                         EndPoint = dispc;

@@ -66,7 +66,7 @@ namespace DeIce68k.ViewModel
         public IEnumerable<ISymbol2> GetByAddress(DisassAddressBase addr, SymbolType type)
         {
             return _symbolsByAddress.Where(x =>
-                (x.Address == addr)
+                (x.Address.Equals(addr))
                 && (
                     (type == SymbolType.Pointer && x.SymbolType == SymbolType.NONE)
                     || (x.SymbolType & type) != 0
@@ -95,7 +95,7 @@ namespace DeIce68k.ViewModel
         {
             var sym = _symbolsByAddress
                 .Select(x => new { sym = x, distance = dispc - x.Address})
-                .Where(x => (x.distance < limit) && (
+                .Where(x => (x.distance > 0) && (x.distance < limit) && (
                     (symbolType == SymbolType.Pointer && x.sym.SymbolType == SymbolType.NONE)
                     || (x.sym.SymbolType & symbolType) != 0
                     )                

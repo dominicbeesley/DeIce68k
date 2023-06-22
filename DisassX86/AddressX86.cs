@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,13 +26,10 @@ namespace DisassX86
         }
 
 
-        public override long Canonical
-        {
-            get
-            {
-                return ((int)Segment << 4) + (int)Offset;
-            }
-        }
+        public override long Canonical => ((int)Segment << 4) + (int)Offset;
+
+        public override UInt32 DeIceAddress => ((UInt32)Segment << 16) | ((UInt32)Offset);
+
 
         public override object Clone()
         {

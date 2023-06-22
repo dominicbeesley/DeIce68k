@@ -35,15 +35,16 @@ namespace DisassX86
             match_186 = 2,
             match_286 = 4,
             match_386 = 8,
+            match_x86_only = 16,
+            mode_32bit = 32,
 
             // match any processor
             match_all = match_x86 | match_186 | match_286 | match_386,
 
             // 32 bit defaults
-            mode_32bit = 32,
 
             // API levels
-            cpu_x86 = match_x86,
+            cpu_x86 = match_x86 | match_x86_only,
             cpu_186 = match_x86 | match_186,
             cpu_286 = match_x86 | match_186 | match_286,
             cpu_386 = match_x86 | match_186 | match_286 | match_386,
@@ -106,7 +107,9 @@ namespace DisassX86
             J_short,
             ImmPush,
             RetImm,
-            ImmImm
+            ImmImm,
+            TwoByte,
+            SxDT
         }
 
 
@@ -193,8 +196,15 @@ namespace DisassX86
             "g"
         };
 
+        public readonly static OpCodeDetails[] OpMapTwoByte = new OpCodeDetails[]
+        {
+            new OpCodeDetails {And = 0xFF, Xor = 0x00, OpClass = OpClass.SxDT, Text = "SLDT", MatchAPI = API.match_286},
+        };
+
         public readonly static OpCodeDetails[] OpMap = new[]
         {
+            new OpCodeDetails {And = 0xFF, Xor = 0x0F, OpClass = OpClass.TwoByte, Text = "2b", MatchAPI = API.match_286},
+
             // prefixes
             new OpCodeDetails {And = 0xFF, Xor = 0x26, OpClass = OpClass.Prefix, Text = "es:", Pref = Prefixes.ES, MatchAPI = API.match_all},
             new OpCodeDetails {And = 0xFF, Xor = 0x2E, OpClass = OpClass.Prefix, Text = "cs:", Pref = Prefixes.CS, MatchAPI = API.match_all},
@@ -351,7 +361,12 @@ namespace DisassX86
 
             //Push/Pop
             new OpCodeDetails {And = 0xF8, Xor = 0x58, OpClass = OpClass.Reg_16, Text = "pop", MatchAPI = API.match_all},
-            new OpCodeDetails {And = 0xC7, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_all},
+
+            new OpCodeDetails {And = 0xFF, Xor = 0x07, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x0F, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_x86_only},
+            new OpCodeDetails {And = 0xFF, Xor = 0x17, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_all},
+            new OpCodeDetails {And = 0xFF, Xor = 0x1F, OpClass = OpClass.Seg_16, Text = "pop", MatchAPI = API.match_all},
+
             new OpCodeDetails {And = 0xFF, Xor = 0x8F, OpClass = OpClass.MemOpc_S_Pop, Text = "!!!", MatchAPI = API.match_all},
 
             new OpCodeDetails {And = 0xF8, Xor = 0x50, OpClass = OpClass.Reg_16, Text = "push", MatchAPI = API.match_all},
@@ -396,6 +411,13 @@ namespace DisassX86
                 if (opd?.OpClass == OpClass.Prefix)
                     prefixes |= opd.Pref;
             } while (l < 15 && opd?.OpClass == OpClass.Prefix);
+
+            if (opd?.OpClass == OpClass.TwoByte)
+            {
+                l++;
+                opcode = br.ReadByte();
+                opd = OpMapTwoByte.Where(o => (o.And & opcode) == o.Xor && ((m_API & o.MatchAPI) != 0)).FirstOrDefault();
+            }
 
             if (l <= 15 && opd != null)
             {
@@ -487,6 +509,9 @@ namespace DisassX86
                         break;
                     case OpClass.ImmImm:
                         ret = DoClassImmImm(br, pc, l, prefixes, opd, opcode);
+                        break;
+                    case OpClass.SxDT:
+                        ret = DoClassSxDT(br, pc, l, prefixes, opd, opcode);
                         break;
                 }
             }
@@ -1060,6 +1085,31 @@ namespace DisassX86
                 Length = (ushort)(l + 1),
                 Mnemonic = opd.Text,
                 Operands = Ops
+            };
+        }
+
+        private DisRec2<UInt32> DoClassSxDT(BinaryReader br, DisassAddressBase pc, ushort l, Prefixes prefixes, OpCodeDetails opd, byte opcode)
+        {
+
+            byte modrm = br.ReadByte();
+
+            int mod = (modrm & 0xC0) >> 6;
+
+            //TODO: Check rrr for 000 and return null if not?
+
+            int r_m = modrm & 0x7;
+
+            var Op2 = GetModRm(br, mod, r_m, true, false, prefixes, ref l);
+            if (Op2 == null)
+                return null;
+
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = (ushort)(l + 1),
+                Mnemonic = opd.Text,
+                Operands = Op2
             };
         }
 

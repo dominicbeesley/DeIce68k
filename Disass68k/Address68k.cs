@@ -18,6 +18,8 @@ namespace Disass68k
 
         public override long Canonical => (long)_address;
 
+        public override UInt32 DeIceAddress => _address;
+
         public override object Clone()
         {
             return new Address68K((UInt32)Canonical);

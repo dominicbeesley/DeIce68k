@@ -21,8 +21,8 @@
         public const byte TS_ILLEGAL = 3;
 
         public const byte HOST_68k = 68;
-        public const byte HOST_x86_16 = 86;
-        public const byte HOST_x86_386 = 87;
+        public const byte HOST_x86_186 = 87;
+        public const byte HOST_x86_386 = 89;
         public const byte HOST_ARM2 = 0xA2;
     }
 }

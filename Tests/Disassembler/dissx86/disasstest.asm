@@ -1149,6 +1149,14 @@ x2:
 
 	%endif
 
+	%ifdef level_386
+		sldt	CX
+		sldt	[d1]
+		sldt	ECX
+		sldt	[d1]
+	%endif
+
+
 		section .bss
 
 d1:		resb 1000

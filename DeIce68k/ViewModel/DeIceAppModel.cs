@@ -224,7 +224,7 @@ namespace DeIce68k.ViewModel
                             do
                             {
                                 cur = rd.Read(buf, 0, maxlen);
-                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem((uint)addr.Canonical, buf, 0, cur));
+                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr.DeIceAddress, buf, 0, cur));
                                 if (!reply.Success)
                                     throw new Exception($"Error copying data at {addr:X08}");
                                 addr += (uint)cur;
@@ -414,7 +414,7 @@ namespace DeIce68k.ViewModel
                     if (dlg.ShowDialog() == true)
                     {
                         byte[] buf = new byte[256];
-                        DeIceProto.ReadMemBlock((UInt32)dlg.Address.Canonical, buf, 0, 256);
+                        DeIceProto.ReadMemBlock(dlg.Address.DeIceAddress, buf, 0, 256);
 
                         bool first = true;
                         StringBuilder l = new StringBuilder();
@@ -782,7 +782,7 @@ namespace DeIce68k.ViewModel
                                 Items = curbp.OldOP.Select((b, i) =>
                                     new DeIceFnReqSetBytes.DeIceSetBytesItem()
                                     {
-                                        Address = (uint)(curbp.Address + i).Canonical, Data = b
+                                        Address = (curbp.Address + i).DeIceAddress, Data = b
                                     }
                                 ).ToArray()
                             }
@@ -891,7 +891,7 @@ namespace DeIce68k.ViewModel
                     bp => DebugHostStatus.BreakPointInstruction.Select( (b,i) =>
                             new DeIceFnReqSetBytes.DeIceSetBytesItem()
                             {
-                                Address = (uint)(bp.Address + i).Canonical,
+                                Address = (bp.Address + i).DeIceAddress,
                                 Data = b
                             }
                         )
@@ -906,7 +906,7 @@ namespace DeIce68k.ViewModel
                         bp => bp.OldOP.Select( (b, i) =>
                             new DeIceFnReqSetBytes.DeIceSetBytesItem()
                             {
-                                Address = (uint)(bp.Address + i).Canonical,
+                                Address = (bp.Address + i).DeIceAddress,
                                 Data = b
                             }
                         )
@@ -980,7 +980,7 @@ namespace DeIce68k.ViewModel
                 foreach (var w in Watches)
                 {
                     byte[] buf = new byte[w.DataSize];
-                    DeIceProto.ReadMemBlock((UInt32)w.Address.Canonical, buf, 0, (int)w.DataSize);
+                    DeIceProto.ReadMemBlock(w.Address.DeIceAddress, buf, 0, (int)w.DataSize);
                     w.Data = buf;
                 }
 
@@ -1010,15 +1010,16 @@ namespace DeIce68k.ViewModel
             //check to see if pc is in the current DisassMemBlock, if not either extend or load new
             if (DisassMemBlock == null || DisassMemBlock.BaseAddress > addr || DisassMemBlock.EndPoint <= addr + 64)
             {
-                if (DisassMemBlock != null && (addr - DisassMemBlock.EndPoint) < 1024)
+                Int64 block_offset;
+                if (DisassMemBlock != null && (block_offset = addr - DisassMemBlock.EndPoint) > 0 &&  block_offset < 1024)
                 {
                     //close just extend until we're in range
-                    DisassMemBlock.MorePlease((uint)(addr - DisassMemBlock.EndPoint + 512));
+                    DisassMemBlock.MorePlease((uint)(block_offset + 512));
                 }
                 else
                 {
                     var disdat = new byte[1024];
-                    DeIceProto.ReadMemBlock((UInt32)addr.Canonical, disdat, 0, 1024);
+                    DeIceProto.ReadMemBlock(addr.DeIceAddress, disdat, 0, 1024);
 
                     DisassMemBlock = new DisassMemBlock(this, addr, disdat, GetDisass());
                 }
@@ -1118,19 +1119,19 @@ namespace DeIce68k.ViewModel
 
         public byte GetByte(DisassAddressBase addr)
         {
-            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = (UInt32)addr.Canonical, Len = 1 });
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr.DeIceAddress, Len = 1 });
             return r.Data[0];
         }
 
         public ushort GetWord(DisassAddressBase addr)
         {
-            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = (UInt32)addr.Canonical, Len = 2 });
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr.DeIceAddress, Len = 2 });
             return (ushort)((r.Data[0] << 8) | r.Data[1]);
         }
 
         public uint GetLong(DisassAddressBase addr)
         {
-            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = (UInt32)addr.Canonical, Len = 4 });
+            var r = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr.DeIceAddress, Len = 4 });
             return (ushort)((r.Data[0] << 8) | (r.Data[1] << 16) | (r.Data[2] << 8) | r.Data[3]);
         }
 
@@ -1169,7 +1170,7 @@ namespace DeIce68k.ViewModel
                 _regs = new RegisterSetModel68k(this);
                 changed = true;
             } 
-            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_16 && Regs?.GetType() != typeof(RegisterSetModelx86_16))
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_186 && Regs?.GetType() != typeof(RegisterSetModelx86_16))
             {
                 if (_regs != null)
                     _regs.PropertyChanged -= Regs_PropertyChanged;
@@ -1216,10 +1217,15 @@ namespace DeIce68k.ViewModel
             //TODO: work out from DebugHostType
             if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_ARM2)
                 return new DisassArm.DisassArm();
-            if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_68k)
+            else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_68k)
                 return new Disass68k.Disass68k();
+            else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_x86_186)
+                return new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_186);
+            else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_x86_386)
+                return new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386);
             else
-                return new DisassX86.DisassX86(DisassX86.DisassX86.API.match_x86);
+                throw new NotImplementedException($"Unknown host type {_debugHostStatus?.ProcessorType}");
+
         }
 
         private void RefreshDisassembly()
@@ -1230,7 +1236,7 @@ namespace DeIce68k.ViewModel
                 DisassAddressBase st = DisassMemBlock?.BaseAddress ?? Regs.PCValue;
 
                 var disdat = new byte[len];
-                DeIceProto.ReadMemBlock((UInt32)st.Canonical, disdat, 0, len);
+                DeIceProto.ReadMemBlock(st.DeIceAddress, disdat, 0, len);
 
                 DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass());
                 DisassMemBlock.PC = Regs.PCValue;
