@@ -513,7 +513,7 @@ namespace DeIce68k.ViewModel
                         //Not sure how to best pass this up to the UI
                         if (MainWindow is not null)
                         {
-                            var i = MainWindow.ucDisAss.lbLines.Items.OfType<DisassItemOpModel>().Where(x => x.Address == dlg.Address).FirstOrDefault();
+                            var i = MainWindow.ucDisAss.lbLines.Items.OfType<DisassItemOpModel>().Where(x => x.Address.Equals(dlg.Address)).FirstOrDefault();
                             MainWindow.ucDisAss.lbLines.ScrollIntoView(i);
                         }
                     }
@@ -769,7 +769,7 @@ namespace DeIce68k.ViewModel
             {
                 try
                 {
-                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address == Regs.PCValue).FirstOrDefault();
+                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address.Equals(Regs.PCValue)).FirstOrDefault();
                     if (curbp != null)
                     {
                         //remove the breakpoint from the active list
@@ -847,13 +847,17 @@ namespace DeIce68k.ViewModel
 
             // how many breakpoints we can fit in the buffer
             int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
-            var bp2a = Breakpoints.Where(o => o.Enabled && !_activeBreakpoints.Where(a => a.Address == o.Address).Any());
+            var bp2a = Breakpoints.Where(o => o.Enabled && !_activeBreakpoints.Where(a => a.Address.Equals(o.Address)).Any());
 
             while (bp2a.Any())
             {
                 var chunk = bp2a.Take(MAXBP).ToArray();
                 var req = Breakpoints2Req(chunk, true);
                 var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
+
+                if (ret.Data.Length != chunk.Count())
+                    throw new Exception($"Unexpected length returned from SetBytes expected {chunk.Count()} received {ret.Data.Length}");
+
                 for (int i = 0; i < ret.Data.Length / bpl; i++)
                 {
                     var ob = new byte[bpl];

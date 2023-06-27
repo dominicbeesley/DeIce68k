@@ -43,6 +43,7 @@ namespace DisassX86
 
         public override bool Equals(DisassAddressBase other)
         {
+            if (other == null) return false;
             return Canonical == other.Canonical;
         }
 

@@ -60,6 +60,24 @@ namespace DisassShared
             return a.CompareTo(b) >= 0;
         }
 
+        public static bool operator ==(DisassAddressBase lhs, DisassAddressBase rhs)
+        {
+            if (lhs is null)
+            {
+                if (rhs is null)
+                {
+                    return true;
+                }
+
+                // Only the left side is null.
+                return false;
+            }
+            // Equals handles case of null on right side.
+            return lhs.Equals(rhs);
+        }
+
+        public static bool operator !=(DisassAddressBase lhs, DisassAddressBase rhs) => !(lhs == rhs);
+
         public static DisassAddressBase Empty { get; }
 
         protected abstract Int64 DoSubtraction(DisassAddressBase b);

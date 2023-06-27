@@ -23,7 +23,8 @@ namespace DeIce68k
     public partial class ucAddressOrSymbol : UserControl
     {
 
-        public DisassAddressBase Address {
+        public DisassAddressBase Address
+        {
             get
             {
                 DisassAddressBase ret;
@@ -89,7 +90,7 @@ namespace DeIce68k
         {
             var s = txtAddr.Text;
             ISymbol2 sym = null;
-            if ((DataContext as DeIce68k.ViewModel.DeIceAppModel)?.Symbols.FindByName(s, out sym) ?? false) 
+            if ((DataContext as DeIce68k.ViewModel.DeIceAppModel)?.Symbols.FindByName(s, out sym) ?? false)
                 return sym?.Name ?? null;
             else
                 return null;
@@ -107,35 +108,26 @@ namespace DeIce68k
 
             var am = (DataContext as DeIce68k.ViewModel.DeIceAppModel);
 
-            if (Char.IsDigit(s[0]))
+            if (am != null)
             {
-                try
+                ISymbol2 sym;
+                if (am.Symbols.FindByName(s, out sym))
                 {
-                    addr = am?.GetDisass().AddressFactory.Parse(s);
+                    addr = sym.Address;
                     return true;
-                } catch (Exception)
-                {
-                    return false;
                 }
-            }
-            else
-            {
-                if (am != null)
-                {
-                    ISymbol2 sym;
-                    if (am.Symbols.FindByName(s, out sym))
-                    {
-                        addr = sym.Address;
-                        return true;
-                    } else
-                    {
-                        return false;
-                    }
-                }
-                else
-                    return false;
             }
 
+            try
+            {
+                addr = am?.GetDisass().AddressFactory.Parse(s);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
+
     }
 }
