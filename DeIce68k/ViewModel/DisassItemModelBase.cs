@@ -50,7 +50,10 @@ namespace DeIce68k.ViewModel
                 deIceAppModel.Command_Exception
             );
             CmdPCToHere = new RelayCommand(
-                (o) => { Parent.Regs.PCValue = Address; },
+                (o) => { 
+                    Parent.Regs.PCValue = Address;
+                    Parent.DisassMemBlock.PC = Address;
+                },
                 (o) => { return Parent?.Regs.IsStopped ?? false; },
                 "Trace To Here",
                 deIceAppModel.Command_Exception
