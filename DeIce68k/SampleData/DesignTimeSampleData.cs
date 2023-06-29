@@ -318,9 +318,5 @@ namespace DeIce68k.SampleData
 
         public static List<string> SampleErrors { get { return new List<string>(new[] { "Error 1", "error 2" }); } }
 
-        public static DeIceCallDlgModel<RegisterSetModelx86_16, AddressX86> RegisterSetModelx86_16 { get { return new(SampleDataRegisterSetModel_x86_16, new(0xDEAD, 0xB00B), false); } }
-        public static DeIceCallDlgModel<RegisterSetModelx86_386, AddressX86> RegisterSetModelx86_386 { get { return new(SampleDataRegisterSetModel_x86_386, new(0xDEAD, 0xB00B), false); } }
-        public static DeIceCallDlgModel<RegisterSetModelArm2, AddressArm2> RegisterSetModelArm2 { get { return new(SampleDataRegisterSetModel_Arm2, new(0xDEADB00B), false); } }
-        public static DeIceCallDlgModel<RegisterSetModel68k, Address68K> RegisterSetModel68k { get { return new(SampleDataRegisterSetModel_68k, new(0xDEADB00B), false); } }
     }
 }
