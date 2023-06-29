@@ -14,5 +14,7 @@ namespace DeIceProtocol
 
         public byte Len { get; init; }
 
+
+
     }
 }

@@ -31,7 +31,7 @@ namespace DeIce68k
                 GetAddress(out ret);
                 return ret;
             }
-            set => txtAddr.Text = $"0x{value}";
+            set => txtAddr.Text = $"{value}";
         }
 
         public string Symbol

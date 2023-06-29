@@ -115,7 +115,7 @@ namespace DeIce68k.SampleData
                     _appx86_16 = new DeIceAppModel(new DummySerial(), null, true, new DeIceFnReplyGetStatus(
                         DeIceProtoConstants.HOST_x86_186, 0x80,
                         DeIceTargetOptionFlags.HasFNCall | DeIceTargetOptionFlags.HasFNResetTarget | DeIceTargetOptionFlags.HasFNStep | DeIceTargetOptionFlags.HasFNStopTarget,
-                        0, 0x8000, new byte[] { 0x4E, 0x4F }, "TEST Intel x86 16", 0, 0)
+                        0, 0x8000, new byte[] { 0xCC }, "TEST Intel x86 16", 0, 0)
                         );
 
                     _appx86_16.Watches.Add(new WatchModel(new AddressX86(0,0), "ZERO", WatchType.X08, null));
@@ -167,6 +167,71 @@ namespace DeIce68k.SampleData
                 return _appx86_16;
             }
         }
+
+        static DeIceAppModel _appx86_386 = null;
+
+        public static DeIceAppModel SampleDeIceAppModel_x86_386
+        {
+            get
+            {
+                if (_appx86_386 == null)
+                {
+                    _appx86_386 = new DeIceAppModel(new DummySerial(), null, true, new DeIceFnReplyGetStatus(
+                        DeIceProtoConstants.HOST_x86_386, 0x80,
+                        DeIceTargetOptionFlags.HasFNCall | DeIceTargetOptionFlags.HasFNResetTarget | DeIceTargetOptionFlags.HasFNStep | DeIceTargetOptionFlags.HasFNStopTarget,
+                        0, 0x8000, new byte[] { 0xCC }, "TEST Intel x86 386", 0, 0)
+                        );
+
+                    _appx86_386.Watches.Add(new WatchModel(new AddressX86(0, 0), "ZERO", WatchType.X08, null));
+                    _appx86_386.Watches.Add(new WatchModel(new AddressX86(0x1234, 16), "sixteen", WatchType.X16, null));
+                    _appx86_386.Watches.Add(new WatchModel(new AddressX86(0xFFFF, 0xFFFF), "page1", WatchType.X08, new uint[] { 20 }));
+                    IEnumerable<string> errorsR;
+                    _appx86_386.AddBreakpoint(new AddressX86(0xDEAD, 0xBEEF)).ConditionCode = ScriptCompiler.Compile(_appx86_386, "return false;", out errorsR);
+                    _appx86_386.AddBreakpoint(new AddressX86(0x0B00, 0xB135)).Enabled = false;
+                    _appx86_386.AddBreakpoint(new AddressX86(0x0015, 0x4BE7)).Selected = true;
+                    _appx86_386.AddBreakpoint(new AddressX86(0x008D, 0x0812));
+                    _appx86_386.Symbols.Add(".excl", new AddressX86(0xFC00, 0x19B9), SymbolType.Pointer);
+                    _appx86_386.Symbols.Add(".ex", new AddressX86(0xFC00, 0x19C4), SymbolType.Pointer);
+                    _appx86_386.Symbols.Add(".ex_nokeys", new AddressX86(0xFC00, 0x19CA), SymbolType.Pointer);
+                    _appx86_386.Symbols.Add("dom_keyb_auto_off", new AddressX86(0xFC00, 0x19D1), SymbolType.Pointer);
+                    _appx86_386.Symbols.Add("dom_keyb_auto_on", new AddressX86(0xFC00, 0x19EC), SymbolType.Pointer);
+                    _appx86_386.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new AddressX86(0, 0xFE43), SymbolType.Port);
+                    _appx86_386.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new AddressX86(0, 0xFE4F), SymbolType.Port);
+                    _appx86_386.Symbols.Add("io_SHEILA_SYSVIA_ORB", new AddressX86(0, 0xFE40), SymbolType.Port);
+                    _appx86_386.Symbols.Add("io_SHEILA_SYSVIA_IFR", new AddressX86(0, 0xFE4D), SymbolType.Port);
+                    _appx86_386.DisassMemBlock = new DisassMemBlock(
+                        _appx86_386,
+                        new AddressX86(0xFC00, 0x19B9),
+                        new byte[]
+                        {
+                            0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xE8, 0x28, 0x00, 0x1F, 0x5A, 0x5B, 0x58, 0x9D, 0xC3, 0x31, 0xC0, 0xA3, 0x86, 0x00, 0xEB, 0xE8,
+                            0x50, 0xBA, 0x43, 0xFE, 0xB0, 0x7F, 0xEE, 0xBA, 0x4F, 0xFE, 0xB0, 0x0F, 0xEE, 0xBA, 0x40, 0xFE, 0xB0, 0x03, 0xEE, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xC3, 0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0xBA, 0x40, 0xFE, 0xB0, 0x0B, 0xEE, 0xBA, 0x43, 0xFE, 0x31, 0xC0, 0xEE, 0x58, 0xC3
+                        },
+                        new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386)
+                    );
+
+                    Task.Run(async delegate
+                    {
+                        Random r = new Random();
+                        while (true)
+                        {
+                            await Task.Delay(500);
+                            if (_appx86_386.Regs != null)
+                            {
+                                byte[] regs = _appx86_386.Regs.ToDeIceProtcolRegData();
+                                if (regs.Length > 0)
+                                {
+                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
+                                }
+                                _appx86_386.Regs.FromDeIceProtocolRegData(regs);
+                            }
+                        }
+                    });
+                }
+                return _appx86_386;
+            }
+        }
+
 
         static DeIceAppModel _appArm2 = null;
 
@@ -236,11 +301,10 @@ namespace DeIce68k.SampleData
 
         public static DisassMemBlock DisassMem => SampleDeIceAppModel_x86_16.DisassMemBlock;
 
-        public static RegisterSetModelBase SampleDataRegisterSetModel_x86_16 { get { return SampleDeIceAppModel_x86_16.Regs; } }
-
-        public static RegisterSetModelBase SampleDataRegisterSetModel_68k { get { return SampleDeIceAppModel_68k.Regs; } }
-
-        public static RegisterSetModelBase SampleDataRegisterSetModel_Arm2 { get { return SampleDeIceAppModel_Arm2.Regs; } }
+        public static RegisterSetModelx86_16 SampleDataRegisterSetModel_x86_16 => (RegisterSetModelx86_16)SampleDeIceAppModel_x86_16.Regs;
+        public static RegisterSetModelx86_386 SampleDataRegisterSetModel_x86_386 => (RegisterSetModelx86_386)SampleDeIceAppModel_x86_386.Regs; 
+        public static RegisterSetModel68k SampleDataRegisterSetModel_68k => (RegisterSetModel68k)SampleDeIceAppModel_68k.Regs;
+        public static RegisterSetModelArm2 SampleDataRegisterSetModel_Arm2 => (RegisterSetModelArm2)SampleDeIceAppModel_Arm2.Regs;
 
         public static StatusRegisterBitsModel SampleStatusRegisterBit { get { return SampleDeIceAppModel_68k.Regs.StatusBits.FirstOrDefault(); } }
 
@@ -253,5 +317,10 @@ namespace DeIce68k.SampleData
         public static ReadOnlyObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel_68k.Breakpoints; } }
 
         public static List<string> SampleErrors { get { return new List<string>(new[] { "Error 1", "error 2" }); } }
+
+        public static DeIceCallDlgModel<RegisterSetModelx86_16, AddressX86> RegisterSetModelx86_16 { get { return new(SampleDataRegisterSetModel_x86_16, new(0xDEAD, 0xB00B), false); } }
+        public static DeIceCallDlgModel<RegisterSetModelx86_386, AddressX86> RegisterSetModelx86_386 { get { return new(SampleDataRegisterSetModel_x86_386, new(0xDEAD, 0xB00B), false); } }
+        public static DeIceCallDlgModel<RegisterSetModelArm2, AddressArm2> RegisterSetModelArm2 { get { return new(SampleDataRegisterSetModel_Arm2, new(0xDEADB00B), false); } }
+        public static DeIceCallDlgModel<RegisterSetModel68k, Address68K> RegisterSetModel68k { get { return new(SampleDataRegisterSetModel_68k, new(0xDEADB00B), false); } }
     }
 }

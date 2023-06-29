@@ -119,6 +119,7 @@ namespace DeIce68k.ViewModel
 
 
         public ICommand CmdLoadBinary { get; }
+        public ICommand CmdSaveBinary { get; }
         public ICommand CmdRunScript { get; }
         public ICommand CmdOpenAScript { get; }
 
@@ -189,6 +190,26 @@ namespace DeIce68k.ViewModel
             set => Set(ref _loadBinaryFilename_last, value);
         }
 
+        private DisassAddressBase _saveBinaryAddr_last = null;
+        public DisassAddressBase SaveBinaryAddr_last
+        {
+            get => _saveBinaryAddr_last;
+            set => Set(ref _saveBinaryAddr_last, value);
+        }
+
+        private string _saveBinaryFilename_last = "";
+        public string SaveBinaryFilename_last
+        {
+            get => _saveBinaryFilename_last;
+            set => Set(ref _saveBinaryFilename_last, value);
+        }
+
+        private long _saveBinaryLength_last = 0;
+        public long SaveBinaryLength_last
+        {
+            get => _saveBinaryLength_last;
+            set => Set(ref _saveBinaryLength_last, value);
+        }
 
 
         public BackgroundWorker LoadBinaryFile(DisassAddressBase addr, string filename)
@@ -264,6 +285,84 @@ namespace DeIce68k.ViewModel
 
             LoadBinaryAddr_last = addr;
             LoadBinaryFilename_last = filename;
+
+            b.RunWorkerAsync();
+            return b;
+
+        }
+        public BackgroundWorker SaveBinaryFile(DisassAddressBase addr, long length, string filename)
+        {
+            BackgroundWorker b = new BackgroundWorker();
+            b.WorkerSupportsCancellation = true;
+            var prg = new DlgProgress();
+            prg.Owner = MainWindow;
+            prg.Title = "Saving Binary...";
+            prg.Message = $"Saving file {filename}";
+            prg.Progress = 0;
+            prg.Show();
+            prg.Cancel += (o, e) => { b.CancelAsync(); };
+            BusyInt = true;
+            b.DoWork += (o, e) =>
+            {
+                try
+                {
+                    try
+                    {
+                        using (var f_wr = new FileStream(filename, FileMode.Create, FileAccess.Write))
+                        {
+
+                            byte maxlen = (byte)(DebugHostStatus.ComBufSize - 6);
+                            byte[] buf = new byte[maxlen];
+                            long len = length;
+                            long done = 0;
+                            Stopwatch sw = new Stopwatch();
+                            sw.Start();
+                            long last = sw.ElapsedMilliseconds - 200;
+                            while (len > 0 && !b.CancellationPending)
+                            {
+                                int cur = (len > maxlen)? maxlen : (int)len;
+
+                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyReadMem>(new DeIceFnReqReadMem() { Address = addr.DeIceAddress, Len = (byte)cur });
+                                f_wr.Write(reply.Data, 0, reply.Data.Length);
+                                addr += cur;
+                                done += cur;
+                                len -= cur;
+
+                                if (cur == 0 || sw.ElapsedMilliseconds - last >= 200)
+                                {
+                                    MainWindow.Dispatcher.BeginInvoke(() =>
+                                    {
+                                        prg.Progress = (double)(100 * done) / (double)length;
+                                    });
+                                    last = sw.ElapsedMilliseconds;
+                                }
+
+
+                            } 
+
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DoInvoke(() =>
+                        {
+                            Messages.Add($"Error loading binary file {ex.Message}");
+                        });
+                    }
+                }
+                finally
+                {
+                    DoInvoke(() =>
+                    {
+                        prg.Close();
+                        BusyInt = false;
+                    });
+                }
+            };
+
+            SaveBinaryAddr_last = addr;
+            SaveBinaryLength_last = length;
+            SaveBinaryFilename_last = filename;
 
             b.RunWorkerAsync();
             return b;
@@ -606,6 +705,27 @@ namespace DeIce68k.ViewModel
                 Command_Exception
             );
 
+            CmdSaveBinary = new RelayCommand(
+                o =>
+                {
+                    var dlg = new DlgSaveBinary(this);
+                    dlg.Owner = MainWindow;
+                    dlg.Address = SaveBinaryAddr_last;
+                    dlg.Length = SaveBinaryLength_last;
+                    dlg.FileName = SaveBinaryFilename_last;
+                    if (dlg.ShowDialog() == true)
+                    {
+                        SaveBinaryFile(dlg.Address, dlg.Length, dlg.FileName);
+                    }
+                },
+                o =>
+                {
+                    return Regs?.IsStopped ?? false;
+                },
+                "Load Binary",
+                Command_Exception
+            );
+
             CmdRunScript = new RelayCommand(
                 o =>
                 {
@@ -879,7 +999,7 @@ namespace DeIce68k.ViewModel
 
 
             //remove any that are now disabled or no longer in the Breakpoints list
-            List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !Breakpoints.Where(b => b.Address == a.Address).Any()).ToList();
+            List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !Breakpoints.Where(b => b.Address.Equals(a.Address)).Any()).ToList();
             UnApplyBreakpoints(rembp);
             rembp.ForEach(a => _activeBreakpoints.Remove(a));
 
@@ -1182,13 +1302,12 @@ namespace DeIce68k.ViewModel
                 _regs = new RegisterSetModelx86_16(this);
                 changed = true;
             }
-            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_386 && Regs?.GetType() != typeof(RegisterSetModelx86_16))
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_x86_386 && Regs?.GetType() != typeof(RegisterSetModelx86_386))
             {
-                //TODO: implement 386 register set, for now just use x86_16
                 if (_regs != null)
                     _regs.PropertyChanged -= Regs_PropertyChanged;
 
-                _regs = new RegisterSetModelx86_16(this);
+                _regs = new RegisterSetModelx86_386(this);
                 changed = true;
             }
             else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_ARM2 && Regs?.GetType() != typeof(RegisterSetModelArm2))

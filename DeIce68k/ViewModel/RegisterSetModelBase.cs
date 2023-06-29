@@ -3,6 +3,7 @@ using DisassShared;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Transactions;
 
 namespace DeIce68k.ViewModel
 {
@@ -75,5 +76,13 @@ namespace DeIce68k.ViewModel
                     ).FirstOrDefault()?.GetGetMethod().Invoke(this, new object[] { }) as RegisterModel;
         }
 
+        public virtual T Clone<T>(this T regs) where T : RegisterSetModelBase, new()
+        {
+            T ret = new T();
+
+            ret.FromDeIceProtocolRegData(regs.ToDeIceProtcolRegData());
+
+            return ret;
+        }
     }
 }

@@ -104,10 +104,12 @@ namespace DeIce68k.ViewModel
             UpdateStatusBits();
         }
 
+        const int DEICE_REGS_DATA_LENGTH = 0x1F;
+
         public override void FromDeIceProtocolRegData(byte[] deiceData)
         {
-            if (deiceData.Length < 0x1F)
-                throw new ArgumentException("data too short FN_READ_RG/FN_RUN_TARG reply");
+            if (deiceData.Length < DEICE_REGS_DATA_LENGTH)
+                throw new ArgumentException($"data wrong length for N_READ_RG/FN_RUN_TARG reply {nameof(RegisterSetModelx86_16)}, expecting {DEICE_REGS_DATA_LENGTH} got {deiceData.Length}");
 
             DI.Data = DeIceFnFactory.ReadUShort(deiceData, 0x00);
             SI.Data = DeIceFnFactory.ReadUShort(deiceData, 0x02);
@@ -129,7 +131,7 @@ namespace DeIce68k.ViewModel
 
         public override byte[] ToDeIceProtcolRegData()
         {
-            byte [] ret = new byte[0x1F];
+            byte [] ret = new byte[DEICE_REGS_DATA_LENGTH];
             DeIceFnFactory.WriteUShort(ret, 0x00, DI.Data);
             DeIceFnFactory.WriteUShort(ret, 0x02, SI.Data);
             DeIceFnFactory.WriteUShort(ret, 0x04, BP.Data);
