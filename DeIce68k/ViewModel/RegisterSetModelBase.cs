@@ -76,7 +76,11 @@ namespace DeIce68k.ViewModel
                     ).FirstOrDefault()?.GetGetMethod().Invoke(this, new object[] { }) as RegisterModel;
         }
 
-        public virtual T Clone<T>(this T regs) where T : RegisterSetModelBase, new()
+    }
+
+    public static class RegisterSetModelExt 
+    {
+        public static T Clone<T>(this T regs) where T : RegisterSetModelBase, new()
         {
             T ret = new T();
 
