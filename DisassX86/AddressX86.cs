@@ -11,9 +11,9 @@ namespace DisassX86
     public class AddressX86 : DisassAddressBase
     {
         public UInt16 Segment { get; init; }
-        public UInt16 Offset { get; init; }
+        public UInt32 Offset { get; init; }
 
-        public AddressX86(UInt16 segment, UInt16 offset)
+        public AddressX86(UInt16 segment, UInt32 offset)
         {
             Segment = segment;
             Offset = offset;

@@ -839,7 +839,7 @@ namespace DeIce68k.ViewModel
                 DeIceProto.Flush();
                 DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
                 var r = DeIceProto.SendReqExpectReply<DeIceFnReplyRegsBase>(new DeIceFnReqReadRegs());
-                Regs.FromDeIceProtocolRegData(r.RegisterData);
+                Regs?.FromDeIceProtocolRegData(r.RegisterData);
                 RunFinish(false);
                 return true;
             }
@@ -1317,7 +1317,7 @@ namespace DeIce68k.ViewModel
 
                 _regs = new RegisterSetModelArm2(this);
                 changed = true;
-            }
+            } 
 
             if (changed)
             {
