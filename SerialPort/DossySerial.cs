@@ -43,7 +43,7 @@ namespace DossySerialPort
         public event EventHandler DataReceived;
 
 
-        public int Read(byte[] b, int length, int timeoutms = 0)
+        public int Read(byte[] b, int length, int timeoutms = -1, bool immediate = false)
         {
             _port.ReadTimeout = timeoutms;
             int ptr = 0;
@@ -63,6 +63,8 @@ namespace DossySerialPort
 
                 while (length > 0)
                 {
+                    if (immediate && _port.BytesToRead == 0)
+                        return ptr;
                     int l = _port.Read(b, ptr, length);
                     ptr += l;
                     length -= l;
@@ -73,7 +75,7 @@ namespace DossySerialPort
 
         }
 
-        public void Write(byte[] b, int offset, int length, int timeoutms = 0)
+        public void Write(byte[] b, int offset, int length, int timeoutms = -1)
         {
             _port.WriteTimeout = timeoutms;
             _port.Write(b, offset, length);

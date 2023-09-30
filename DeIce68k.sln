@@ -23,6 +23,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisassShared", "DisassShare
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisassX86", "DisassX86\DisassX86.csproj", "{6A0387E5-281F-40F8-9C14-A9344813A33D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extras", "Extras", "{B6DDF4E7-7F51-42A6-ACE0-7F1145C06FD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleNetCat", "SimpleNetCat\SimpleNetCat.csproj", "{C886C8F1-C4ED-421B-9D62-212FFC82C064}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -65,6 +69,10 @@ Global
 		{6A0387E5-281F-40F8-9C14-A9344813A33D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6A0387E5-281F-40F8-9C14-A9344813A33D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6A0387E5-281F-40F8-9C14-A9344813A33D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -72,6 +80,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{436A0A94-7ECD-4ACD-95D8-44362BF95654} = {80A409CE-7960-43CD-A1B6-FD01312CBCCB}
 		{72A00CBF-290B-42D4-9134-1786B9FE4CD0} = {80A409CE-7960-43CD-A1B6-FD01312CBCCB}
+		{C886C8F1-C4ED-421B-9D62-212FFC82C064} = {B6DDF4E7-7F51-42A6-ACE0-7F1145C06FD6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4C2BADD8-F5E9-4D90-A0A6-FFDDDBD6E3E4}

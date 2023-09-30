@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SimpleNetCat": {
+      "commandName": "Project",
+      "commandLineArgs": "COM2 9600 bbs.archaicbinary.net 23"
+    }
+  }
+}
