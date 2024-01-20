@@ -1,5 +1,5 @@
 # DeIce68k
- A debugger for the Blitter 68008
+ A debugger for the Blitter 68008, x86, ARM2 and others...
 
 ##PROBLEMS:
 - double click on continue causes odd behaviour in client (looks to resend original regs twice?) and memory error need to block between memory read and regs?
