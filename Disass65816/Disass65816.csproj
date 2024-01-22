@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
+    <ProjectReference Include="..\DisassShared\DisassShared.csproj" />
+  </ItemGroup>
+
+</Project>

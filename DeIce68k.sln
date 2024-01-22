@@ -25,7 +25,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisassX86", "DisassX86\Disa
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Extras", "Extras", "{B6DDF4E7-7F51-42A6-ACE0-7F1145C06FD6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimpleNetCat", "SimpleNetCat\SimpleNetCat.csproj", "{C886C8F1-C4ED-421B-9D62-212FFC82C064}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleNetCat", "SimpleNetCat\SimpleNetCat.csproj", "{C886C8F1-C4ED-421B-9D62-212FFC82C064}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Disass65816", "Disass65816\Disass65816.csproj", "{D3FB88E5-E0CB-4183-8C56-46F2364BA572}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -73,6 +75,10 @@ Global
 		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C886C8F1-C4ED-421B-9D62-212FFC82C064}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3FB88E5-E0CB-4183-8C56-46F2364BA572}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3FB88E5-E0CB-4183-8C56-46F2364BA572}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3FB88E5-E0CB-4183-8C56-46F2364BA572}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3FB88E5-E0CB-4183-8C56-46F2364BA572}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

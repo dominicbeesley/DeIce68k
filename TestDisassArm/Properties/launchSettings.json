@@ -2,7 +2,7 @@
   "profiles": {
     "TestDisass": {
       "commandName": "Project",
-      "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_386\\build\\test.bin\" 0",
+      "commandLineArgs": "65816 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_65816\\DisAsmTestData\\DisasTestGen\\build\\test.bin\" 0x1000",
       "sqlDebugging": true
     },
     "x86_file": {

@@ -48,6 +48,9 @@ namespace TestDisass
                 case "M68K":
                     disass = new Disass68k.Disass68k();
                     break;
+                case "65816":
+                    disass = new Disass65816.Disass65816();
+                    break;
                 default:
                     Usage(Console.Error, $"Unknown assembler \"{args[0]}\"", 102);
                     break;
