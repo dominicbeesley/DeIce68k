@@ -131,6 +131,8 @@ namespace TestDisass
                 var miss = new HashSet<DisRec2OperString_Number>();
                 var missA = new HashSet<DisRec2OperString_Address>();
 
+                var state = disass.StateFactory.Create();
+
                 bool ok = true;
                 //first pass to autogen symbols
                 while (ok)
@@ -140,7 +142,7 @@ namespace TestDisass
                     try
                     {
 
-                        instr = disass.Decode(br, dispc);
+                        instr = disass.Decode(br, dispc, state);
 
                         if (instr?.Operands != null)
                         {
@@ -215,6 +217,9 @@ namespace TestDisass
                 }
 
 
+                //second pass
+
+                state = disass.StateFactory.Create();
                 dispc = BaseAddress;
                 ok = true;
                 ms.Position = 0;
@@ -233,7 +238,7 @@ namespace TestDisass
                     try
                     {
 
-                        instr = disass.Decode(br, dispc);
+                        instr = disass.Decode(br, dispc, state);
                     }
                     catch (EndOfStreamException)
                     {

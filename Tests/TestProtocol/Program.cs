@@ -2,6 +2,7 @@
 using DossySerialPort;
 using System.IO;
 using DeIceProtocol;
+using System.Text.Json;
 
 namespace TestProtocol
 {
@@ -47,10 +48,11 @@ current PC and following instructions will be dumped to console.
                 using var _port = new DossySerial(comPort, baudRate);
 
                 var _proto = new DeIceProtocolMain(_port);
-                var regs = _proto.SendReqExpectReply<DeIceFnReplyReadRegs>(new DeIceFnReqReadRegs());
+                var status = _proto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
 
-                Console.WriteLine($"TARGET STATUS: {regs.Registers.TargetStatus:X2}");
+                Console.WriteLine($"TARGET STATUS: {JsonSerializer.Serialize(status)}");
 
+                /*
                 Console.WriteLine("Registers:");
                 Console.WriteLine(regs.Registers.PrettyString());
 
@@ -59,7 +61,9 @@ current PC and following instructions will be dumped to console.
                 _proto.ReadMemBlock(regs.Registers.PC, buf, 0, buf.Length);
 
                 uint pc = regs.Registers.PC;
-
+                */
+                   /*
+                TODO: abstract out from Main program as a factory?
                 using (var ms = new MemoryStream(buf))
                 using (var br = new BinaryReader(ms))
                 {
@@ -72,7 +76,7 @@ current PC and following instructions will be dumped to console.
                             pc += d.Length;
                         }
                     }
-                }
+                }*/
 
                 return E_OK;
             } catch (Exception ex)

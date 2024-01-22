@@ -9,8 +9,9 @@ namespace DisassShared
 {
     public interface IDisAss 
     {
-        DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc);
+        DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState state = null);
 
         IDisassAddressFactory AddressFactory { get; }
+        IDisassStateFactory StateFactory { get; }
     }
 }

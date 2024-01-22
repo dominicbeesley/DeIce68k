@@ -14,6 +14,11 @@ namespace Disass68k
     public class Disass68k : IDisAss
     {
 
+        StateFactory68k _stateFactory = new StateFactory68k();
+        public IDisassStateFactory StateFactory => _stateFactory;
+
+
+
         public bool SpecialABI { get; init; }
 
         AddressFactory68k _addressFactory = new AddressFactory68k();
@@ -247,7 +252,7 @@ namespace Disass68k
             return symbols.AddressToSymbols(addr).FirstOrDefault();
         }
 
-        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState state = null)
         {
             var r = new BEReader(br, pc);
 

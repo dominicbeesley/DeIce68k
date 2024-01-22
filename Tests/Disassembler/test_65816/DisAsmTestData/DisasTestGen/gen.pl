@@ -88,7 +88,7 @@ my @opcodes = (
 
 	
 
-	# col 6, E all, (A evens)
+	# col 6, E all
 	{mne => 'ASL', modes => ['d', 'a', 'd,x', 'a,x']},
 	{mne => 'ROL', modes => ['d', 'a', 'd,x', 'a,x']},
 	{mne => 'LSR', modes => ['d', 'a', 'd,x', 'a,x']},
@@ -152,7 +152,7 @@ my @opcodes = (
 	{mne => 'XBA', modes => ['-']},
 	{mne => 'XCE', modes => ['-']},
 
-	# col C (row & 4 = 4)
+	# col C (row & C = 4)
 	{mne => 'JMP', modes => ['a', 'al', '(a)', '(a,x)']},
 
 	# instead of "STA #" @ 89
@@ -192,8 +192,10 @@ print "\t\t.a8\n";
 print "\t\t.i8\n";
 doops("all");
 print "\t\t.a16\n";
+print "\t\tREP #\$20\n";
 doops("m16");
 print "\t\t.i16\n";
+print "\t\tREP #\$10\n";
 doops("x16");
 
 sub doops($) {

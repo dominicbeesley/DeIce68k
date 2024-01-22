@@ -29,7 +29,7 @@ namespace DeIce68k.SampleData
                 throw new TimeoutException();
             }
 
-            public int Read(byte[] b, int length, int timeoutms = 0)
+            public int Read(byte[] b, int length, int timeoutms = 0, bool immediate = false)
             {
                 throw new TimeoutException();
             }

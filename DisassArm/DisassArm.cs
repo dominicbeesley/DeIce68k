@@ -11,13 +11,17 @@ namespace DisassArm
 {
     public class DisassArm : IDisAss
     {
+        StateFactoryArm _stateFactory = new StateFactoryArm();
+        public IDisassStateFactory StateFactory => _stateFactory;
+
+
         private static DisRec2<UInt32> Undefined { get => new DisRec2<UInt32> { Decoded = false, Length = 4 }; }
 
         public static AddressFactoryArm2 _addressFactory = new AddressFactoryArm2();
 
         public IDisassAddressFactory AddressFactory => _addressFactory;
 
-        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState state = null)
         {
 
             UInt32 opcode = br.ReadUInt32();

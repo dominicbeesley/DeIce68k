@@ -17,6 +17,9 @@ namespace DisassX86
 
         private API m_API { get; init; }
 
+        StateFactoryX86 _stateFactory = new StateFactoryX86();
+        public IDisassStateFactory StateFactory => _stateFactory;
+
         public static AddressX86Factory AddressFactory2 => new AddressX86Factory();
 
         public IDisassAddressFactory AddressFactory => AddressFactory2;
@@ -396,7 +399,7 @@ namespace DisassX86
         };
 
 
-        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc)
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState state = null)
         {
             DisRec2<UInt32> ret = null;
             ushort l = 0;
