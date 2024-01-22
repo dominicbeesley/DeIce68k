@@ -10,6 +10,7 @@ namespace DeIceProtocol
     [Flags]
     public enum DeIceTargetOptionFlags
     {
+        None = 0,
         HasFNStep = 0x10,
         HasFNResetTarget = 0x20,
         HasFNStopTarget = 0x40,

@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:DeIce68k"
              d:DesignHeight="312.129" d:DesignWidth="325.548"
              xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
-             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_x86 }"
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_68k }"
              mc:Ignorable="d" 
              Background="{StaticResource Retro_Brush_BG}"
              Foreground="{StaticResource Retro_Brush_FG}"

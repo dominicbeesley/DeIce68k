@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DeIceProtocol\DeIceProtocol.csproj" />
+    <ProjectReference Include="..\Disass65816\Disass65816.csproj" />
     <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
     <ProjectReference Include="..\DisassArm\DisassArm.csproj" />
     <ProjectReference Include="..\DisassX86\DisassX86.csproj" />

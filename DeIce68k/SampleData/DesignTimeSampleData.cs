@@ -12,6 +12,7 @@ using Disass68k;
 using DossySerialPort;
 using DisassX86;
 using DisassArm;
+using Disass65816;
 
 namespace DeIce68k.SampleData
 {
@@ -297,6 +298,74 @@ namespace DeIce68k.SampleData
             }
         }
 
+        static DeIceAppModel _app65816 = null;
+
+        public static DeIceAppModel SampleDeIceAppModel_65816
+        {
+            get
+            {
+                if (_app65816 == null)
+                {
+                    _app65816 = new DeIceAppModel(new DummySerial(), null, true, new DeIceFnReplyGetStatus(
+                        DeIceProtoConstants.HOST_65816, 0x80,
+                        DeIceTargetOptionFlags.None,
+                        0, 0x8000, new byte[] { 0x42 }, "65816", 0, 0)
+                        );
+
+                    _app65816.Watches.Add(new WatchModel(new Address65816(0), "ZERO", WatchType.X08, null));
+                    _app65816.Watches.Add(new WatchModel(new Address65816(16), "sixteen", WatchType.X16, null));
+                    _app65816.Watches.Add(new WatchModel(new Address65816(100), "page1", WatchType.X08, new uint[] { 20 }));
+                    IEnumerable<string> errorsR;
+                    _app65816.AddBreakpoint(new Address65816(0xADBEEF)).ConditionCode = ScriptCompiler.Compile(_app65816, "return false;", out errorsR);
+                    _app65816.AddBreakpoint(new Address65816(0x00B135)).Enabled = false;
+                    _app65816.AddBreakpoint(new Address65816(0x154BE7)).Selected = true;
+                    _app65816.AddBreakpoint(new Address65816(0x8D0812));
+                    _app65816.Symbols.Add(".excl", new Address65816(0x0019B9), SymbolType.Pointer);
+                    _app65816.Symbols.Add(".ex", new Address65816(0x0019C4), SymbolType.Pointer);
+                    _app65816.Symbols.Add(".ex_nokeys", new Address65816(0x0019CA), SymbolType.Pointer);
+                    _app65816.Symbols.Add("dom_keyb_auto_off", new Address65816(0x0019D1), SymbolType.Pointer);
+                    _app65816.Symbols.Add("dom_keyb_auto_on", new Address65816(0x0019EC), SymbolType.Pointer);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new Address65816(0x00FE43), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new Address65816(0x00FE4F), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORB", new Address65816(0x00FE40), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_IFR", new Address65816(0x00FE4D), SymbolType.Port);
+                    _app65816.DisassMemBlock = new DisassMemBlock(
+                        _app65816,
+                        new Address65816(0x001000),
+                        new byte[]
+                        {
+                             0x14, 0x9e, 0x34, 0x12, 0x9c, 0xfa, 0x14, 0x9c, 0x34, 0x12, 0xd4, 0x20, 0xd4, 0x12, 0xdc, 0xfa, 0x14, 0xdc, 0x34, 
+                             0x12, 0xf4, 0xfa, 0x14, 0xf4, 0x34, 0x12, 0xfc, 0xfa, 0x14, 0xfc, 0x34, 0x12, 0xc2, 0x20, 0x09, 0xe8, 0x03, 0x09, 
+                             0x10, 0x27, 0x29, 0xe8, 0x03, 0x29, 0x10, 0x27, 0x49, 0xe8, 0x03, 0x49, 0x10, 0x27, 0x69, 0xe8, 0x03, 0x69, 0x10, 
+                             0x27, 0xa9, 0xe8, 0x03, 0xa9, 0x10, 0x27, 0xc9, 0xe8, 0x03, 0xc9, 0x10, 0x27, 0xe9, 0xe8, 0x03, 0xe9, 0x10, 0x27, 
+                             0x89, 0xe8, 0x03, 0x89, 0x10, 0x27, 0xc2, 0x10, 0xa0, 0xe8, 0x03, 0xa0, 0x10, 0x27, 0xc0, 0xe8, 0x03, 0xc0, 0x10, 
+                             0x27, 0xe0, 0xe8, 0x03, 0xe0, 0x10, 0x27, 0xa2, 0xe8, 0x03, 0xa2, 0x10, 0x27, 0x00, 0x00
+                        },
+                        new Disass65816.Disass65816()
+                    );
+
+                    Task.Run(async delegate
+                    {
+                        Random r = new Random();
+                        while (true)
+                        {
+                            await Task.Delay(500);
+                            if (_app65816.Regs != null)
+                            {
+                                byte[] regs = _app65816.Regs.ToDeIceProtcolRegData();
+                                if (regs.Length > 0)
+                                {
+                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
+                                }
+                                _app65816.Regs.FromDeIceProtocolRegData(regs);
+                            }
+                        }
+                    });
+                }
+                return _app65816;
+            }
+        }
+
 
 
         public static DisassMemBlock DisassMem => SampleDeIceAppModel_x86_16.DisassMemBlock;
@@ -305,6 +374,7 @@ namespace DeIce68k.SampleData
         public static RegisterSetModelx86_386 SampleDataRegisterSetModel_x86_386 => (RegisterSetModelx86_386)SampleDeIceAppModel_x86_386.Regs; 
         public static RegisterSetModel68k SampleDataRegisterSetModel_68k => (RegisterSetModel68k)SampleDeIceAppModel_68k.Regs;
         public static RegisterSetModelArm2 SampleDataRegisterSetModel_Arm2 => (RegisterSetModelArm2)SampleDeIceAppModel_Arm2.Regs;
+        public static RegisterSetModel65816 SampleDataRegisterSetModel_65816 => (RegisterSetModel65816)SampleDeIceAppModel_65816.Regs;
 
         public static StatusRegisterBitsModel SampleStatusRegisterBit { get { return SampleDeIceAppModel_68k.Regs.StatusBits.FirstOrDefault(); } }
 

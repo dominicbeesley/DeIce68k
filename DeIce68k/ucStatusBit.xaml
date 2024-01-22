@@ -25,8 +25,8 @@
                 <TextBlock 
                     Grid.Row="0" 
                     Text="{Binding Path=Label}" 
-                    HorizontalAlignment="Right" 
-                    VerticalAlignment="Top" 
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Center" 
                     Style="{StaticResource Retro_TextBlock_StatusBit}"
                     x:Name="tbLabel"
                 />

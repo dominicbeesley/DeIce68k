@@ -1,5 +1,6 @@
 ﻿using DeIce68k.Lib;
 using DeIceProtocol;
+using Disass65816;
 using DisassArm;
 using DisassShared;
 using DossySerialPort;
@@ -1317,7 +1318,15 @@ namespace DeIce68k.ViewModel
 
                 _regs = new RegisterSetModelArm2(this);
                 changed = true;
-            } 
+            }
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_65816 && Regs?.GetType() != typeof(RegisterSetModel65816))
+            {
+                if (_regs != null)
+                    _regs.PropertyChanged -= Regs_PropertyChanged;
+
+                _regs = new RegisterSetModel65816(this);
+                changed = true;
+            }
 
             if (changed)
             {
@@ -1346,6 +1355,8 @@ namespace DeIce68k.ViewModel
                 return new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_186);
             else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_x86_386)
                 return new DisassX86.DisassX86(DisassX86.DisassX86.API.cpu_386);
+            else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_65816)
+                return new Disass65816.Disass65816();
             else
                 throw new NotImplementedException($"Unknown host type {_debugHostStatus?.ProcessorType}");
 
