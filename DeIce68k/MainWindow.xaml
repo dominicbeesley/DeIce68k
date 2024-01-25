@@ -8,7 +8,7 @@
         xmlns:viewmodel="clr-namespace:DeIce68k.ViewModel"
         mc:Ignorable="d"
         Title="MainWindow" 
-        Height="450" 
+        Height="1031" 
         Width="984" 
         Closed="Window_Closed" 
         Loaded="Window_Loaded"

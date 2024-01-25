@@ -74,7 +74,7 @@ namespace DeIce68k.ViewModel
             UpdateStatusBits();
         }
 
-        const int DEICE_REGS_DATA_LENGTH = 18;
+        const int DEICE_REGS_DATA_LENGTH = 17;
 
         public override void FromDeIceProtocolRegData(byte[] deiceData)
         {
@@ -82,17 +82,15 @@ namespace DeIce68k.ViewModel
                 throw new ArgumentException($"data wrong length for N_READ_RG/FN_RUN_TARG reply {nameof(RegisterSetModel68k)}, expecting {DEICE_REGS_DATA_LENGTH} got {deiceData.Length}");
 
             TargetStatus = deiceData[0x00];
-
             A.Data = DeIceFnFactory.ReadUShort(deiceData, 1);
             X.Data = DeIceFnFactory.ReadUShort(deiceData, 3);
             Y.Data = DeIceFnFactory.ReadUShort(deiceData, 5);
             D.Data = DeIceFnFactory.ReadUShort(deiceData, 7);
             S.Data = DeIceFnFactory.ReadUShort(deiceData, 9);
-            K.Data = deiceData[11];
-            B.Data = deiceData[12];
-            PC.Data = DeIceFnFactory.ReadULong(deiceData, 13) & 0xFFFFFF;
-            P.Data = deiceData[16];
-            E.Data = (uint)(deiceData[17] & 0x01);
+            B.Data = deiceData[11];
+            PC.Data = DeIceFnFactory.ReadULong(deiceData, 12) & 0xFFFFFF;
+            P.Data = deiceData[15];
+            E.Data = (uint)(deiceData[16] & 0x01);
         }
 
         public override byte[] ToDeIceProtcolRegData()
@@ -104,11 +102,10 @@ namespace DeIce68k.ViewModel
             DeIceFnFactory.WriteUShort(ret, 5, Y.Data);
             DeIceFnFactory.WriteUShort(ret, 7, D.Data);
             DeIceFnFactory.WriteUShort(ret, 9, S.Data);
-            ret[11] = (byte)K.Data;
-            ret[12] = (byte)B.Data;
-            DeIceFnFactory.WriteULong(ret, 13, PC.Data);
-            ret[16] = (byte)P.Data;
-            ret[17] = (byte)(E.Data != 0?1:0);
+            ret[11] = (byte)B.Data;
+            DeIceFnFactory.WriteULong(ret, 12, PC.Data);
+            ret[15] = (byte)P.Data;
+            ret[16] = (byte)(E.Data != 0?1:0);
             return ret;
         }
 
