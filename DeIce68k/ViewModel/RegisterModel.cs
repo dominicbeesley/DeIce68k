@@ -10,7 +10,7 @@ using System.Windows;
 namespace DeIce68k.ViewModel
 {
 
-    public enum RegisterSize { Word, Long, Byte, Bit };
+    public enum RegisterSize { Word, Long, Byte, Bit, Bank24 };
 
     public class RegisterModel : INotifyPropertyChanged
     {
@@ -53,6 +53,7 @@ namespace DeIce68k.ViewModel
                 return Size switch
                 {
                     RegisterSize.Long => Data.ToString("X8"),
+                    RegisterSize.Bank24 => Data.ToString("X6"),
                     RegisterSize.Word => Data.ToString("X4"),
                     RegisterSize.Byte => Data.ToString("X2"),
                     RegisterSize.Bit => Data != 0 ? "1" : "0",
@@ -65,7 +66,9 @@ namespace DeIce68k.ViewModel
                 try
                 {
                     uint d = Convert.ToUInt32(s, 16);
-                    if (Size == RegisterSize.Word)
+                    if (Size == RegisterSize.Bank24)
+                        d = d & 0xFFFFFF;
+                    else if (Size == RegisterSize.Word)
                         d = d & 0xFFFF;
                     else if (Size == RegisterSize.Byte)
                         d = d & 0xFF;

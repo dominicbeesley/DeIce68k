@@ -44,7 +44,7 @@ namespace DeIce68k.ViewModel
             S = new RegisterModel("S", RegisterSize.Word, 0);
             K = new RegisterModel("K", RegisterSize.Byte, 0);
             B = new RegisterModel("B", RegisterSize.Byte, 0);
-            PC = new RegisterModel("PC", RegisterSize.Word, 0);
+            PC = new RegisterModel("PC", RegisterSize.Bank24, 0);
             P = new RegisterModel("P", RegisterSize.Byte, 0);
             E = new RegisterModel("E", RegisterSize.Bit, 0);
 
@@ -87,10 +87,10 @@ namespace DeIce68k.ViewModel
             Y.Data = DeIceFnFactory.ReadUShort(deiceData, 5);
             D.Data = DeIceFnFactory.ReadUShort(deiceData, 7);
             S.Data = DeIceFnFactory.ReadUShort(deiceData, 9);
-            B.Data = deiceData[11];
-            PC.Data = DeIceFnFactory.ReadULong(deiceData, 12) & 0xFFFFFF;
-            P.Data = deiceData[15];
-            E.Data = (uint)(deiceData[16] & 0x01);
+            E.Data = (uint)(deiceData[11] & 0x01);
+            B.Data = deiceData[12];
+            P.Data = deiceData[13];
+            PC.Data = DeIceFnFactory.ReadU24(deiceData, 14) & 0xFFFFFF;
         }
 
         public override byte[] ToDeIceProtcolRegData()
@@ -102,10 +102,10 @@ namespace DeIce68k.ViewModel
             DeIceFnFactory.WriteUShort(ret, 5, Y.Data);
             DeIceFnFactory.WriteUShort(ret, 7, D.Data);
             DeIceFnFactory.WriteUShort(ret, 9, S.Data);
-            ret[11] = (byte)B.Data;
-            DeIceFnFactory.WriteULong(ret, 12, PC.Data);
-            ret[15] = (byte)P.Data;
-            ret[16] = (byte)(E.Data != 0?1:0);
+            ret[11] = (byte)(E.Data != 0 ? 1 : 0);
+            ret[12] = (byte)B.Data;
+            ret[13] = (byte)P.Data;
+            DeIceFnFactory.WriteU24(ret, 14, PC.Data);
             return ret;
         }
 
