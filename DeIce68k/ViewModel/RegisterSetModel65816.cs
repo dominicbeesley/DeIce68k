@@ -33,6 +33,11 @@ namespace DeIce68k.ViewModel
             set { PC.Data = (UInt32)value.Canonical; }
         }
 
+        public override IDisassState DisassState => new DisassState65816 {  
+            RegSizeM8 = E.Data != 0 || (P.Data & 0x20) != 0,
+            RegSizeX8 = E.Data != 0 || (P.Data & 0x10) != 0
+        };
+
         public RegisterSetModel65816(DeIceAppModel _parent)
         {
             Parent = _parent;

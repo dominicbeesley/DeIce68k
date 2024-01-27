@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Disass68k
 {
-    internal class DisassState68k : IDisassState
+    public class DisassState68k : IDisassState
     {               
     }
 }

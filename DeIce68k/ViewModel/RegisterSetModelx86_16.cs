@@ -51,6 +51,8 @@ namespace DeIce68k.ViewModel
             }
         }
 
+        public override IDisassState DisassState => new DisassStateX86 { };
+
         public RegisterSetModelx86_16(DeIceAppModel _parent)
         {
             Parent = _parent;

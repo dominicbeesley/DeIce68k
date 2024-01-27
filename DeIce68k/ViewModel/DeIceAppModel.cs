@@ -1146,7 +1146,7 @@ namespace DeIce68k.ViewModel
                     var disdat = new byte[1024];
                     DeIceProto.ReadMemBlock(addr.DeIceAddress, disdat, 0, 1024);
 
-                    DisassMemBlock = new DisassMemBlock(this, addr, disdat, GetDisass());
+                    DisassMemBlock = new DisassMemBlock(this, addr, disdat, GetDisass(), Regs.DisassState);
                 }
             }
 
@@ -1372,7 +1372,7 @@ namespace DeIce68k.ViewModel
                 var disdat = new byte[len];
                 DeIceProto.ReadMemBlock(st.DeIceAddress, disdat, 0, len);
 
-                DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass());
+                DisassMemBlock = new DisassMemBlock(this, st, disdat, GetDisass(), Regs.DisassState);
                 DisassMemBlock.PC = Regs.PCValue;
             }
 

@@ -76,6 +76,8 @@ namespace DeIce68k.ViewModel
                     ).FirstOrDefault()?.GetGetMethod().Invoke(this, new object[] { }) as RegisterModel;
         }
 
+        public abstract IDisassState DisassState { get; }
+
     }
 
     public static class RegisterSetModelExt 

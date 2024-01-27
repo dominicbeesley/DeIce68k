@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DisassArm
 {
-    internal class DisassStateArm : IDisassState
+    public class DisassStateArm : IDisassState
     {        
     }
 }

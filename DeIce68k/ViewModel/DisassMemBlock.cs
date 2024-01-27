@@ -126,7 +126,7 @@ namespace DeIce68k.ViewModel
 
         IDisAss disAss;
 
-        public DisassMemBlock(DeIceAppModel app, DisassAddressBase baseAddr, byte[] data, IDisAss disAss)
+        public DisassMemBlock(DeIceAppModel app, DisassAddressBase baseAddr, byte[] data, IDisAss disAss, IDisassState state)
             : base()
         {
             _items = new ObservableCollection<DisassItemModelBase>();
@@ -175,7 +175,7 @@ namespace DeIce68k.ViewModel
                     try
                     {
 
-                        instr = disAss.Decode(br, dispc);
+                        instr = disAss.Decode(br, dispc, state);
                     }
                     catch (EndOfStreamException)
                     {

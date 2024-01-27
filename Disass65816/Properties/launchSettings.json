@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Disass65816": {
+      "commandName": "Project",
+      "commandLineArgs": "com4"
+    }
+  }
+}

@@ -57,6 +57,8 @@ namespace DeIce68k.ViewModel
             set { PC.Data = (UInt32)value.Canonical; }
         }
 
+        public override IDisassState DisassState => new DisassStateArm { };
+
         public RegisterSetModelArm2(DeIceAppModel _parent)
         {
             Parent = _parent;

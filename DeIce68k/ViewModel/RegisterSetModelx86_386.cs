@@ -34,6 +34,9 @@ namespace DeIce68k.ViewModel
 
         public override bool CanTrace => true;
 
+        public override IDisassState DisassState => new DisassStateX86 { };
+
+
         public override DisassAddressBase PCValue {
             //TODO: This needs a 32 bit offset for true 386
             get { return new AddressX86((UInt16)CS.Data, (UInt16)EIP.Data); }
