@@ -71,53 +71,38 @@ namespace DisassShared
                     m = "-";
                     i = -i;
                 }
+                switch (Size) {
 
-                if (i < 32)
-                {
-                    return $"{m}{i}";
-                }
-                else
-                {
-                    switch (Size) {
-
-                        case DisRec2_NumSize.S8:
-                            i = i & 0x7F;
-                            return $"{m}0x{i:X}";
-                        case DisRec2_NumSize.S16:
-                            i = i & 0x7FFF;
-                            return $"{m}0x{i:X}";
-                        case DisRec2_NumSize.S32:
-                            i = i & 0x7FFFFFFF;
-                            return $"{m}0x{i:X}";
-                        default:
-                            return $"{m}0x{i:X}";
-                    }
+                    case DisRec2_NumSize.S8:
+                        i = i & 0x7F;
+                        return $"{m}${i:X}";
+                    case DisRec2_NumSize.S16:
+                        i = i & 0x7FFF;
+                        return $"{m}${i:X}";
+                    case DisRec2_NumSize.S32:
+                        i = i & 0x7FFFFFFF;
+                        return $"{m}${i:X}";
+                    default:
+                        return $"{m}${i:X}";
                 }
             }
             else
             {
                 UInt64 i = Number;
 
-                if (i < 32)
+                switch (Size)
                 {
-                    return $"{i}";
-                }
-                else
-                {
-                    switch (Size)
-                    {
-                        case DisRec2_NumSize.U8:
-                            i = i & 0xFF;
-                            return $"0x{i:X}";
-                        case DisRec2_NumSize.U16:
-                            i = i & 0xFFFF;
-                            return $"0x{i:X}";
-                        case DisRec2_NumSize.U32:
-                            i = i & 0xFFFFFFFF;
-                            return $"0x{i:X}";
-                        default:
-                            return $"0x{i:X}";
-                    }
+                    case DisRec2_NumSize.U8:
+                        i = i & 0xFF;
+                        return $"${i:X}";
+                    case DisRec2_NumSize.U16:
+                        i = i & 0xFFFF;
+                        return $"${i:X}";
+                    case DisRec2_NumSize.U32:
+                        i = i & 0xFFFFFFFF;
+                        return $"${i:X}";
+                    default:
+                        return $"${i:X}";
                 }
             }
         }   

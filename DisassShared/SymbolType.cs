@@ -13,8 +13,9 @@ namespace DisassShared
         Pointer = 1,
         ServiceCall = 2,
         Immediate = 4,
+        //TODO:if offset is combined with pointer it is processor dependent for meaning i.e. for 65816 it means direct page
         Offset = 8,
         Port = 16,
-        ANY = 31
+        ANY = 63
     }
 }

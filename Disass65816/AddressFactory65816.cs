@@ -18,12 +18,12 @@ namespace DisassX86
 
         public DisassAddressBase FromCanonical(ulong canonical)
         {
-            return new Address65816((UInt32)canonical);
+            return new Address65816_far((UInt32)canonical);
         }
 
         public DisassAddressBase Parse(string address)
         {
-            return new Address65816(Convert.ToUInt32(address, 16));
+            return new Address65816_far(Convert.ToUInt32(address, 16));
         }
     }
 }

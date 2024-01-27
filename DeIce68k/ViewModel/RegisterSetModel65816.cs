@@ -29,7 +29,7 @@ namespace DeIce68k.ViewModel
 
         public override DisassAddressBase PCValue
         {
-            get { return new Address65816(PC.Data); }
+            get { return new Address65816_far(PC.Data); }
             set { PC.Data = (UInt32)value.Canonical; }
         }
 

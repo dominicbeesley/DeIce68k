@@ -312,26 +312,27 @@ namespace DeIce68k.SampleData
                         0, 0x8000, new byte[] { 0x42 }, "65816", 0, 0)
                         );
 
-                    _app65816.Watches.Add(new WatchModel(new Address65816(0), "ZERO", WatchType.X08, null));
-                    _app65816.Watches.Add(new WatchModel(new Address65816(16), "sixteen", WatchType.X16, null));
-                    _app65816.Watches.Add(new WatchModel(new Address65816(100), "page1", WatchType.X08, new uint[] { 20 }));
+                    _app65816.Watches.Add(new WatchModel(new Address65816_dp(0, 0xC000), "ZERO", WatchType.X08, null));
+                    _app65816.Watches.Add(new WatchModel(new Address65816_abs(16), "sixteen", WatchType.X16, null));
+                    _app65816.Watches.Add(new WatchModel(new Address65816_abs(100, 0x20), "page1", WatchType.X08, new uint[] { 20 }));
+                    _app65816.Watches.Add(new WatchModel(new Address65816_far(100), "page1", WatchType.X08, new uint[] { 20 }));
                     IEnumerable<string> errorsR;
-                    _app65816.AddBreakpoint(new Address65816(0xADBEEF)).ConditionCode = ScriptCompiler.Compile(_app65816, "return false;", out errorsR);
-                    _app65816.AddBreakpoint(new Address65816(0x00B135)).Enabled = false;
-                    _app65816.AddBreakpoint(new Address65816(0x154BE7)).Selected = true;
-                    _app65816.AddBreakpoint(new Address65816(0x8D0812));
-                    _app65816.Symbols.Add(".excl", new Address65816(0x0019B9), SymbolType.Pointer);
-                    _app65816.Symbols.Add(".ex", new Address65816(0x0019C4), SymbolType.Pointer);
-                    _app65816.Symbols.Add(".ex_nokeys", new Address65816(0x0019CA), SymbolType.Pointer);
-                    _app65816.Symbols.Add("dom_keyb_auto_off", new Address65816(0x0019D1), SymbolType.Pointer);
-                    _app65816.Symbols.Add("dom_keyb_auto_on", new Address65816(0x0019EC), SymbolType.Pointer);
-                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new Address65816(0x00FE43), SymbolType.Port);
-                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new Address65816(0x00FE4F), SymbolType.Port);
-                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORB", new Address65816(0x00FE40), SymbolType.Port);
-                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_IFR", new Address65816(0x00FE4D), SymbolType.Port);
+                    _app65816.AddBreakpoint(new Address65816_far(0xADBEEF)).ConditionCode = ScriptCompiler.Compile(_app65816, "return false;", out errorsR);
+                    _app65816.AddBreakpoint(new Address65816_far(0x00B135)).Enabled = false;
+                    _app65816.AddBreakpoint(new Address65816_far(0x154BE7)).Selected = true;
+                    _app65816.AddBreakpoint(new Address65816_far(0x8D0812));
+                    _app65816.Symbols.Add(".excl", new Address65816_abs(0x19B9, 0x00), SymbolType.Pointer);
+                    _app65816.Symbols.Add(".ex", new Address65816_abs(0x0019C4, 0x20), SymbolType.Pointer);
+                    _app65816.Symbols.Add(".ex_nokeys", new Address65816_abs(0x0019CA), SymbolType.Pointer);
+                    _app65816.Symbols.Add("dom_keyb_auto_off", new Address65816_far(0x0019D1), SymbolType.Pointer);
+                    _app65816.Symbols.Add("dom_keyb_auto_on", new Address65816_far(0x0019EC), SymbolType.Pointer);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new Address65816_far(0xFFFE43), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new Address65816_far(0xFFFE4F), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_ORB", new Address65816_far(0xFFFE40), SymbolType.Port);
+                    _app65816.Symbols.Add("io_SHEILA_SYSVIA_IFR", new Address65816_far(0xFFFE4D), SymbolType.Port);
                     _app65816.DisassMemBlock = new DisassMemBlock(
                         _app65816,
-                        new Address65816(0x001000),
+                        new Address65816_far(0x001000),
                         new byte[]
                         {
                              0x14, 0x9e, 0x34, 0x12, 0x9c, 0xfa, 0x14, 0x9c, 0x34, 0x12, 0xd4, 0x20, 0xd4, 0x12, 0xdc, 0xfa, 0x14, 0xdc, 0x34, 

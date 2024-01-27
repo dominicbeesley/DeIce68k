@@ -101,7 +101,7 @@ namespace Disass65816
         {
             len += 2;
             ushort addr = br.ReadUInt16();
-            return OperAddr(new Address65816(addr), SymbolType.Pointer);
+            return OperAddr(new Address65816_abs(addr), SymbolType.Pointer);
         }
 
         IEnumerable<DisRec2OperString_Base> mode_Acc(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
@@ -114,14 +114,14 @@ namespace Disass65816
         {
             len += 2;
             ushort addr = br.ReadUInt16();
-            return OperStr("(").Concat(OperAddr(new Address65816(addr), SymbolType.Pointer)).Concat(OperStr(")"));
+            return OperStr("(").Concat(OperAddr(new Address65816_abs(addr), SymbolType.Pointer)).Concat(OperStr(")"));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_ind_aX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 2;
             ushort addr = br.ReadUInt16();
-            return OperStr("(").Concat(OperAddr(new Address65816(addr), SymbolType.Pointer)).Concat(OperStr(",X)"));
+            return OperStr("(").Concat(OperAddr(new Address65816_abs(addr), SymbolType.Pointer)).Concat(OperStr(",X)"));
         }
 
 
@@ -129,28 +129,28 @@ namespace Disass65816
         {
             len += 2;
             ushort addr = br.ReadUInt16();
-            return OperAddr(new Address65816(addr), SymbolType.Pointer).Concat(OperStr(",Y"));
+            return OperAddr(new Address65816_abs(addr), SymbolType.Pointer).Concat(OperStr(",Y"));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_aX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 2;
             ushort addr = br.ReadUInt16();
-            return OperAddr(new Address65816(addr), SymbolType.Pointer).Concat(OperStr(",X"));
+            return OperAddr(new Address65816_abs(addr), SymbolType.Pointer).Concat(OperStr(",X"));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_a(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 3;
             UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() >> 16);
-            return OperStr("f:").Concat(OperAddr(new Address65816(addr), SymbolType.Pointer));
+            return OperStr("f:").Concat(OperAddr(new Address65816_far(addr), SymbolType.Pointer));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_aX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 3;
             UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() >> 16);
-            return OperStr("f:").Concat(OperAddr(new Address65816(addr), SymbolType.Pointer)).Concat(OperStr(",X"));
+            return OperStr("f:").Concat(OperAddr(new Address65816_far(addr), SymbolType.Pointer)).Concat(OperStr(",X"));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_imm8(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
@@ -213,34 +213,34 @@ namespace Disass65816
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer).Concat(OperStr(",X)")));
+            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(",X)")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_ind_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer).Concat(OperStr("),Y")));
+            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("),Y")));
         }
         IEnumerable<DisRec2OperString_Base> mode_ind_dp(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer).Concat(OperStr(")")));
+            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(")")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_ind_dp(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("[<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer).Concat(OperStr("]")));
+            return OperStr("[<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("]")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_ind_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("[<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer).Concat(OperStr("],Y")));
+            return OperStr("[<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("],Y")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_offs_stack(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
@@ -262,20 +262,20 @@ namespace Disass65816
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer));
+            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_dpX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer)).Concat(OperStr(",X"));
+            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",X"));
         }
         IEnumerable<DisRec2OperString_Base> mode_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816(val), SymbolType.Pointer)).Concat(OperStr(",Y"));
+            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",Y"));
         }
 
         private delegate IEnumerable<DisRec2OperString_Base> mode_decode(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state);
@@ -503,6 +503,8 @@ namespace Disass65816
 
             IEnumerable<DisRec2OperString_Base> operands = (address_mode == null) ? Enumerable.Empty<DisRec2OperString_Base>() : address_mode(br, pc, ref len, hints, state816);
 
+            hints.AddRange(operands.OfType<DisRec2OperString_Address>().Where(i => i.Address is ILongFormAddress).Select(i => (i.Address as ILongFormAddress)?.ToStringLong()));
+
             return new DisRec2<UInt32>()
             {
                 Decoded = true,
@@ -529,11 +531,6 @@ namespace Disass65816
                 return null;
             else
                 return new[] { new DisRec2OperString_String { Text = str } };
-        }
-
-        private static IEnumerable<DisRec2OperString_Base> RotCount(byte count)
-        {
-            return OperStr("#").Concat(OperNum((uint)(count == 0 ? 8 : count), SymbolType.Immediate, DisRec2_NumSize.U8));
         }
 
     }
