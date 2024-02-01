@@ -6,13 +6,11 @@ using System.Threading.Tasks;
 
 namespace DeIceProtocol
 {
-    public class DeIceFnReplyWriteRegs : DeIceFnReplyBase
+    public class DeIceFnReplyWriteRegs : DeIceFnReplyStatusBase
     {
         public override byte FunctionCode => DeIceProtoConstants.FN_WRITE_RG;
 
-        public bool Success { get; }
-
-        public DeIceFnReplyWriteRegs(bool success) => this.Success = success;
+        public DeIceFnReplyWriteRegs(bool success) : base(success) { }
 
     }
 }

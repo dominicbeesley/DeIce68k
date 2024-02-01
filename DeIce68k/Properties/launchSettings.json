@@ -2,7 +2,7 @@
   "profiles": {
     "DeIce68k": {
       "commandName": "Project",
-      "commandLineArgs": "COM9",
+      "commandLineArgs": "COM2",
       "sqlDebugging": true
     }
   }

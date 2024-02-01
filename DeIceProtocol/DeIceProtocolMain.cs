@@ -125,6 +125,17 @@ namespace DeIceProtocol
             }
         }
 
+        public T SendReqExpectStatusByte<T>(DeIceFnReqBase fn) where T : DeIceFnReplyStatusBase
+        {
+            T ret = SendReqExpectReply<T>(fn);
+            if (!ret?.Success ?? false)
+            {
+                throw new DeIceProtocolException($"{fn.GetType().FullName} returned failure status");
+            }
+            return ret;
+        }
+
+
         public T SendReqExpectReply<T>(DeIceFnReqBase fn) where T : DeIceFnReplyBase
         {
             if (!_runSemaphore.WaitOne(LONG_TIMEOUT))
@@ -137,6 +148,8 @@ namespace DeIceProtocol
                     byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
                     _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
                     var r = DoCommandReadInt();
+                    if (r is DeIceFnReplyError)
+                        throw new DeIceProtocolException($"Error returned from client, expected a {typeof(T).FullName}, received a {r?.GetType()?.Name ?? null}");
                     if (r is not T)
                         throw new DeIceProtocolException($"Unexpected return from client, expected a { typeof(T).FullName }, received a { r?.GetType()?.Name ?? null }");
                     return (T)r;

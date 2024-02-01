@@ -246,9 +246,14 @@ namespace DeIce68k.ViewModel
                             do
                             {
                                 cur = rd.Read(buf, 0, maxlen);
-                                var reply = DeIceProto.SendReqExpectReply<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr.DeIceAddress, buf, 0, cur));
-                                if (!reply.Success)
-                                    throw new Exception($"Error copying data at {addr:X08}");
+                                try
+                                {
+                                    DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteMem>(new DeIceFnReqWriteMem(addr.DeIceAddress, buf, 0, cur));
+                                }
+                                catch (DeIceProtocolException ex)
+                                {
+                                    throw new Exception($"Error copying data at {addr:X08}", ex);
+                                }
                                 addr += (uint)cur;
                                 done += cur;
 
@@ -450,7 +455,7 @@ namespace DeIce68k.ViewModel
                             }
 
                         Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
                         ApplyBreakpoints();
                         DeIceProto.SendReq(new DeIceFnReqRun());
                     }
@@ -810,7 +815,7 @@ namespace DeIce68k.ViewModel
                             // breakpoint hit but it returned false...carry on
                             ReExecCurBreakpoint();
 
-                            DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
+                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
                             ApplyBreakpoints();
 
                             DeIceProto.SendReq(new DeIceFnReqRun());
@@ -915,7 +920,7 @@ namespace DeIce68k.ViewModel
 
                         // Set Trace mode and execute
                         bool old = Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() });
+                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() });
                         var regs = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun() { });
 
                         Regs.FromDeIceProtocolRegData(regs.RegisterData);
@@ -946,7 +951,7 @@ namespace DeIce68k.ViewModel
                     ReExecCurBreakpoint();
 
                     Regs.SetTrace(false);
-                    DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
+                    DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
                     ApplyBreakpoints();
                     DeIceProto.SendReq(new DeIceFnReqRun());
                 }
@@ -1172,7 +1177,7 @@ namespace DeIce68k.ViewModel
                     try
                     {
                         Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectReply<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
 
                         ReExecCurBreakpoint();
 
