@@ -32,7 +32,7 @@ namespace Disass65816
 
         public override bool Equals(DisassAddressBase other)
         {
-            return other == null?false:Canonical == other.Canonical;
+            return other == null ? false : Canonical == other.Canonical;
         }
 
         protected override DisassAddressBase DoAddition(long b)
@@ -88,7 +88,7 @@ namespace Disass65816
 
         public override bool Equals(DisassAddressBase other)
         {
-            return Canonical == other.Canonical;
+            return other == null ? false : Canonical == other.Canonical;
         }
 
         protected override DisassAddressBase DoAddition(long b)
@@ -148,7 +148,7 @@ namespace Disass65816
 
         public override bool Equals(DisassAddressBase other)
         {
-            return Canonical == other.Canonical;
+            return other == null ? false : Canonical == other.Canonical;
         }
 
         protected override DisassAddressBase DoAddition(long b)
