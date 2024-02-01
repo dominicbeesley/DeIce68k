@@ -90,7 +90,7 @@ namespace DeIceProtocol
                     try
                     {
                         byte firstbyte = _serial.ReadByte(SHORT_TIMEOUT);
-                        if (firstbyte >= DeIceProtoConstants.FN_MIN)
+                        if (firstbyte >= DeIceProtoConstants.FN_MIN || firstbyte == DeIceProtoConstants.FN_ERROR)
                         {
                             var cmd = DoCommandReadInt(firstbyte, true);
                             _runSemaphore.Release();
@@ -228,7 +228,7 @@ namespace DeIceProtocol
                     try
                     {
                         byte b = _serial.PeekByte(SHORT_TIMEOUT);
-                        if (b >= DeIceProtoConstants.FN_MIN || b == 0x0D || b == 0x0A)
+                        if (b >= DeIceProtoConstants.FN_MIN || b == DeIceProtoConstants.FN_ERROR|| b == 0x0D || b == 0x0A)
                             finished = true;
                         else
                             ms.WriteByte(_serial.ReadByte(SHORT_TIMEOUT));
