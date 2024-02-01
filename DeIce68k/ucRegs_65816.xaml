@@ -21,16 +21,14 @@
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
             <RowDefinition Height="24" />
-            <RowDefinition Height="24" />
             <RowDefinition Height="40" />
             <RowDefinition Height="32" />
         </Grid.RowDefinitions>
         <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=A}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=X}"></local:ucReg>
         <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=Y}"></local:ucReg>
-        <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=E}"></local:ucReg>
         <ListView  
-            Grid.Column="0" Grid.Row="5" Grid.ColumnSpan="2"
+            Grid.Column="0" Grid.Row="4" Grid.ColumnSpan="2"
             ItemsSource="{Binding Path=StatusBits}" 
             Background="Transparent"  
             BorderBrush="Transparent"
@@ -58,14 +56,13 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
-        <local:ucTargetStatus Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=TargetStatus }" />
+        <local:ucTargetStatus Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=TargetStatus }" />
 
         <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=D}"></local:ucReg>
         <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=B}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=K}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=S}"></local:ucReg>
-        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=PC}" ></local:ucReg>
-        <TextBlock Grid.Column="1" Grid.Row="6" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
+        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=S}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=PC}" ></local:ucReg>
+        <TextBlock Grid.Column="1" Grid.Row="5" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
 
     </Grid>
 </UserControl>

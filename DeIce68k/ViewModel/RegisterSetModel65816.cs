@@ -19,7 +19,6 @@ namespace DeIce68k.ViewModel
         public RegisterModel Y { get; }
         public RegisterModel D { get; }
         public RegisterModel S { get; }
-        public RegisterModel K { get; }
         public RegisterModel B { get; }
         public RegisterModel PC { get; }
         public RegisterModel P { get; }
@@ -47,7 +46,6 @@ namespace DeIce68k.ViewModel
             Y = new RegisterModel("Y", RegisterSize.Word, 0);
             D = new RegisterModel("D", RegisterSize.Word, 0);
             S = new RegisterModel("S", RegisterSize.Word, 0);
-            K = new RegisterModel("K", RegisterSize.Byte, 0);
             B = new RegisterModel("B", RegisterSize.Byte, 0);
             PC = new RegisterModel("PC", RegisterSize.Bank24, 0);
             P = new RegisterModel("P", RegisterSize.Byte, 0);
