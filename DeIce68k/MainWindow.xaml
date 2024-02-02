@@ -36,6 +36,7 @@
                             </Style>
                         </MenuItem.ItemContainerStyle>
                     </MenuItem>
+                    <MenuItem Command="{Binding CmdClearLog}" Header="Clear message log"/>
                 </MenuItem>
                 <MenuItem Header="_Debug">
                     <MenuItem Command="{Binding CmdNext }" Header="Next" />
@@ -296,6 +297,11 @@
                         <Setter Property="BorderThickness" Value="0" />
                     </Style>
                 </ListBox.ItemContainerStyle>
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Command="{Binding CmdClearLog}" Header="Clear"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
             </ListBox>
         </Grid>
     </DockPanel>

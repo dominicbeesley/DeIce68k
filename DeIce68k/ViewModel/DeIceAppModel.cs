@@ -123,6 +123,7 @@ namespace DeIce68k.ViewModel
         public ICommand CmdSaveBinary { get; }
         public ICommand CmdRunScript { get; }
         public ICommand CmdOpenAScript { get; }
+        public ICommand CmdClearLog { get; }
 
         public MainWindow MainWindow { get; init; }
 
@@ -763,6 +764,19 @@ namespace DeIce68k.ViewModel
                     return Regs?.IsStopped ?? false;
                 },
                 "Load Binary",
+                Command_Exception
+            );
+
+            CmdClearLog = new RelayCommand(
+                o =>
+                {
+                    Messages.Clear();
+                },
+                o =>
+                {
+                    return Messages.Any();
+                },
+                "Clear Message Log",
                 Command_Exception
             );
 
