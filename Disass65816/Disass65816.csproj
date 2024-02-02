@@ -5,10 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="em65816.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
     <ProjectReference Include="..\DisassShared\DisassShared.csproj" />
   </ItemGroup>
