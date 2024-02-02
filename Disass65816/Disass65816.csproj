@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="em65816.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Disass68k\Disass68k.csproj" />

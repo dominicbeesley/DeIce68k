@@ -476,7 +476,8 @@ namespace Disass65816
                             0xC => "DEX",
                             0xD => "PHX",
                             0xE => "NOP",
-                            0xF => "PLX"
+                            0xF => "PLX",
+                            _ => throw new Exception($"Unexpected value {opcode:X}")
                         }, null),
                     0xB => (oprow switch
                         {   /* column B - all no operands */
@@ -495,7 +496,8 @@ namespace Disass65816
                             0xC => "WAI",
                             0xD => "STP",
                             0xE => "XBA",
-                            0xF => "XCE"
+                            0xF => "XCE",
+                            _ => throw new Exception($"Unexpected value {opcode:X}")
                         }, null),
                     _ => throw new Exception($"Unexpected value {opcode:X}")
                 }
