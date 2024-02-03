@@ -20,8 +20,9 @@ using ea_t = int;
 
 namespace Disass65816
 {
-    public class em65816
+    public class em65816_trace
     {
+        readonly int DEPTH = 10;
 
         public enum Tristate
         {
@@ -31,13 +32,34 @@ namespace Disass65816
         }
 
         static Tristate TriNot(Tristate s) { return s == Tristate.Unknown ? Tristate.Unknown : s == Tristate.True ? Tristate.False : Tristate.True; }
-        static Tristate FromBool(bool b) { return b ? Tristate.True : Tristate.False; }
+        static Tristate FromBool(bool b) { return b?Tristate.True:Tristate.False; }
         static bool ToBool(Tristate t, bool def) => t == Tristate.Unknown ? def : t == Tristate.True ? true : false;
 
+        // Sample_type_t is an abstraction of both the 6502 SYNC and the 65816 VDA/VPA
+
+        public enum sample_type_t
+        {                   // 6502 Sync    65815 VDA/VPA
+            UNKNOWN,        //      ?             ?   ?
+            INTERNAL,       //      -             0   0
+            PROGRAM,        //      -             0   1
+            DATA,           //      0             1   0
+            OPCODE,         //      1             1   1
+            LAST            // a marker for the end of stream
+        }
+
+
+        public struct sample_t
+        {
+            public UInt32 sample_count { get; init; }
+            public sample_type_t type { get; init; }
+            public byte data { get; init; }
+            public Tristate rnw { get; init; }
+            public Tristate rst { get; init; }
+            public Tristate e { get; init; } // (65816 e pin)
+        }
 
         public struct instruction_t
         {
-            public bool interrupt { get; set; }
             public int pc { get; set; }
             public int pb { get; set; }
             public byte opcode { get; set; }
@@ -60,7 +82,9 @@ namespace Disass65816
 
 
 
-        public delegate byte memory_reader_fn(int address);
+        public delegate void memory_reader_fn(int data, int address, mem_access_t access_type);
+        public delegate void memory_writer_fn(int data, int address, mem_access_t access_type);
+        public delegate int memory_raw_reader_fn(int address);
 
         // ====================================================================
         // Type Defs
@@ -110,7 +134,7 @@ namespace Disass65816
             public string fmt { get; init; }
         }
 
-        private delegate int emulate_method(em65816 em, operand_t operand, ea_t ea);
+        private delegate int emulate_method(em65816_trace em, operand_t operand, ea_t ea);
 
 
         private struct InstrType
@@ -233,6 +257,9 @@ namespace Disass65816
         };
 
         public memory_reader_fn memory_read { get; init; }
+        public memory_writer_fn memory_write { get; init; }
+
+        public memory_raw_reader_fn memory_read_raw { get; init; }
 
         string fmt_imm16 = "%1$s #%3$02X%2$02X";
 
@@ -309,38 +336,6 @@ namespace Disass65816
         // ====================================================================
         // Helper Methods
         // ====================================================================
-
-        int memory_read16(int ea)
-        {
-            if (ea < 0) return -1;
-
-            var l = memory_read(ea);
-            if (l < 0) return -1;
-
-            var h = memory_read(ea + 1);
-            if (h < 0) return -1;
-
-            return (l & 0xFF) | (h & 0xFF) << 8;
-
-        }
-
-        int memory_read24(int ea)
-        {
-            if (ea < 0) return -1;
-
-            var l = memory_read(ea);
-            if (l < 0) return -1;
-
-            var h = memory_read(ea);
-            if (h < 0) return -1;
-
-            var b = memory_read(ea);
-            if (b < 0) return -1;
-
-            return (l & 0xFF) | (h & 0xFF) << 8 | (b & 0xFF) << 16;
-
-        }
-
 
         bool compare_FLAGS(int operand)
         {
@@ -680,10 +675,24 @@ namespace Disass65816
             }
         }
 
-        /*
-        void interrupt(byte[] pdata, instruction_t instruction, int pc_offset)
+        void interrupt(sample_t[] sample_q, int num_cycles, instruction_t instruction, int pc_offset)
         {
-            instruction.interrupt = true;
+            int i;
+            int pb;
+            if (num_cycles == 7)
+            {
+                // We must be in emulation mode
+                emulation_mode_on();
+                i = 2;
+                pb = PB;
+            }
+            else
+            {
+                // We must be in native mode
+                emulation_mode_off();
+                i = 3;
+                pb = sample_q[2].data;
+            }
             // Parse the bus cycles
             // E=0 <opcode> <op1> <write pbr> <write pch> <write pcl> <write p> <read rst> <read rsth>
             // E=1 <opcode> <op1>             <write pch> <write pcl> <write p> <read rst> <read rsth>
@@ -713,7 +722,6 @@ namespace Disass65816
             PB = 0x00;
             PC = vector;
         }
-        
 
         int get_8bit_cycles(sample_t[] sample_q)
         {
@@ -974,10 +982,10 @@ namespace Disass65816
                         int expected = get_num_cycles(sample_q, intr_seen);
                         if (expected >= 0)
                         {
-                            //if (i != expected)
-                            //{
-                            //    printf("opcode %02x: cycle prediction fail: expected %d actual %d\n", sample_q[0].data, expected, i);
-                            //}
+/*                            if (i != expected)
+                            {
+                                printf("opcode %02x: cycle prediction fail: expected %d actual %d\n", sample_q[0].data, expected, i);
+                            }*/
                         }
                         return i;
                     }
@@ -985,7 +993,6 @@ namespace Disass65816
             }
             return 1;
         }
-*/
 
         // A set of actions to take if emulation mode enabled
         void emulation_mode_on()
@@ -1066,8 +1073,129 @@ namespace Disass65816
             }
         }
 
-        void em_65816_reset()
+        // ====================================================================
+        // Public Methods
+        // ====================================================================
+        /*
+        void em_65816_init(arguments_t* args)
         {
+            switch (args.cpu_type)
+            {
+                case CPU_65C816:
+                    instr_table = instr_table_65c816;
+                    break;
+                default:
+                    printf("em_65816_init called with unsupported cpu_type (%d)\n", args.cpu_type);
+                    exit(1);
+            }
+            if (args.e_flag >= 0)
+            {
+                E = args.e_flag & 1;
+                if (E)
+                {
+                    emulation_mode_on();
+                }
+                else
+                {
+                    emulation_mode_off();
+                }
+            }
+            if (args.sp_reg >= 0)
+            {
+                SL = args.sp_reg & 0xff;
+                SH = (args.sp_reg >> 8) & 0xff;
+            }
+            if (args.pb_reg >= 0)
+            {
+                PB = args.pb_reg & 0xff;
+            }
+            if (args.db_reg >= 0)
+            {
+                DB = args.db_reg & 0xff;
+            }
+            if (args.dp_reg >= 0)
+            {
+                DP = args.dp_reg & 0xffff;
+            }
+            if (args.ms_flag >= 0)
+            {
+                MS = args.ms_flag & 1;
+            }
+            if (args.xs_flag >= 0)
+            {
+                XS = args.xs_flag & 1;
+            }
+
+        }*/
+
+        bool em_65816_match_interrupt(sample_t[] sample_q, int num_samples)
+        {
+            // Check we have enough valid samples
+            if (num_samples < 7)
+            {
+                return false;
+            }
+            // Check the cycle has the right structure
+            for (int i = 1; i < 7; i++)
+            {
+                if (sample_q[i].type == sample_type_t.OPCODE)
+                {
+                    return false;
+                }
+            }
+            // In emulation mode an interupt will write PCH, PCL, PSW in bus cycles 2,3,4
+            // In native mode an interupt will write PBR, PCH, PCL, PSW in bus cycles 2,3,4,5
+            //
+            // TODO: the heuristic only works in emulation mode
+            if (sample_q[0].rnw >= 0)
+            {
+                // If we have the RNW pin connected, then just look for these three writes in succession
+                // Currently can't detect a BRK or COP being interrupted
+                if (sample_q[0].data == 0x00 || sample_q[0].data == 0x02)
+                {
+                    return false;
+                }
+                if (sample_q[2].rnw == 0 && sample_q[3].rnw == 0 && sample_q[4].rnw == 0)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                // If not, then we use a heuristic, based on what we expect to see on the data
+                // bus in cycles 2, 3 and 4, i.e. PCH, PCL, PSW
+                if (sample_q[2].data == ((PC >> 8) & 0xff) && sample_q[3].data == (PC & 0xff))
+                {
+                    // Now test unused flag is 1, B is 0
+                    if ((sample_q[4].data & 0x30) == 0x20)
+                    {
+                        // Finally test all other known flags match
+                        if (!compare_FLAGS(sample_q[4].data))
+                        {
+                            // Matched PSW = NV-BDIZC
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        int em_65816_count_cycles(sample_t[] sample_q, bool intr_seen)
+        {
+            if (sample_q[0].type == sample_type_t.UNKNOWN)
+            {
+                return count_cycles_without_sync(sample_q, intr_seen);
+            }
+            else
+            {
+                return count_cycles_with_sync(sample_q, intr_seen);
+            }
+        }
+
+        void em_65816_reset(sample_t[] sample_q, int num_cycles, instruction_t instruction)
+        {
+            instruction.pc = -1;
             A = -1;
             X = -1;
             Y = -1;
@@ -1088,17 +1216,56 @@ namespace Disass65816
             E = Tristate.True;
             emulation_mode_on();
             // Program Counter
-            PC = -1;
+            PC = (sample_q[num_cycles - 1].data << 8) + sample_q[num_cycles - 2].data;
         }
 
-        void em_65816_emulate(byte[] pdata, instruction_t instruction)
+        void em_65816_interrupt(sample_t[] sample_q, int num_cycles, instruction_t instruction)
+        {
+            interrupt(sample_q, num_cycles, instruction, 0);
+        }
+
+        void em_65816_emulate(sample_t[] sample_q, int num_cycles, instruction_t instruction)
         {
 
             // Unpack the instruction bytes
-            byte opcode = pdata[0];
+            byte opcode = sample_q[0].data;
+
+            // Update the E flag if this e pin is being sampled
+            Tristate new_E = sample_q[0].e;
+            if (new_E != Tristate.Unknown && E != new_E)
+            {
+                if (E != Tristate.Unknown)
+                {
+//                    printf("correcting e flag\n");
+                    failflag |= true;
+                }
+                E = new_E;
+                if (E == Tristate.True)
+                {
+                    emulation_mode_on();
+                }
+                else
+                {
+                    emulation_mode_off();
+                }
+            }
 
             // lookup the entry for the instruction
             InstrType instr = instr_table[opcode];
+
+            // Infer MS from instruction length
+            if (MS == Tristate.Unknown && instr.m_extra != 0)
+            {
+                int cycles = get_8bit_cycles(sample_q);
+                check_and_set_ms(FromBool(num_cycles > cycles));
+            }
+
+            // Infer XS from instruction length
+            if (XS == Tristate.Unknown && instr.x_extra != 0)
+            {
+                int cycles = get_8bit_cycles(sample_q);
+                check_and_set_xs(FromBool(num_cycles > cycles));
+            }
 
             // Work out outcount, taking account of 8/16 bit immediates
             byte opcount = 0;
@@ -1111,12 +1278,31 @@ namespace Disass65816
             }
             opcount += (byte)(instr.len - 1);
 
-            byte op1 = (opcount < 1) ? (byte)0 : pdata[1];
+            byte op1 = (opcount < 1) ? (byte)0 : sample_q[1].data;
 
-            // Special case JSR (AddrMode.IND16, X)
-            byte op2 = (opcount < 2) ? (byte)0 : pdata[2];
+            // Special case JAddrMode.SR (AddrMode.IND16, X)
+            byte op2 = (opcount < 2) ? (byte)0 : (opcode == 0xFC) ? sample_q[4].data : sample_q[2].data;
 
-            byte op3 = (opcount < 3) ? (byte)0 : pdata[3];
+            byte op3 = (opcount < 3) ? (byte)0 : sample_q[(opcode == 0x22) ? 5 : 3].data;
+
+            // Memory Modelling: Instruction fetches
+            if (PB >= 0 && PC >= 0)
+            {
+                int pc = (PB << 16) + PC;
+                memory_read(opcode, pc++, mem_access_t.MEM_FETCH);
+                if (opcount >= 1)
+                {
+                    memory_read(op1, pc++, mem_access_t.MEM_INSTR);
+                }
+                if (opcount >= 2)
+                {
+                    memory_read(op2, pc++, mem_access_t.MEM_INSTR);
+                }
+                if (opcount >= 3)
+                {
+                    memory_read(op3, pc++, mem_access_t.MEM_INSTR);
+                }
+            }
 
             // Save the instruction state
             instruction.opcode = opcode;
@@ -1124,9 +1310,36 @@ namespace Disass65816
             instruction.op2 = op2;
             instruction.op3 = op3;
             instruction.opcount = opcount;
-            instruction.pc = PC;
-            instruction.pb = PB;
 
+
+            // Fill in the current PB/PC value
+            if (opcode == 0x00 || opcode == 0x02)
+            {
+                // BRK or COP - handle in the same way as an interrupt
+                // Now just pass BRK onto the interrupt handler
+                interrupt(sample_q, num_cycles, instruction, 2);
+                // And we are done
+                return;
+            }
+            else if (opcode == 0x20)
+            {
+                // JAddrMode.SR: <opcode> <op1> <op2> <read dummy> <write pch> <write pcl>
+                instruction.pc = (((sample_q[4].data << 8) + sample_q[5].data) - 2) & 0xffff;
+                instruction.pb = PB;
+            }
+            else if (opcode == 0x22)
+            {
+                // JSL: <opcode> <op1> <op2> <write pbr> <read dummy> <op3> <write pch> <write pcl>
+                instruction.pc = (((sample_q[6].data << 8) + sample_q[7].data) - 3) & 0xffff;
+                instruction.pb = sample_q[3].data;
+            }
+            else
+            {
+                instruction.pc = PC;
+                instruction.pb = PB;
+            }
+
+            // Take account for optional extra cycle for direct register low (DL) not equal 0.
             int dpextra = (instr.mode <= AddrMode.ZP && DP >= 0 && (DP & 0xff) != 0) ? 1 : 0;
 
             // DP page wrapping only happens:
@@ -1135,13 +1348,256 @@ namespace Disass65816
             // - only for old instructions
             bool wrap = E == Tristate.True && (DP & 0xff) == 0 && (instr.newop) == 0;
 
+            // Memory Modelling: Pointer indirection
+            switch (instr.mode)
+            {
+                case AddrMode.INDY:
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> [ <page crossing>] <operand>
+                    if (DP >= 0)
+                    {
+                        if (wrap)
+                        {
+                            memory_read(sample_q[2 + dpextra].data, (DP & 0xFF00) + op1, mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[3 + dpextra].data, (DP & 0xFF00) + ((op1 + 1) & 0xff), mem_access_t.MEM_POINTER);
+                        }
+                        else
+                        {
+                            memory_read(sample_q[2 + dpextra].data, DP + op1, mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[3 + dpextra].data, DP + op1 + 1, mem_access_t.MEM_POINTER);
+                        }
+                    }
+                    break;
+                case AddrMode.INDX:
+                    // <opcode> <op1> [ <dpextra> ] <dummy> <addrlo> <addrhi> <operand>
+                    if (DP >= 0 && X >= 0)
+                    {
+                        if (wrap)
+                        {
+                            memory_read(sample_q[3 + dpextra].data, (DP & 0xFF00) + ((op1 + X) & 0xff), mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[4 + dpextra].data, (DP & 0xFF00) + ((op1 + X + 1) & 0xff), mem_access_t.MEM_POINTER);
+                        }
+                        else
+                        {
+                            memory_read(sample_q[3 + dpextra].data, DP + op1 + X, mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[4 + dpextra].data, DP + op1 + X + 1, mem_access_t.MEM_POINTER);
+                        }
+                    }
+                    break;
+                case AddrMode.IND:
+                    // <opcode> <op1>  [ <dpextra> ] <addrlo> <addrhi> <operand>
+                    if (DP >= 0)
+                    {
+                        if (wrap)
+                        {
+                            memory_read(sample_q[2 + dpextra].data, (DP & 0xFF00) + op1, mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[3 + dpextra].data, (DP & 0xFF00) + ((op1 + 1) & 0xff), mem_access_t.MEM_POINTER);
+                        }
+                        else
+                        {
+                            memory_read(sample_q[2 + dpextra].data, DP + op1, mem_access_t.MEM_POINTER);
+                            memory_read(sample_q[3 + dpextra].data, DP + op1 + 1, mem_access_t.MEM_POINTER);
+                        }
+                    }
+                    break;
+                case AddrMode.ISY:
+                    // e.g. LDA (08, S),Y
+                    // <opcode> <op1> <internal> <addrlo> <addrhi> <internal> <operand>
+                    if (SL >= 0 && SH >= 0)
+                    {
+                        memory_read(sample_q[3].data, ((SH << 8) + SL + op1) & 0xffff, mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[4].data, ((SH << 8) + SL + op1 + 1) & 0xffff, mem_access_t.MEM_POINTER);
+                    }
+                    break;
+                case AddrMode.IDL:
+                    // e.g. LDA [80]
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> <bank> <operand>
+                    if (DP >= 0)
+                    {
+                        memory_read(sample_q[2 + dpextra].data, DP + op1, mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[3 + dpextra].data, DP + op1 + 1, mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[4 + dpextra].data, DP + op1 + 2, mem_access_t.MEM_POINTER);
+                    }
+                    break;
+                case AddrMode.IDLY:
+                    // e.g. LDA [80],Y
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> <bank> <operand>
+                    if (DP >= 0)
+                    {
+                        memory_read(sample_q[2 + dpextra].data, DP + op1, mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[3 + dpextra].data, DP + op1 + 1, mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[4 + dpextra].data, DP + op1 + 2, mem_access_t.MEM_POINTER);
+                    }
+                    break;
+                case AddrMode.IAL:
+                    // e.g. JMP [$1234] (this is the only one)
+                    // <opcode> <op1> <op2> <addrlo> <addrhi> <bank>
+                    memory_read(sample_q[3].data, (op2 << 8) + op1, mem_access_t.MEM_POINTER);
+                    memory_read(sample_q[4].data, ((op2 << 8) + op1 + 1) & 0xffff, mem_access_t.MEM_POINTER);
+                    memory_read(sample_q[5].data, ((op2 << 8) + op1 + 2) & 0xffff, mem_access_t.MEM_POINTER);
+                    break;
+                case AddrMode.IND16:
+                    // e.g. JMP (1234)
+                    // <opcode> <op1> <op2> <addrlo> <addrhi>
+                    memory_read(sample_q[3].data, (op2 << 8) + op1, mem_access_t.MEM_POINTER);
+                    memory_read(sample_q[4].data, ((op2 << 8) + op1 + 1) & 0xffff, mem_access_t.MEM_POINTER);
+                    break;
+                case AddrMode.IND1X:
+                    // JMP: <opcode=6C> <op1> <op2> <read new pcl> <read new pch>
+                    // JAddrMode.SR: <opcode=FC> <op1> <write pch> <write pcl> <op2> <internal> <read new pcl> <read new pch>
+                    if (PB >= 0 && X >= 0)
+                    {
+                        memory_read(sample_q[num_cycles - 2].data, (PB << 16) + (((op2 << 8) + op1 + X) & 0xffff), mem_access_t.MEM_POINTER);
+                        memory_read(sample_q[num_cycles - 1].data, (PB << 16) + (((op2 << 8) + op1 + X + 1) & 0xffff), mem_access_t.MEM_POINTER);
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            int operand;
+            if (instr.optype == OpType.RMWOP)
+            {
+                // 2/12/2020: on Beeb816 the <read old> cycle seems hard to sample
+                // reliably with the FX2, so lets use the <dummy> instead.
+                // E=1 - Dummy is a write of the same data
+                // <opcode> <op1> <op2> <read old> <write old> <write new>
+                // E=0 - Dummy is an internal cycle (with VPA/VDA=00)
+                // MS == 1:       <opcode> <op1> <op2> <read lo> <read hi> <dummy> <write hi> <write lo>
+                // MS == 0:       <opcode> <op1> <op2> <read> <dummy> <write>
+                if (E == Tristate.True)
+                {
+                    operand = sample_q[num_cycles - 2].data;
+                }
+                else if (MS == 0)
+                {
+                    // 16-bit mode
+                    operand = (sample_q[num_cycles - 4].data << 8) + sample_q[num_cycles - 5].data;
+                }
+                else
+                {
+                    // 8-bit mode
+                    operand = sample_q[num_cycles - 3].data;
+                }
+            }
+            else if (instr.optype == OpType.BRANCHOP)
+            {
+                // the operand is true if branch taken
+                operand = (num_cycles != 2)?1:0;
+            }
+            else if (opcode == 0x20)
+            {
+                // JAddrMode.SR abs: the operand is the data pushed to the stack (PCH, PCL)
+                // <opcode> <op1> <op2> <read dummy> <write pch> <write pcl>
+                operand = (sample_q[4].data << 8) + sample_q[5].data;
+            }
+            else if (opcode == 0xfc)
+            {
+                // JAddrMode.SR (AddrMode.IND, X): the operand is the data pushed to the stack (PCH, PCL)
+                // <opcode> <op1> <write pch> <write pcl> <op2> <internal> <read new pcl> <read new pch>
+                operand = (sample_q[2].data << 8) + sample_q[3].data;
+            }
+            else if (opcode == 0x22)
+            {
+                // JSL: the operand is the data pushed to the stack (PCB, PCH, PCL)
+                // <opcode> <op1> <op2> <write pbr> <read dummy> <op3> <write pch> <write pcl>
+                operand = (sample_q[3].data << 16) + (sample_q[6].data << 8) + sample_q[7].data;
+            }
+            else if (opcode == 0x40)
+            {
+                // RTI: the operand is the data pulled from the stack (P, PCL, PCH)
+                // E=0: <opcode> <op1> <read dummy> <read p> <read pcl> <read pch> <read pbr>
+                // E=1: <opcode> <op1> <read dummy> <read p> <read pcl> <read pch>
+                operand = (sample_q[5].data << 16) + (sample_q[4].data << 8) + sample_q[3].data;
+                if (num_cycles == 6)
+                {
+                    emulation_mode_on();
+                }
+                else
+                {
+                    emulation_mode_off();
+                    operand |= (sample_q[6].data << 24);
+                }
+            }
+            else if (opcode == 0x60)
+            {
+                // RTS: the operand is the data pulled from the stack (PCL, PCH)
+                // <opcode> <op1> <read dummy> <read pcl> <read pch> <read dummy>
+                operand = (sample_q[4].data << 8) + sample_q[3].data;
+            }
+            else if (opcode == 0x6B)
+            {
+                // RTL: the operand is the data pulled from the stack (PCL, PCH, PBR)
+                // <opcode> <op1> <read dummy> <read pcl> <read pch> <read pbr>
+                operand = (sample_q[5].data << 16) + (sample_q[4].data << 8) + sample_q[3].data;
+            }
+            else if (instr.mode == AddrMode.BM)
+            {
+                // Block Move
+                operand = sample_q[3].data;
+            }
+            else if (instr.mode == AddrMode.IMM)
+            {
+                // Immediate addressing mode: the operand is the 2nd byte of the instruction
+                operand = (op2 << 8) + op1;
+            }
+            else
+            {
+                // default to using the last bus cycle(s) as the operand
+                // special case PHD (0B) / PLD (2B) / PEI (D4) as these are always 16-bit
+                if ((instr.m_extra != 0 && (MS == Tristate.False)) || (instr.x_extra != 0 && (XS == Tristate.False)) || opcode == 0x0B || opcode == 0x2B || opcode == 0xD4)
+                {
+                    // 16-bit operation
+                    if (opcode == 0x48 || opcode == 0x5A || opcode == 0xDA || opcode == 0x0B || opcode == 0xD4)
+                    {
+                        // PHA/PHX/PHY/PHD push high byte followed by low byte
+                        operand = sample_q[num_cycles - 1].data + (sample_q[num_cycles - 2].data << 8);
+                    }
+                    else
+                    {
+                        // all other 16-bit ops are low byte then high byer
+                        operand = sample_q[num_cycles - 2].data + (sample_q[num_cycles - 1].data << 8);
+                    }
+                }
+                else
+                {
+                    // 8-bit operation
+                    operand = sample_q[num_cycles - 1].data;
+                }
+            }
+
+            // Operand 2 is the value written back in a store or read-modify-write
+            // See RMW comment above for bus cycles
+            operand_t operand2 = operand;
+            if (instr.optype == OpType.RMWOP)
+            {
+                if (E == 0 && MS == 0)
+                {
+                    // 16-bit - byte ordering is high then low
+                    operand2 = (sample_q[num_cycles - 2].data << 8) + sample_q[num_cycles - 1].data;
+                }
+                else
+                {
+                    // 8-bit
+                    operand2 = sample_q[num_cycles - 1].data;
+                }
+            }
+            else if (instr.optype == OpType.WRITEOP)
+            {
+                if (E == 0 && MS == 0)
+                {
+                    // 16-bit - byte ordering is low then high
+                    operand2 = (sample_q[num_cycles - 1].data << 8) + sample_q[num_cycles - 2].data;
+                }
+                else
+                {
+                    operand2 = sample_q[num_cycles - 1].data;
+                }
+            }
 
             // For instructions that read or write memory, we need to work out the effective address
             // Note: not needed for stack operations, as S is used directly
             int ea = -1;
-            int immedvalue = -1;
-            bool immediate = false;
-            int index = -1;
+            int index;
             switch (instr.mode)
             {
                 case AddrMode.ZP:
@@ -1156,47 +1612,36 @@ namespace Disass65816
                     if (index >= 0 && DP >= 0)
                     {
                         if (wrap)
+                        {
                             ea = (DP & 0xff00) + ((op1 + index) & 0xff);
+                        }
                         else
+                        {
                             ea = (DP + op1 + index) & 0xffff; // always bank 0
+                        }
                     }
                     break;
                 case AddrMode.INDY:
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> [ <page crossing>] <operand>
                     index = Y;
-                    if (index >= 0 && DP >= 0)
+                    if (index >= 0 && DB >= 0)
                     {
-                        if (wrap)
-                            ea = (DP & 0xff00) + (op1 & 0xff);
-                        else
-                            ea = (DP + op1) & 0xffff; // always bank 0
-                        ea = memory_read16(ea);
-                        if (ea > 0)
-                            ea = (index + ea + DB << 16) & 0xFFFFFF;
+                        ea = (sample_q[3 + dpextra].data << 8) + sample_q[2 + dpextra].data;
+                        ea = ((DB << 16) + ea + index) & 0xffffff;
                     }
                     break;
                 case AddrMode.INDX:
-                    index = X;
-                    if (index >= 0 && DP >= 0)
+                    // <opcode> <op1> [ <dpextra> ] <dummy> <addrlo> <addrhi> <operand>
+                    if (DB >= 0)
                     {
-                        if (wrap)
-                            ea = (DP & 0xff00) + ((op1 + index) & 0xff);
-                        else
-                            ea = (DP + op1 + index) & 0xffff; // always bank 0
-                        ea = memory_read16(ea);
-                        if (ea > 0)
-                            ea = (ea + DB << 16) & 0xFFFFFF;
+                        ea = (DB << 16) + (sample_q[4 + dpextra].data << 8) + sample_q[3 + dpextra].data;
                     }
                     break;
                 case AddrMode.IND:
-                    if (DP >= 0)
+                    // <opcode> <op1>  [ <dpextra> ] <addrlo> <addrhi> <operand>
+                    if (DB >= 0)
                     {
-                        if (wrap)
-                            ea = (DP & 0xff00) + (op1 & 0xff);
-                        else
-                            ea = (DP + op1) & 0xffff; // always bank 0
-                        ea = memory_read16(ea);
-                        if (ea > 0)
-                            ea = (ea + DB << 16) & 0xFFFFFF;
+                        ea = (DB << 16) + (sample_q[3 + dpextra].data << 8) + sample_q[2 + dpextra].data;
                     }
                     break;
                 case AddrMode.ABS:
@@ -1230,36 +1675,25 @@ namespace Disass65816
                     // e.g. LDA (08, S),Y
                     // <opcode> <op1> <internal> <addrlo> <addrhi> <internal> <operand>
                     index = Y;
-                    if (index >= 0 && DB >= 0 && SL >= 0 && SH >= 0)
+                    if (index >= 0 && DB >= 0)
                     {
-                        ea = ((SH << 8) + SL + op1) & 0xffff;
-                        ea = memory_read16(ea);
-                        if (ea >= 0)
-                            ea = ((DB << 16) + ea + index) & 0xffffff;
+                        ea = (DB << 16) + (sample_q[4].data << 8) + sample_q[3].data;
+                        ea = (ea + index) & 0xffffff;
                     }
                     break;
                 case AddrMode.IDL:
                     // e.g. LDA [80]
-                    if (DP >= 0)
-                    {
-                        if (wrap)
-                            ea = (DP & 0xff00) + (op1 & 0xff);
-                        else
-                            ea = (DP + op1) & 0xffff; // always bank 0
-                        ea = memory_read24(ea);
-                    }
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> <bank> <operand>
+                    ea = (sample_q[4 + dpextra].data << 16) + (sample_q[3 + dpextra].data << 8) + sample_q[2 + dpextra].data;
                     break;
                 case AddrMode.IDLY:
                     // e.g. LDA [80],Y
-                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> <bank> <operand>                    
+                    // <opcode> <op1> [ <dpextra> ] <addrlo> <addrhi> <bank> <operand>
                     index = Y;
-                    if (index >= 0 && DP >= 0)
+                    if (index >= 0)
                     {
-                        if (wrap)
-                            ea = (DP & 0xff00) + (op1 & 0xff);
-                        else
-                            ea = (DP + op1) & 0xffff; // always bank 0
-                        ea = (memory_read24(ea) + index) & 0xFFFFFF;
+                        ea = (sample_q[4 + dpextra].data << 16) + (sample_q[3 + dpextra].data << 8) + sample_q[2 + dpextra].data;
+                        ea = (ea + index) & 0xffffff;
                     }
                     break;
                 case AddrMode.ABL:
@@ -1276,8 +1710,7 @@ namespace Disass65816
                 case AddrMode.IAL:
                     // e.g. JMP [$1234] (this is the only one)
                     // <opcode> <op1> <op2> <addrlo> <addrhi> <bank>
-                    ea = op1 + op2 << 8;
-                    ea = memory_read24(ea);
+                    ea = (sample_q[5].data << 16) + (sample_q[4].data << 8) + sample_q[3].data;
                     break;
                 case AddrMode.BRL:
                     // e.g. PER 1234 or AddrMode.BRL 1234
@@ -1295,22 +1728,348 @@ namespace Disass65816
                     break;
             }
 
-            // Execute the instruction specific function
-            // (This returns -1 if the result is unknown or invalid)
-            int result = instr.emulate(this, ea);
+            if (instr.emulate != null)
+            {
 
+                // Is direct page access, as this wraps within bank 0
+                bool isDP = instr.mode == AddrMode.ZP || instr.mode == AddrMode.ZPX || instr.mode == AddrMode.ZPY;
+
+                // Determine memory access size
+                int size = instr.x_extra != 0 ? (int)XS : instr.m_extra != 0 ? (int)MS : 1;
+
+                // Model memory reads
+                if (ea >= 0 && (instr.optype == OpType.READOP || instr.optype == OpType.RMWOP))
+                {
+                    int oplo = (operand & 0xff);
+                    int ophi = ((operand >> 8) & 0xff);
+                    if (size == 0)
+                    {
+                        memory_read(oplo, ea, mem_access_t.MEM_DATA);
+                        if (isDP)
+                        {
+                            memory_read(ophi, (ea + 1) & 0xffff, mem_access_t.MEM_DATA);
+                        }
+                        else
+                        {
+                            memory_read(ophi, ea + 1, mem_access_t.MEM_DATA);
+                        }
+                    }
+                    else if (size > 0)
+                    {
+                        memory_read(oplo, ea, mem_access_t.MEM_DATA);
+                    }
+                }
+
+                // Execute the instruction specific function
+                // (This returns -1 if the result is unknown or invalid)
+                int result = instr.emulate(this, operand, ea);
+
+                if (instr.optype == OpType.WRITEOP || instr.optype == OpType.RMWOP)
+                {
+
+                    // STA STX STY STZ
+                    // INC DEX ASL LAddrMode.SR ROL ROR
+                    // TSB TRB
+
+                    // Check result of instruction against bye
+                    if (result >= 0 && result != operand2)
+                    {
+                        failflag = true;
+                    }
+
+                    // Model memory writes based on result seen on bus
+                    if (ea >= 0)
+                    {
+                        memory_write(operand2 & 0xff, ea, mem_access_t.MEM_DATA);
+                        if (size == 0)
+                        {
+                            if (isDP)
+                            {
+                                memory_write((operand2 >> 8) & 0xff, (ea + 1) & 0xffff, mem_access_t.MEM_DATA);
+                            }
+                            else
+                            {
+                                memory_write((operand2 >> 8) & 0xff, ea + 1, mem_access_t.MEM_DATA);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Look for control flow changes and update the PC
+            if (opcode == 0x40)
+            {
+                // E=0: <opcode> <op1> <read dummy> <read p> <read pcl> <read pch> <read pbr>
+                // E=1: <opcode> <op1> <read dummy> <read p> <read pcl> <read pch>
+                PC = sample_q[4].data | (sample_q[5].data << 8);
+                if (E == 0)
+                {
+                    PB = sample_q[6].data;
+                }
+            }
+            else if (opcode == 0x6c || opcode == 0x7c || opcode == 0xfc)
+            {
+                // JMP (ind), JMP (ind, X), JAddrMode.SR (ind, X)
+                PC = (sample_q[num_cycles - 1].data << 8) | sample_q[num_cycles - 2].data;
+            }
+            else if (opcode == 0x20 || opcode == 0x4c)
+            {
+                // JAddrMode.SR abs, JMP abs
+                // Don't use ea here as it includes PB which may be unknown
+                PC = (op2 << 8) + op1;
+            }
+            else if (opcode == 0x22 || opcode == 0x5c || opcode == 0xdc)
+            {
+                // JSL long, JML long
+                PB = (ea >> 16) & 0xff;
+                PC = (ea & 0xffff);
+            }
+            else if (PC < 0)
+            {
+                // PC value is not known yet, everything below this point is relative
+                PC = -1;
+            }
+            else if (opcode == 0x80 || opcode == 0x82)
+            {
+                // AddrMode.BRA / AddrMode.BRL
+                PC = ea;
+            }
+            else if ((opcode & 0x1f) == 0x10 && num_cycles != 2)
+            {
+                // BXX: if taken
+                PC = ea;
+            }
+            else
+            {
+                // Otherwise, increment pc by length of instuction
+                PC = (PC + opcount + 1) & 0xffff;
+            }
         }
 
+        /*
+        static int em_65816_disassemble(string buffer, instruction_t instruction)
+        {
 
+            int numchars;
+            int offset;
+            char target[16];
 
+            // Unpack the instruction bytes
+            int opcode = instruction.opcode;
+            int op1 = instruction.op1;
+            int op2 = instruction.op2;
+            int op3 = instruction.op3;
+            int pc = instruction.pc;
+            int opcount = instruction.opcount;
+            // lookup the entry for the instruction
+            InstrType* instr = &instr_table[opcode];
 
+            const char* mnemonic = instr.mnemonic;
+            const char* fmt = instr.fmt;
+            switch (instr.mode)
+            {
+                case AddrMode.IMP:
+                case AddrMode.IMPA:
+                    numchars = sprintf(buffer, fmt, mnemonic);
+                    break;
+                case AddrMode.BRA:
+                    // Calculate branch target using op1 for normal branches
+                    offset = (int8_t)op1;
+                    if (pc < 0)
+                    {
+                        if (offset < 0)
+                        {
+                            sprintf(target, "pc-%d", -offset);
+                        }
+                        else
+                        {
+                            sprintf(target, "pc+%d", offset);
+                        }
+                    }
+                    else
+                    {
+                        sprintf(target, "%04X", (pc + 2 + offset) & 0xffff);
+                    }
+                    numchars = sprintf(buffer, fmt, mnemonic, target);
+                    break;
+                case AddrMode.BRL:
+                    // Calculate branch target using op1 for normal branches
+                    offset = (int16_t)((op2 << 8) + op1);
+                    if (pc < 0)
+                    {
+                        if (offset < 0)
+                        {
+                            sprintf(target, "pc-%d", -offset);
+                        }
+                        else
+                        {
+                            sprintf(target, "pc+%d", offset);
+                        }
+                    }
+                    else
+                    {
+                        sprintf(target, "%04X", (pc + 3 + offset) & 0xffff);
+                    }
+                    numchars = sprintf(buffer, fmt, mnemonic, target);
+                    break;
+                case AddrMode.IMM:
+                    if (opcount == 2)
+                    {
+                        numchars = sprintf(buffer, fmt_imm16, mnemonic, op1, op2);
+                    }
+                    else
+                    {
+                        numchars = sprintf(buffer, fmt, mnemonic, op1);
+                    }
+                    break;
+                case AddrMode.ZP:
+                case AddrMode.ZPX:
+                case AddrMode.ZPY:
+                case AddrMode.INDX:
+                case AddrMode.INDY:
+                case AddrMode.IND:
+                case AddrMode.SR:
+                case AddrMode.ISY:
+                case AddrMode.IDL:
+                case AddrMode.IDLY:
+                    numchars = sprintf(buffer, fmt, mnemonic, op1);
+                    break;
+                case AddrMode.ABS:
+                case AddrMode.ABSX:
+                case AddrMode.ABSY:
+                case AddrMode.IND16:
+                case AddrMode.IND1X:
+                case AddrMode.IAL:
+                case AddrMode.BM:
+                    numchars = sprintf(buffer, fmt, mnemonic, op1, op2);
+                    break;
+                case AddrMode.ABL:
+                case AddrMode.ALX:
+                    numchars = sprintf(buffer, fmt, mnemonic, op1, op2, op3);
+                    break;
+                default:
+                    numchars = 0;
+            }
+
+            return numchars;
+        }
+        */
+
+        int em_65816_read_memory(int address)
+        {
+            return memory_read_raw(address);
+        }
+
+        /*
+        static char* em_65816_get_state(char* buffer)
+        {
+            strcpy(buffer, default_state);
+            if (B >= 0)
+            {
+                write_hex2(buffer + OFFSET_B, B);
+            }
+            if (A >= 0)
+            {
+                write_hex2(buffer + OFFSET_A, A);
+            }
+            if (X >= 0)
+            {
+                write_hex4(buffer + OFFSET_X, X);
+            }
+            if (Y >= 0)
+            {
+                write_hex4(buffer + OFFSET_Y, Y);
+            }
+            if (SH >= 0)
+            {
+                write_hex2(buffer + OFFSET_SH, SH);
+            }
+            if (SL >= 0)
+            {
+                write_hex2(buffer + OFFSET_SL, SL);
+            }
+            if (N >= 0)
+            {
+                buffer[OFFSET_N] = '0' + N;
+            }
+            if (V >= 0)
+            {
+                buffer[OFFSET_V] = '0' + V;
+            }
+            if (MS >= 0)
+            {
+                buffer[OFFSET_MS] = '0' + MS;
+            }
+            if (XS >= 0)
+            {
+                buffer[OFFSET_XS] = '0' + XS;
+            }
+            if (D >= 0)
+            {
+                buffer[OFFSET_D] = '0' + D;
+            }
+            if (I >= 0)
+            {
+                buffer[OFFSET_I] = '0' + I;
+            }
+            if (Z >= 0)
+            {
+                buffer[OFFSET_Z] = '0' + Z;
+            }
+            if (C >= 0)
+            {
+                buffer[OFFSET_C] = '0' + C;
+            }
+            if (E >= 0)
+            {
+                buffer[OFFSET_E] = '0' + E;
+            }
+            if (PB >= 0)
+            {
+                write_hex2(buffer + OFFSET_PB, PB);
+            }
+            if (DB >= 0)
+            {
+                write_hex2(buffer + OFFSET_DB, DB);
+            }
+            if (DP >= 0)
+            {
+                write_hex4(buffer + OFFSET_DP, DP);
+            }
+            return buffer + OFFSET_END;
+        }
+        */
+
+        bool em_65816_get_and_clear_fail()
+        {
+            bool ret = failflag;
+            failflag = false;
+            return ret;
+        }
+
+        /*
+        cpu_emulator_t em_65816 = {
+   .init = em_65816_init,
+   .match_interrupt = em_65816_match_interrupt,
+   .count_cycles = em_65816_count_cycles,
+   .reset = em_65816_reset,
+   .interrupt = em_65816_interrupt,
+   .emulate = em_65816_emulate,
+   .disassemble = em_65816_disassemble,
+   .get_PC = em_65816_get_PC,
+   .get_PB = em_65816_get_PB,
+   .read_memory = em_65816_read_memory,
+   .get_state = em_65816_get_state,
+   .get_and_clear_fail = em_65816_get_and_clear_fail,
+};
+        */
 
         // ====================================================================
         // 65816 specific instructions
         // ====================================================================
 
         // Push Effective Absolute Address
-        static int op_PEA(em65816 em, operand_t operand, ea_t ea)
+        static int op_PEA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // always pushes a 16-bit value
             em.push16(ea);
@@ -1318,7 +2077,7 @@ namespace Disass65816
         }
 
         // Push Effective Relative Address
-        static int op_PER(em65816 em, operand_t operand, ea_t ea)
+		static int op_PER(em65816_trace em, operand_t operand, ea_t ea)
         {
             // always pushes a 16-bit value
             em.push16(ea);
@@ -1326,7 +2085,7 @@ namespace Disass65816
         }
 
         // Push Effective Indirect Address
-        static int op_PEI(em65816 em, operand_t operand, ea_t ea)
+		static int op_PEI(em65816_trace em, operand_t operand, ea_t ea)
         {
             // always pushes a 16-bit value
             em.push16(operand);
@@ -1334,7 +2093,7 @@ namespace Disass65816
         }
 
         // Push Data Bank Register
-        static int op_PHB(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHB(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.push8(operand);
             if (em.DB >= 0)
@@ -1349,7 +2108,7 @@ namespace Disass65816
         }
 
         // Push Program Bank Register
-        static int op_PHK(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHK(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.push8(operand);
             if (em.PB >= 0)
@@ -1364,7 +2123,7 @@ namespace Disass65816
         }
 
         // Push Direct Page Register
-        static int op_PHD(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHD(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.push16(operand);
             if (em.DP >= 0)
@@ -1379,7 +2138,7 @@ namespace Disass65816
         }
 
         // Pull Data Bank Register
-        static int op_PLB(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLB(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.DB = operand;
             em.set_NZ8(em.DB);
@@ -1388,7 +2147,7 @@ namespace Disass65816
         }
 
         // Pull Direct Page Register
-        static int op_PLD(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLD(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.DP = operand;
             em.set_NZ16(em.DP);
@@ -1396,7 +2155,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_MV(em65816 em, int data, int sba, int dba, int dir)
+		static int op_MV(em65816_trace em, int data, int sba, int dba, int dir)
         {
             // operand is the data byte (from the bus read)
             // ea = (op2 << 8) + op1 == (srcbank << 8) + dstbank;
@@ -1440,19 +2199,19 @@ namespace Disass65816
         }
 
         // Block Move (Decrementing)
-        static int op_MVP(em65816 em, operand_t operand, ea_t ea)
+		static int op_MVP(em65816_trace em, operand_t operand, ea_t ea)
         {
             return op_MV(em, operand, (ea >> 8) & 0xff, ea & 0xff, -1);
         }
 
         // Block Move (Incrementing)
-        static int op_MVN(em65816 em, operand_t operand, ea_t ea)
+		static int op_MVN(em65816_trace em, operand_t operand, ea_t ea)
         {
             return op_MV(em, operand, (ea >> 8) & 0xff, ea & 0xff, 1);
         }
 
         // Transfer Transfer em.C accumulator to Direct Page register
-        static int op_TCD(em65816 em, operand_t operand, ea_t ea)
+		static int op_TCD(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Always a 16-bit transfer
             if (em.B >= 0 && em.A >= 0)
@@ -1469,7 +2228,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer em.C accumulator to Stack pointer
-        static int op_TCS(em65816 em, operand_t operand, ea_t ea)
+		static int op_TCS(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.SH = em.B;
             em.SL = em.A;
@@ -1477,7 +2236,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer Direct Page register to em.C accumulator
-        static int op_TDC(em65816 em, operand_t operand, ea_t ea)
+		static int op_TDC(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Always a 16-bit transfer
             if (em.DP >= 0)
@@ -1496,7 +2255,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer Stack pointer to em.C accumulator
-        static int op_TSC(em65816 em, operand_t operand, ea_t ea)
+		static int op_TSC(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Always a 16-bit transfer
             em.A = em.SL;
@@ -1512,7 +2271,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_TXY(em65816 em, operand_t operand, ea_t ea)
+		static int op_TXY(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Variable size transfer controlled by em.XS
             if (em.X >= 0)
@@ -1528,7 +2287,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_TYX(em65816 em, operand_t operand, ea_t ea)
+		static int op_TYX(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Variable size transfer controlled by em.XS
             if (em.Y >= 0)
@@ -1545,7 +2304,7 @@ namespace Disass65816
         }
 
         // Exchange em.A and em.B
-        static int op_XBA(em65816 em, operand_t operand, ea_t ea)
+		static int op_XBA(em65816_trace em, operand_t operand, ea_t ea)
         {
             int tmp = em.A;
             em.A = em.B;
@@ -1562,7 +2321,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_XCE(em65816 em, operand_t operand, ea_t ea)
+		static int op_XCE(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate tmp = em.C;
             em.C = em.E;
@@ -1584,7 +2343,7 @@ namespace Disass65816
             return -1;
         }
 
-        static void repsep(em65816 em, int operand, Tristate val)
+        static void repsep(em65816_trace em, int operand, Tristate val)
         {
             if ((operand & 0x80) != 0)
             {
@@ -1624,20 +2383,20 @@ namespace Disass65816
         }
 
         // Reset/Set Processor Status Bits
-        static int op_REP(em65816 em, operand_t operand, ea_t ea)
+		static int op_REP(em65816_trace em, operand_t operand, ea_t ea)
         {
             repsep(em, operand, Tristate.False);
             return -1;
         }
 
-        static int op_SEP(em65816 em, operand_t operand, ea_t ea)
+		static int op_SEP(em65816_trace em, operand_t operand, ea_t ea)
         {
             repsep(em, operand, Tristate.False);
             return -1;
         }
 
         // Jump to Subroutine Long
-        static int op_JSL(em65816 em, operand_t operand, ea_t ea)
+		static int op_JSL(em65816_trace em, operand_t operand, ea_t ea)
         {
             // JAddrMode.SR: the operand is the data em.pushed to the stack (PB, PCH, PCL)
             em.push8(operand >> 16); // PB
@@ -1646,12 +2405,12 @@ namespace Disass65816
         }
 
         // Return from Subroutine Long
-        static int op_RTL(em65816 em, operand_t operand, ea_t ea)
+		static int op_RTL(em65816_trace em, operand_t operand, ea_t ea)
         {
             // RTL: the operand is the data pulled from the stack (PCL, PCH, PB)
             em.pop16(operand);      // em.PC
             em.pop8(operand >> 16); // PB
-                                    // The +1 is handled elsewhere
+                                 // The +1 is handled elsewhere
             em.PC = operand & 0xffff;
             em.PB = (operand >> 16) & 0xff;
             return -1;
@@ -1661,7 +2420,7 @@ namespace Disass65816
         // 65816/6502 instructions
         // ====================================================================
 
-        static int op_ADC(em65816 em, operand_t operand, ea_t ea)
+		static int op_ADC(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (acc >= 0 && em.C >= 0)
@@ -1675,7 +2434,7 @@ namespace Disass65816
                     {
                         int an = (acc >> bit) & 0xF;
                         int bn = (operand >> bit) & 0xF;
-                        int rn = an + bn + (em.C == Tristate.True ? 1 : 0);
+                        int rn = an + bn + (em.C == Tristate.True ? 1: 0);
                         em.V = FromBool(((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) == 0);
                         em.C = 0;
                         if (rn >= 10)
@@ -1725,7 +2484,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_AND(em65816 em, operand_t operand, ea_t ea)
+		static int op_AND(em65816_trace em, operand_t operand, ea_t ea)
         {
             // em.A is always updated, regardless of the size
             if (em.A >= 0)
@@ -1749,7 +2508,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_ASLA(em65816 em, operand_t operand, ea_t ea)
+		static int op_ASLA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Compute the new carry
             if (em.MS > 0 && em.A >= 0)
@@ -1793,13 +2552,13 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_ASL(em65816 em, operand_t operand, ea_t ea)
+		static int op_ASL(em65816_trace em, operand_t operand, ea_t ea)
         {
             int tmp;
             if (em.MS > 0)
             {
                 // 8-bit mode
-                em.C = FromBool(((operand >> 7) & 1) != 0);
+                em.C =FromBool(((operand >> 7) & 1) != 0);
                 tmp = (operand << 1) & 0xff;
                 em.set_NZ8(tmp);
             }
@@ -1820,7 +2579,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_BCC(em65816 em, operand_t operand, ea_t ea)
+		static int op_BCC(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.C >= 0)
@@ -1837,7 +2596,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BCS(em65816 em, operand_t operand, ea_t ea)
+		static int op_BCS(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.C >= 0)
@@ -1854,7 +2613,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BNE(em65816 em, operand_t operand, ea_t ea)
+		static int op_BNE(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.Z >= 0)
@@ -1871,7 +2630,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BEQ(em65816 em, operand_t operand, ea_t ea)
+		static int op_BEQ(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.Z >= 0)
@@ -1888,7 +2647,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BPL(em65816 em, operand_t operand, ea_t ea)
+		static int op_BPL(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.N >= 0)
@@ -1905,7 +2664,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BMI(em65816 em, operand_t operand, ea_t ea)
+		static int op_BMI(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.N >= 0)
@@ -1922,7 +2681,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BVC(em65816 em, operand_t operand, ea_t ea)
+		static int op_BVC(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.V >= 0)
@@ -1939,7 +2698,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BVS(em65816 em, operand_t operand, ea_t ea)
+		static int op_BVS(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
             if (em.V >= 0)
@@ -1956,7 +2715,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BIT_IMM(em65816 em, operand_t operand, ea_t ea)
+		static int op_BIT_IMM(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (operand == 0)
@@ -1976,7 +2735,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_BIT(em65816 em, operand_t operand, ea_t ea)
+		static int op_BIT(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.MS > 0)
             {
@@ -2000,31 +2759,31 @@ namespace Disass65816
             return op_BIT_IMM(em, operand, ea);
         }
 
-        static int op_CLC(em65816 em, operand_t operand, ea_t ea)
+		static int op_CLC(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.C = 0;
             return -1;
         }
 
-        static int op_CLD(em65816 em, operand_t operand, ea_t ea)
+		static int op_CLD(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.D = 0;
             return -1;
         }
 
-        static int op_CLI(em65816 em, operand_t operand, ea_t ea)
+		static int op_CLI(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.I = 0;
             return -1;
         }
 
-        static int op_CLV(em65816 em, operand_t operand, ea_t ea)
+		static int op_CLV(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.V = 0;
             return -1;
         }
 
-        static int op_CMP(em65816 em, operand_t operand, ea_t ea)
+		static int op_CMP(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (acc >= 0)
@@ -2040,7 +2799,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_CPX(em65816 em, operand_t operand, ea_t ea)
+		static int op_CPX(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.X >= 0)
             {
@@ -2055,7 +2814,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_CPY(em65816 em, operand_t operand, ea_t ea)
+		static int op_CPY(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.Y >= 0)
             {
@@ -2070,7 +2829,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_DECA(em65816 em, operand_t operand, ea_t ea)
+		static int op_DECA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Compute the new em.A
             if (em.A >= 0)
@@ -2098,7 +2857,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_DEC(em65816 em, operand_t operand, ea_t ea)
+		static int op_DEC(em65816_trace em, operand_t operand, ea_t ea)
         {
             int tmp = -1;
             if (em.MS > 0)
@@ -2120,7 +2879,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_DEX(em65816 em, operand_t operand, ea_t ea)
+		static int op_DEX(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.X >= 0)
             {
@@ -2150,7 +2909,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_DEY(em65816 em, operand_t operand, ea_t ea)
+		static int op_DEY(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.Y >= 0)
             {
@@ -2180,7 +2939,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_EOR(em65816 em, operand_t operand, ea_t ea)
+		static int op_EOR(em65816_trace em, operand_t operand, ea_t ea)
         {
             // em.A is always updated, regardless of the size
             if (em.A >= 0)
@@ -2204,7 +2963,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_INCA(em65816 em, operand_t operand, ea_t ea)
+		static int op_INCA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Compute the new em.A
             if (em.A >= 0)
@@ -2232,7 +2991,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_INC(em65816 em, operand_t operand, ea_t ea)
+		static int op_INC(em65816_trace em, operand_t operand, ea_t ea)
         {
             int tmp = -1;
             if (em.MS > 0)
@@ -2254,7 +3013,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_INX(em65816 em, operand_t operand, ea_t ea)
+		static int op_INX(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.X >= 0)
             {
@@ -2284,7 +3043,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_INY(em65816 em, operand_t operand, ea_t ea)
+		static int op_INY(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.Y >= 0)
             {
@@ -2314,14 +3073,14 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_JSR(em65816 em, operand_t operand, ea_t ea)
+		static int op_JSR(em65816_trace em, operand_t operand, ea_t ea)
         {
             // JAddrMode.SR: the operand is the data em.pushed to the stack (PCH, PCL)
             em.push16(operand);  // em.PC
             return -1;
         }
 
-        static int op_LDA(em65816 em, operand_t operand, ea_t ea)
+		static int op_LDA(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.A = operand & 0xff;
             if (em.MS == 0)
@@ -2332,21 +3091,21 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_LDX(em65816 em, operand_t operand, ea_t ea)
+		static int op_LDX(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.X = operand;
             em.set_NZ_XS(em.X);
             return -1;
         }
 
-        static int op_LDY(em65816 em, operand_t operand, ea_t ea)
+		static int op_LDY(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.Y = operand;
             em.set_NZ_XS(em.Y);
             return -1;
         }
 
-        static int op_LSRA(em65816 em, operand_t operand, ea_t ea)
+		static int op_LSRA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Compute the new carry
             if (em.A >= 0)
@@ -2384,7 +3143,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_LSR(em65816 em, operand_t operand, ea_t ea)
+		static int op_LSR(em65816_trace em, operand_t operand, ea_t ea)
         {
             int tmp;
             em.C = FromBool((operand & 1) != 0);
@@ -2409,7 +3168,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_ORA(em65816 em, operand_t operand, ea_t ea)
+		static int op_ORA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // em.A is always updated, regardless of the size
             if (em.A >= 0)
@@ -2433,14 +3192,14 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_PHA(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHA(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.pushMS(operand);
             op_STA(em, operand, -1);
             return -1;
         }
 
-        static int op_PHP(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHP(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.push8(operand);
             em.check_FLAGS(operand);
@@ -2448,21 +3207,21 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_PHX(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHX(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.pushXS(operand);
             op_STX(em, operand, -1);
             return -1;
         }
 
-        static int op_PHY(em65816 em, operand_t operand, ea_t ea)
+		static int op_PHY(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.pushXS(operand);
             op_STY(em, operand, -1);
             return -1;
         }
 
-        static int op_PLA(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLA(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.A = operand & 0xff;
             if (em.MS < 0)
@@ -2478,14 +3237,14 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_PLP(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLP(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.set_FLAGS(operand);
             em.pop8(operand);
             return -1;
         }
 
-        static int op_PLX(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLX(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.X = operand;
             em.set_NZ_XS(em.X);
@@ -2493,7 +3252,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_PLY(em65816 em, operand_t operand, ea_t ea)
+		static int op_PLY(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.Y = operand;
             em.set_NZ_XS(em.Y);
@@ -2501,7 +3260,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_ROLA(em65816 em, operand_t operand, ea_t ea)
+		static int op_ROLA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Save the old carry
             Tristate oldC = em.C;
@@ -2542,7 +3301,7 @@ namespace Disass65816
             {
                 if (oldC != Tristate.Unknown)
                 {
-                    em.A = ((em.A << 1) | ((oldC == Tristate.True) ? 1 : 0)) & 0xff;
+                    em.A = ((em.A << 1) | ((oldC == Tristate.True)?1:0)) & 0xff;
                 }
                 else
                 {
@@ -2554,7 +3313,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_ROL(em65816 em, operand_t operand, ea_t ea)
+		static int op_ROL(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate oldC = em.C;
             int tmp;
@@ -2581,7 +3340,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_RORA(em65816 em, operand_t operand, ea_t ea)
+		static int op_RORA(em65816_trace em, operand_t operand, ea_t ea)
         {
             // Save the old carry
             Tristate oldC = em.C;
@@ -2612,8 +3371,7 @@ namespace Disass65816
             else if (em.MS == Tristate.Unknown)
             {
                 em.B = -1;
-            }
-            else if (em.MS == Tristate.False && oldC == Tristate.Unknown)
+            } else if (em.MS == Tristate.False && oldC == Tristate.Unknown)
             {
                 em.B = -1;
             }
@@ -2622,7 +3380,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_ROR(em65816 em, operand_t operand, ea_t ea)
+		static int op_ROR(em65816_trace em, operand_t operand, ea_t ea)
         {
             Tristate oldC = em.C;
             int tmp;
@@ -2648,7 +3406,7 @@ namespace Disass65816
             return tmp;
         }
 
-        static int op_RTS(em65816 em, operand_t operand, ea_t ea)
+		static int op_RTS(em65816_trace em, operand_t operand, ea_t ea)
         {
             // RTS: the operand is the data pulled from the stack (PCL, PCH)
             em.pop8(operand);
@@ -2658,7 +3416,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_RTI(em65816 em, operand_t operand, ea_t ea)
+		static int op_RTI(em65816_trace em, operand_t operand, ea_t ea)
         {
             // RTI: the operand is the data pulled from the stack (P, PCL, PCH, PBR)
             em.set_FLAGS(operand);
@@ -2672,7 +3430,7 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_SBC(em65816 em, operand_t operand, ea_t ea)
+		static int op_SBC(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (acc >= 0 && em.C != Tristate.Unknown && em.MS != Tristate.Unknown)
@@ -2736,25 +3494,25 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_SEC(em65816 em, operand_t operand, ea_t ea)
+		static int op_SEC(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.C = Tristate.True;
             return -1;
         }
 
-        static int op_SED(em65816 em, operand_t operand, ea_t ea)
+		static int op_SED(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.D = Tristate.True;
             return -1;
         }
 
-        static int op_SEI(em65816 em, operand_t operand, ea_t ea)
+		static int op_SEI(em65816_trace em, operand_t operand, ea_t ea)
         {
             em.I = Tristate.True;
             return -1;
         }
 
-        static int op_STA(em65816 em, operand_t operand, ea_t ea)
+		static int op_STA(em65816_trace em, operand_t operand, ea_t ea)
         {
             int oplo = operand & 0xff;
             int ophi = (operand >> 8) & 0xff;
@@ -2786,7 +3544,7 @@ namespace Disass65816
             return operand;
         }
 
-        static int op_STX(em65816 em, operand_t operand, ea_t ea)
+		static int op_STX(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.X >= 0)
             {
@@ -2799,7 +3557,7 @@ namespace Disass65816
             return operand;
         }
 
-        static int op_STY(em65816 em, operand_t operand, ea_t ea)
+		static int op_STY(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.Y >= 0)
             {
@@ -2812,7 +3570,7 @@ namespace Disass65816
             return operand;
         }
 
-        static int op_STZ(em65816 em, operand_t operand, ea_t ea)
+		static int op_STZ(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (operand != 0)
             {
@@ -2822,7 +3580,7 @@ namespace Disass65816
         }
 
 
-        static int op_TSB(em65816 em, operand_t operand, ea_t ea)
+		static int op_TSB(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (acc >= 0)
@@ -2837,7 +3595,7 @@ namespace Disass65816
             }
         }
 
-        static int op_TRB(em65816 em, operand_t operand, ea_t ea)
+		static int op_TRB(em65816_trace em, operand_t operand, ea_t ea)
         {
             int acc = em.get_accumulator();
             if (acc >= 0)
@@ -2853,7 +3611,7 @@ namespace Disass65816
         }
 
         // This is used to implement: TAX, TAY, TSX
-        static void transfer_88_16(em65816 em, int srchi, int srclo, ref int dst)
+        static void transfer_88_16(em65816_trace em, int srchi, int srclo, ref int dst)
         {
             if (srclo >= 0 && srchi >= 0 && em.XS == Tristate.False)
             {
@@ -2875,7 +3633,7 @@ namespace Disass65816
         }
 
         // This is used to implement: TXem.A, TYem.A
-        static void transfer_16_88(em65816 em, int src, ref int dsthi, ref int dstlo)
+        static void transfer_16_88(em65816_trace em, int src, ref int dsthi, ref int dstlo)
         {
             if (em.MS == 0)
             {
@@ -2923,31 +3681,31 @@ namespace Disass65816
             }
         }
 
-        static int op_TAX(em65816 em, operand_t operand, ea_t ea)
+		static int op_TAX(em65816_trace em, operand_t operand, ea_t ea)
         {
             transfer_88_16(em, em.B, em.A, ref em.X);
             return -1;
         }
 
-        static int op_TAY(em65816 em, operand_t operand, ea_t ea)
+		static int op_TAY(em65816_trace em, operand_t operand, ea_t ea)
         {
             transfer_88_16(em, em.B, em.A, ref em.Y);
             return -1;
         }
 
-        static int op_TSX(em65816 em, operand_t operand, ea_t ea)
+		static int op_TSX(em65816_trace em, operand_t operand, ea_t ea)
         {
             transfer_88_16(em, em.SH, em.SL, ref em.X);
             return -1;
         }
 
-        static int op_TXA(em65816 em, operand_t operand, ea_t ea)
+		static int op_TXA(em65816_trace em, operand_t operand, ea_t ea)
         {
             transfer_16_88(em, em.X, ref em.B, ref em.A);
             return -1;
         }
 
-        static int op_TXS(em65816 em, operand_t operand, ea_t ea)
+		static int op_TXS(em65816_trace em, operand_t operand, ea_t ea)
         {
             if (em.X >= 0)
             {
@@ -2967,39 +3725,9 @@ namespace Disass65816
             return -1;
         }
 
-        static int op_TYA(em65816 em, operand_t operand, ea_t ea)
+		static int op_TYA(em65816_trace em, operand_t operand, ea_t ea)
         {
             transfer_16_88(em, em.Y, ref em.B, ref em.A);
-            return -1;
-        }
-
-        static int op_BRK(em65816 em, operand_t operand, ea_t ea)
-        {
-            em.I = Tristate.True;
-            em.D = Tristate.True;
-            if (em.E == Tristate.Unknown)
-                em.PC = -1;
-            else if (em.E == Tristate.True)
-
-                em.PC = em.memory_read16(0xFFFE);
-            else
-
-                em.PC = em.memory_read16(0xFFEE);
-            return -1;
-        }
-
-        static int op_COP(em65816 em, operand_t operand, ea_t ea)
-        {
-            em.I = Tristate.True;
-            em.D = Tristate.True;
-            if (em.E == Tristate.Unknown)
-                em.PC = -1;
-            else if (em.E == Tristate.True)
-
-                em.PC = em.memory_read16(0xFFF4);
-            else
-
-                em.PC = em.memory_read16(0xFFE4);
             return -1;
         }
 
@@ -3009,9 +3737,9 @@ namespace Disass65816
 
 
         static InstrType[] instr_table = {
-   /* 00 */   new InstrType ( "BRK",    AddrMode.IMM   , 7, 0, OpType.OTHER,    op_BRK),
+      /* 00 */   new InstrType ( "BRK", AddrMode.IMM   , 7, 0, OpType.OTHER,    null),
    /* 01 */   new InstrType ( "ORA",    AddrMode.INDX  , 6, 0, OpType.READOP,   op_ORA),
-   /* 02 */   new InstrType ( "COP",    AddrMode.IMM   , 7, 1, OpType.OTHER,    op_COP),
+   /* 02 */   new InstrType ( "COP",    AddrMode.IMM   , 7, 1, OpType.OTHER,    null),
    /* 03 */   new InstrType ( "ORA",    AddrMode.SR    , 4, 1, OpType.READOP,   op_ORA),
    /* 04 */   new InstrType ( "TSB",    AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_TSB),
    /* 05 */   new InstrType ( "ORA",    AddrMode.ZP    , 3, 0, OpType.READOP,   op_ORA),
