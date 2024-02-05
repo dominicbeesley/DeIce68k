@@ -347,7 +347,7 @@ namespace Disass65816
                 var h = memory_read(ea + 1, acctype);
                 if (h < 0) return -1;
 
-                return (l & 0xFF) | (h & 0xFF) << 8;
+                return (l & 0xFF) | ((h & 0xFF) << 8);
 
             }
             public void memory_write16(int value, int ea, mem_access_t acctype)
@@ -371,7 +371,7 @@ namespace Disass65816
                 var b = memory_read(ea, acctype);
                 if (b < 0) return -1;
 
-                return (l & 0xFF) | (h & 0xFF) << 8 | (b & 0xFF) << 16;
+                return (l & 0xFF) | ((h & 0xFF) << 8) | ((b & 0xFF) << 16);
 
             }
 
@@ -996,7 +996,7 @@ namespace Disass65816
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
                         ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
                         if (ea > 0)
-                            ea = (index + ea + regsIn.DB << 16) & 0xFFFFFF;
+                            ea = (index + ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
                     break;
                 case AddrMode.INDX:
@@ -1009,7 +1009,7 @@ namespace Disass65816
                             ea = (regsIn.DP + op1 + index) & 0xffff; // always bank 0
                         ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
                         if (ea > 0)
-                            ea = (ea + regsIn.DB << 16) & 0xFFFFFF;
+                            ea = (ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
                     break;
                 case AddrMode.IND:
@@ -1021,7 +1021,7 @@ namespace Disass65816
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
                         ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
                         if (ea > 0)
-                            ea = (ea + regsIn.DB << 16) & 0xFFFFFF;
+                            ea = (ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
                     break;
                 case AddrMode.IND16:
@@ -1032,7 +1032,7 @@ namespace Disass65816
                 case AddrMode.IND1X:
                     if (regsIn.X >= 0 && regsIn.PB >= 0)
                     {
-                        ea = ((op2 << 8) + op1 + regsIn.X) & 0xFFFF | regsIn.PB << 16;
+                        ea = ((op2 << 8) + op1 + regsIn.X) & 0xFFFF | (regsIn.PB << 16);
                     }
                     ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
                     break;
@@ -1113,7 +1113,7 @@ namespace Disass65816
                 case AddrMode.IAL:
                     // e.g. JMP [$12] (this is the only one)
                     // <opcode> <op1> <op2> <addrlo> <addrhi> <bank>
-                    ea = op1 + op2 << 8;
+                    ea = op1 + (op2 << 8);
                     ea = regsIn.memory_read24(ea, mem_access_t.MEM_POINTER);
                     break;
                 case AddrMode.BRL:
@@ -1133,7 +1133,7 @@ namespace Disass65816
                 case AddrMode.IMMM:
                     immediate = true;
                     if (regsIn.MS == Tristate.False)
-                        ea = op1 + op2 <<8;
+                        ea = op1 + (op2 <<8);
                     else if (regsIn.MS == Tristate.True)
                         ea = op1;
                     else
@@ -1142,7 +1142,7 @@ namespace Disass65816
                 case AddrMode.IMMX:
                     immediate = true;
                     if (regsIn.XS == Tristate.False)
-                        ea = op1 + op2 << 8;
+                        ea = op1 + (op2 << 8);
                     else if (regsIn.XS == Tristate.True)
                         ea = op1;
                     else
