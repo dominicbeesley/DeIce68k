@@ -478,7 +478,11 @@ namespace Disass65816
                             0xE => "NOP",
                             0xF => "PLX",
                             _ => throw new Exception($"Unexpected value {opcode:X}")
-                        }, null),
+                        }, oprow switch
+                        {
+                            <=4 or 6 => mode_Acc,
+                            _ => null
+                        }),
                     0xB => (oprow switch
                         {   /* column B - all no operands */
                             0x0 => "PHD",
