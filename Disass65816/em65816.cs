@@ -2657,14 +2657,12 @@ namespace Disass65816
                     ret.B = (tmp >> 8) & 0xff;
                 }
                 ret.set_NZ_AB(ret.A, ret.B);
-                operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
             }
             else
             {
                 ret.A = -1;
                 ret.B = -1;
                 ret.set_NVZC_unknown();
-                operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, -1);
             }
             return new [] { ret };
         }
