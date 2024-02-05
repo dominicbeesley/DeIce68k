@@ -69,6 +69,34 @@ namespace Disass65816
             public Tristate XS { get; set; } // Index Register Size Flag
             public Tristate E { get; set; }  // Emulation Mode Flag, updated by XCE
 
+            protected string RF(int x)
+            {
+                if (x < 0)
+                    return "??";
+                else
+                    return x.ToString("X02");
+            }
+
+            protected string RF16(int x)
+            {
+                if (x < 0)
+                    return "????";
+                else
+                    return x.ToString("X04");
+            }
+
+            protected char F(char l, Tristate v)
+            {
+                return v == Tristate.Unknown ? '?' : v == Tristate.True ? char.ToUpper(l) : char.ToLower(l);
+
+            }
+
+
+            public override string ToString()
+            {
+                return $"A={RF(B)}{RF(A)}, X={RF16(X)}, Y={RF16(Y)}, {F('E', E)} {F('N', N)}{F('V', V)}{F('M', MS)}{F('X', XS)}{F('D', D)}{F('I', I)}{F('Z', Z)}{F('C', C)} S={RF(SH)}{RF(SL)}, PC={RF(PB)}{RF16(PC)}, DB={RF(DB)}, DP={RF16(DP)}";
+            }
+
             public Registers(em65816 emulator)
             {
                 this.Emulator = emulator;
@@ -105,8 +133,8 @@ namespace Disass65816
                 E = other.E;
             }
 
-            public int memory_read(int ea, mem_access_t acctype) => Emulator.memory_read(ea);
-            public void memory_write(int value, int ea, mem_access_t acctype) {}
+            public int memory_read(int ea, mem_access_t acctype) => Emulator.memory_read?.Invoke(ea) ?? -1;
+            public void memory_write(int value, int ea, mem_access_t acctype) => Emulator.memory_write?.Invoke(ea, value);
 
             public Registers Clone()
             {
@@ -400,7 +428,13 @@ namespace Disass65816
                 }
                 // Handle the memory access
                 if (SL >= 0 && SH >= 0)
-                    return memory_read((SH << 8) + SL, mem_access_t.MEM_STACK);
+                {
+                    var r = memory_read((SH << 8) + SL, mem_access_t.MEM_STACK);
+                    if (r < 0)
+                        return -1;
+                    else
+                        return r & 0xFF;
+                }
                 else
                     return -1;
             }
@@ -414,7 +448,7 @@ namespace Disass65816
                 // Handle the memory access
                 if (SL >= 0 && SH >= 0)
                 {
-                    memory_write(value, (SH << 8) + SL, mem_access_t.MEM_STACK);
+                    memory_write(value & 0xFF, (SH << 8) + SL, mem_access_t.MEM_STACK);
                 }
                 // Decrement the low byte of SP
                 if (SL >= 0)
@@ -454,7 +488,7 @@ namespace Disass65816
                 int h = pop8();
 
                 if (l >= 0 && h >= 0)
-                    return l + h << 8;
+                    return l + (h  << 8);
                 else
                     return -1;
             }
@@ -629,7 +663,8 @@ namespace Disass65816
 
 
 
-        public delegate byte memory_reader_fn(int address);
+        public delegate int memory_reader_fn(int address);
+        public delegate void memory_writer_fn(int address, int value);
 
         // ====================================================================
         // Type Defs
@@ -837,6 +872,7 @@ namespace Disass65816
         };
 
         public memory_reader_fn memory_read { get; init; }
+        public memory_writer_fn memory_write { get; init; }
 
         string fmt_imm16 = "%1$s #%3$02X%2$02X";
 
@@ -882,7 +918,7 @@ namespace Disass65816
         };
 
 
-        IEnumerable<Registers> em_65816_emulate(byte[] pdata, Registers regsIn, out instruction_t instruction)
+        public IEnumerable<Registers> em_65816_emulate(byte[] pdata, Registers regsIn, out instruction_t instruction)
         {
 
             // Unpack the instruction bytes
@@ -1127,7 +1163,7 @@ namespace Disass65816
             operand_t operand = new operand_t { Immediate = immediate, Ea = ea };
             // Execute the instruction specific function
             // (This returns -1 if the result is unknown or invalid)
-            return instr.emulate(regsIn, operand, instruction);
+            return instr.emulate(ret, operand, instruction);
 
         }
 
@@ -1763,6 +1799,18 @@ namespace Disass65816
             return new[] { ret };
         }
 
+        static IEnumerable<Registers> op_BRA(Registers ret, operand_t operand, instruction_t instr)
+        {
+            ret.PC = operand.Ea;
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_BRL(Registers ret, operand_t operand, instruction_t instr)
+        {
+            ret.PC = operand.Ea;
+            return new[] { ret };
+        }
+
         static IEnumerable<Registers> op_BIT_IMM(Registers ret, operand_t operand, instruction_t instr)
         {
 
@@ -2181,10 +2229,17 @@ namespace Disass65816
         static IEnumerable<Registers> op_LDA(Registers ret, operand_t operand, instruction_t instr)
         {
             var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
-            ret.A = val & 0xff;
+            if (val >= 0)
+                ret.A = val & 0xff;
+            else
+                ret.A = -1;
+
             if (ret.MS == Tristate.False)
             {
-                ret.B = (val >> 8) & 0xff;
+                if (val >= 0)
+                    ret.B = (val >> 8) & 0xff;
+                else
+                    ret.B = -1;
             } else if (ret.MS == Tristate.Unknown)
             {
                 ret.B = -1;
@@ -2837,15 +2892,24 @@ namespace Disass65816
         static IEnumerable<Registers> op_BRK(Registers ret, operand_t operand, instruction_t instr)
         {
             
-            ret.I = Tristate.True;
-            ret.D = Tristate.True;
             if (ret.E == Tristate.Unknown)
                 ret.PC = -1;
             else if (ret.E == Tristate.True)
+            {
+                ret.push16(ret.PC);
+                ret.push8(ret.get_FLAGS() | 0x30);
                 ret.PC = ret.memory_read16(0xFFFE, mem_access_t.MEM_INSTR);
+            }
             else
-
+            {
+                ret.push8(ret.PB);
+                ret.push16(ret.PC);
+                ret.push8(ret.get_FLAGS() | 0x30);
+                ret.PB = 0;
                 ret.PC = ret.memory_read16(0xFFEE, mem_access_t.MEM_INSTR);
+            }
+            ret.I = Tristate.True;
+            ret.D = Tristate.False;
             return new [] { ret };
         }
 
@@ -2857,13 +2921,69 @@ namespace Disass65816
             if (ret.E == Tristate.Unknown)
                 ret.PC = -1;
             else if (ret.E == Tristate.True)
-
-                ret.PC = ret.memory_read16(0xFFF4, mem_access_t.MEM_INSTR);
+            {
+                ret.push16(ret.PC);
+                ret.push8(ret.get_FLAGS() | 0x30);
+                ret.PC = ret.memory_read16(0xFFFE, mem_access_t.MEM_INSTR);
+            }
             else
-
-                ret.PC = ret.memory_read16(0xFFE4, mem_access_t.MEM_INSTR);
+            {
+                ret.push8(ret.PB);
+                ret.push16(ret.PC);
+                ret.push8(ret.get_FLAGS() | 0x30);
+                ret.PB = 0;
+                ret.PC = ret.memory_read16(0xFFEE, mem_access_t.MEM_INSTR);
+            }
+            ret.I = Tristate.True;
+            ret.D = Tristate.False;
             return new [] { ret };
         }
+
+        static IEnumerable<Registers> op_WDM(Registers ret, operand_t operand, instruction_t instr)
+        {
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_NOP(Registers ret, operand_t operand, instruction_t instr)
+        {
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_JMP(Registers ret, operand_t operand, instruction_t instr)
+        {
+            if (operand.Ea < 0)
+                ret.PC = -1;
+            else 
+                ret.PC = operand.Ea & 0xFFFF;
+
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_JML(Registers ret, operand_t operand, instruction_t instr)
+        {
+            if (operand.Ea < 0)
+            {  ret.PC = -1;
+                ret.PB  = -1;
+            } else {
+                ret.PB = (operand.Ea >> 16) & 0xFF;
+                ret.PC = (operand.Ea & 0xFFFF);
+            }
+
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_STP(Registers ret, operand_t operand, instruction_t instr)
+        {
+            ret.PC = instr.pc;
+            return new[] { ret };
+        }
+
+        static IEnumerable<Registers> op_WAI(Registers ret, operand_t operand, instruction_t instr)
+        {
+            ret.PC = instr.pc;
+            return new[] { ret };
+        }
+
 
         // ====================================================================
         // Opcode Tables
@@ -2937,7 +3057,7 @@ namespace Disass65816
    /* 3F */   new InstrType( "AND", AddrMode.ALX   , 5, 1, OpType.READOP,   op_AND),
    /* 40 */   new InstrType( "RTI", AddrMode.IMP   , 6, 0, OpType.OTHER,    op_RTI),
    /* 41 */   new InstrType( "EOR", AddrMode.INDX  , 6, 0, OpType.READOP,   op_EOR),
-   /* 42 */   new InstrType( "WDM", AddrMode.IMM8  , 2, 1, OpType.OTHER,    null),
+   /* 42 */   new InstrType( "WDM", AddrMode.IMM8  , 2, 1, OpType.OTHER,    op_WDM),
    /* 43 */   new InstrType( "EOR", AddrMode.SR    , 4, 1, OpType.READOP,   op_EOR),
    /* 44 */   new InstrType( "MVP", AddrMode.BM    , 7, 1, OpType.OTHER,    op_MVP),
    /* 45 */   new InstrType( "EOR", AddrMode.ZP    , 3, 0, OpType.READOP,   op_EOR),
@@ -2947,7 +3067,7 @@ namespace Disass65816
    /* 49 */   new InstrType( "EOR", AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_EOR),
    /* 4A */   new InstrType( "LSR", AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_LSRA),
    /* 4B */   new InstrType( "PHK", AddrMode.IMP   , 3, 1, OpType.OTHER,    op_PHK),
-   /* 4C */   new InstrType( "JMP", AddrMode.ABS   , 3, 0, OpType.OTHER,    null),
+   /* 4C */   new InstrType( "JMP", AddrMode.ABS   , 3, 0, OpType.OTHER,    op_JMP),
    /* 4D */   new InstrType( "EOR", AddrMode.ABS   , 4, 0, OpType.READOP,   op_EOR),
    /* 4E */   new InstrType( "LSR", AddrMode.ABS   , 6, 0, OpType.RMWOP,    op_LSR),
    /* 4F */   new InstrType( "EOR", AddrMode.ABL   , 5, 1, OpType.READOP,   op_EOR),
@@ -2963,7 +3083,7 @@ namespace Disass65816
    /* 59 */   new InstrType(  "EOR",    AddrMode.ABSY  , 4, 0, OpType.READOP,   op_EOR),
    /* 5A */   new InstrType(  "PHY",    AddrMode.IMP   , 3, 0, OpType.OTHER,    op_PHY),
    /* 5B */   new InstrType(  "TCD",    AddrMode.IMP   , 2, 1, OpType.OTHER,    op_TCD),
-   /* 5C */   new InstrType(  "JML",    AddrMode.ABL   , 4, 1, OpType.OTHER,    null),
+   /* 5C */   new InstrType(  "JML",    AddrMode.ABL   , 4, 1, OpType.OTHER,    op_JML),
     /* 5D */   new InstrType(  "EOR",   AddrMode.ABSX  , 4, 0, OpType.READOP,   op_EOR),
    /* 5E */   new InstrType(  "LSR",    AddrMode.ABSX  , 7, 0, OpType.RMWOP,    op_LSR),
    /* 5F */   new InstrType(  "EOR",    AddrMode.ALX   , 5, 1, OpType.READOP,   op_EOR),
@@ -2979,7 +3099,7 @@ namespace Disass65816
    /* 69 */   new InstrType(  "ADC",    AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_ADC),
    /* 6A */   new InstrType(  "ROR",    AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_RORA),
    /* 6B */   new InstrType(  "RTL",    AddrMode.IMP   , 6, 1, OpType.OTHER,    op_RTL),
-   /* 6C */   new InstrType(  "JMP",    AddrMode.IND16 , 5, 0, OpType.OTHER,    null),
+   /* 6C */   new InstrType(  "JMP",    AddrMode.IND16 , 5, 0, OpType.OTHER,    op_JMP),
    /* 6D */   new InstrType(  "ADC",    AddrMode.ABS   , 4, 0, OpType.READOP,   op_ADC),
    /* 6E */   new InstrType(  "ROR",    AddrMode.ABS   , 6, 0, OpType.RMWOP,    op_ROR),
    /* 6F */   new InstrType(  "ADC",    AddrMode.ABL   , 5, 1, OpType.READOP,   op_ADC),
@@ -2995,13 +3115,13 @@ namespace Disass65816
    /* 79 */   new InstrType(  "ADC",    AddrMode.ABSY  , 4, 0, OpType.READOP,   op_ADC),
    /* 7A */   new InstrType(  "PLY",    AddrMode.IMP   , 4, 0, OpType.OTHER,    op_PLY),
    /* 7B */   new InstrType(  "TDC",    AddrMode.IMP   , 2, 1, OpType.OTHER,    op_TDC),
-   /* 7C */   new InstrType(  "JMP",    AddrMode.IND1X , 6, 0, OpType.OTHER,    null),
+   /* 7C */   new InstrType(  "JMP",    AddrMode.IND1X , 6, 0, OpType.OTHER,    op_JMP),
     /* 7D */   new InstrType(  "ADC",   AddrMode.ABSX  , 4, 0, OpType.READOP,   op_ADC),
    /* 7E */   new InstrType(  "ROR",    AddrMode.ABSX  , 7, 0, OpType.RMWOP,    op_ROR),
    /* 7F */   new InstrType(  "ADC",    AddrMode.ALX   , 5, 1, OpType.READOP,   op_ADC),
-   /* 80 */   new InstrType(  "BRA",    AddrMode.BRA   , 3, 0, OpType.OTHER,    null),
+   /* 80 */   new InstrType(  "BRA",    AddrMode.BRA   , 3, 0, OpType.OTHER,    op_BRA),
    /* 81 */   new InstrType(  "STA",    AddrMode.INDX  , 6, 0, OpType.WRITEOP,  op_STA),
-   /* 82 */   new InstrType(  "BRL",    AddrMode.BRL   , 4, 1, OpType.OTHER,    null),
+   /* 82 */   new InstrType(  "BRL",    AddrMode.BRL   , 4, 1, OpType.OTHER,    op_BRL),
    /* 83 */   new InstrType(  "STA",    AddrMode.SR    , 4, 1, OpType.WRITEOP,  op_STA),
    /* 84 */   new InstrType(  "STY",    AddrMode.ZP    , 3, 0, OpType.WRITEOP,  op_STY),
    /* 85 */   new InstrType(  "STA",    AddrMode.ZP    , 3, 0, OpType.WRITEOP,  op_STA),
@@ -3074,7 +3194,7 @@ namespace Disass65816
    /* C8 */   new InstrType(  "INY", AddrMode.IMP   , 2, 0, OpType.OTHER, op_INY),
    /* C9 */   new InstrType(  "CMP", AddrMode.IMMM  , 2, 0, OpType.OTHER, op_CMP),
    /* CA */   new InstrType(  "DEX", AddrMode.IMP   , 2, 0, OpType.OTHER, op_DEX),
-   /* CB */   new InstrType(  "WAI", AddrMode.IMP   , 1, 1, OpType.OTHER,    null),        // WD65C02=3
+   /* CB */   new InstrType(  "WAI", AddrMode.IMP   , 1, 1, OpType.OTHER, op_WAI),        // WD65C02=3
    /* CC */   new InstrType(  "CPY", AddrMode.ABS   , 4, 0, OpType.READOP, op_CPY),
    /* CD */   new InstrType(  "CMP", AddrMode.ABS   , 4, 0, OpType.READOP, op_CMP),
    /* CE */   new InstrType(  "DEC", AddrMode.ABS   , 6, 0, OpType.RMWOP, op_DEC),
@@ -3090,8 +3210,8 @@ namespace Disass65816
    /* D8 */   new InstrType(  "CLD", AddrMode.IMP   , 2, 0, OpType.OTHER, op_CLD),
    /* D9 */   new InstrType(  "CMP", AddrMode.ABSY  , 4, 0, OpType.READOP, op_CMP),
    /* DA */   new InstrType(  "PHX", AddrMode.IMP   , 3, 0, OpType.OTHER, op_PHX),
-   /* DB */   new InstrType(  "STP", AddrMode.IMP   , 1, 1, OpType.OTHER,    null),        // WD65C02=3
-   /* DC */   new InstrType(  "JML", AddrMode.IAL   , 6, 1, OpType.OTHER,    null),
+   /* DB */   new InstrType(  "STP", AddrMode.IMP   , 1, 1, OpType.OTHER,    op_STP),        // WD65C02=3
+   /* DC */   new InstrType(  "JML", AddrMode.IAL   , 6, 1, OpType.OTHER,    op_JML),
    /* DD */   new InstrType(  "CMP", AddrMode.ABSX  , 4, 0, OpType.READOP, op_CMP),
    /* DE */   new InstrType(  "DEC", AddrMode.ABSX  , 7, 0, OpType.RMWOP, op_DEC),
    /* DF */   new InstrType(  "CMP", AddrMode.ALX   , 5, 1, OpType.READOP, op_CMP),
@@ -3105,7 +3225,7 @@ namespace Disass65816
    /* E7 */   new InstrType(  "SBC", AddrMode.IDL   , 6, 1, OpType.READOP, op_SBC),
    /* E8 */   new InstrType(  "INX", AddrMode.IMP   , 2, 0, OpType.OTHER, op_INX),
    /* E9 */   new InstrType(  "SBC", AddrMode.IMMM  , 2, 0, OpType.OTHER, op_SBC),
-   /* EA */   new InstrType(  "NOP", AddrMode.IMP   , 2, 0, OpType.OTHER,    null),
+   /* EA */   new InstrType(  "NOP", AddrMode.IMP   , 2, 0, OpType.OTHER,    op_NOP),
    /* EB */   new InstrType(  "XBA", AddrMode.IMP   , 3, 1, OpType.OTHER, op_XBA),
    /* EC */   new InstrType(  "CPX", AddrMode.ABS   , 4, 0, OpType.READOP, op_CPX),
    /* ED */   new InstrType(  "SBC", AddrMode.ABS   , 4, 0, OpType.READOP, op_SBC),

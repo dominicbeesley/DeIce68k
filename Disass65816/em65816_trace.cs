@@ -84,7 +84,6 @@ namespace Disass65816
 
         public delegate void memory_reader_fn(int data, int address, mem_access_t access_type);
         public delegate void memory_writer_fn(int data, int address, mem_access_t access_type);
-        public delegate int memory_raw_reader_fn(int address);
 
         // ====================================================================
         // Type Defs
@@ -258,8 +257,6 @@ namespace Disass65816
 
         public memory_reader_fn memory_read { get; init; }
         public memory_writer_fn memory_write { get; init; }
-
-        public memory_raw_reader_fn memory_read_raw { get; init; }
 
         string fmt_imm16 = "%1$s #%3$02X%2$02X";
 
@@ -1954,11 +1951,6 @@ namespace Disass65816
             return numchars;
         }
         */
-
-        int em_65816_read_memory(int address)
-        {
-            return memory_read_raw(address);
-        }
 
         /*
         static char* em_65816_get_state(char* buffer)

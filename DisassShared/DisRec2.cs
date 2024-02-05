@@ -16,7 +16,7 @@ namespace DisassShared
 
         public ushort Length { get; init; }
 
-        public override string ToString() => $"{Mnemonic,-8} {Operands,-40}; {Hints}";
+        public override string ToString() => $"{Mnemonic,-8} {string.Join("", Operands),-40}; {Hints}";
 
     }
 
