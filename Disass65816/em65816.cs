@@ -1687,7 +1687,7 @@ namespace Disass65816
             var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
 
             int tmp;
-            if (ret.MS > Tristate.True && val >= 0)
+            if (ret.MS == Tristate.True && val >= 0)
             {
                 // 8-bit mode
                 ret.C = FromBool(((val >> 7) & 1) != 0);
