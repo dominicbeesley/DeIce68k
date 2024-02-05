@@ -14,9 +14,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-using operand_t = int;
-using ea_t = int;
 using System.Net.Http.Headers;
+using System.Diagnostics;
 
 
 namespace Disass65816
@@ -298,6 +297,13 @@ namespace Disass65816
                 return (l & 0xFF) | (h & 0xFF) << 8;
 
             }
+            public void memory_write16(int value, int ea, mem_access_t acctype)
+            {
+                if (ea < 0 || value < 0) return;
+
+                memory_write(value & 0xFF, ea, acctype);
+                memory_write((value & 0xFF00) >> 8, ea, acctype);
+            }
 
             public int memory_read24(int ea, mem_access_t acctype)
             {
@@ -316,7 +322,19 @@ namespace Disass65816
 
             }
 
+            public int memory_read_MS(int ea, Tristate size, mem_access_t acctype)
+            {
+                return (size == Tristate.Unknown)?-1:(size == Tristate.True)?memory_read(ea, acctype):memory_read16(ea, acctype);   
+            }
 
+            public void memory_write_MS(int value, int ea, Tristate size, mem_access_t acctype)
+            {
+                if (size == Tristate.False)
+                    //16 bit
+                    memory_write16(value, ea, acctype);
+                else
+                    memory_write(value, ea, acctype);
+            }
 
 
             // TODO: Stack wrapping im emulation mode should only happen with "old" instructions
@@ -618,7 +636,18 @@ namespace Disass65816
             IMP,
             IMPA,
             BRA,
-            IMM
+            /// <summary>
+            /// immediate - always 8 bits
+            /// </summary>
+            IMM8,
+            /// <summary>
+            /// immediate - "memory" - size depends on MS
+            /// </summary>
+            IMMM,
+            /// <summary>
+            /// immediate - "index" - size depends on MX
+            /// </summary>
+            IMMX
         }
 
         public enum OpType
@@ -636,7 +665,29 @@ namespace Disass65816
             public string fmt { get; init; }
         }
 
-        private delegate IEnumerable<Registers> emulate_method(Registers em, bool immmediate, operand_t operVal, int ea);
+        public struct operand_t
+        {
+            public int Ea { get; init; }
+            public bool Immediate { get; init; }
+
+            public int GetValue(Registers r, Tristate size, mem_access_t acctype)
+            {
+                if (Immediate)
+                    return Ea;
+                else
+                    return r.memory_read_MS(Ea, size, acctype);
+            }
+
+            public void SetValue(Registers r, Tristate size, mem_access_t acctype, int value)
+            {
+                if (Immediate)
+                    Debug.Assert(false, "Tried to set an immediate");
+                else
+                    r.memory_write_MS(value, Ea, size, acctype);
+            }
+        }
+
+        private delegate IEnumerable<Registers> emulate_method(Registers em, operand_t operVal, instruction_t instruction);
 
 
         private struct InstrType
@@ -755,7 +806,9 @@ namespace Disass65816
             new AddrModeType {len = 1,    fmt = "%1$s"},                     // AddrMode.IMP
             new AddrModeType {len = 1,    fmt = "%1$s A"},                   // AddrMode.IMPA
             new AddrModeType {len = 2,    fmt = "%1$s %2$s"},                // AddrMode.BRA
-            new AddrModeType {len = 2,    fmt = "%1$s #%2$02X"}              // AddrMode.IMM        };
+            new AddrModeType {len = 2,    fmt = "%1$s #%2$02X"},             // AddrMode.IMM8        
+            new AddrModeType {len = 2,    fmt = "%1$s #%2$02X"},             // AddrMode.IMMM        
+            new AddrModeType {len = 2,    fmt = "%1$s #%2$02X"}              // AddrMode.IMMX        
         };
 
         public memory_reader_fn memory_read { get; init; }
@@ -815,7 +868,7 @@ namespace Disass65816
 
             // Work out opcount, taking account of 8/16 bit immediates
             byte opcount = 0;
-            if (instr.mode == AddrMode.IMM)
+            if (instr.mode == AddrMode.IMMM)
             {
                 if ((instr.m_extra != 0 && regsIn.MS == Tristate.False) || (instr.x_extra != 0 && regsIn.XS == Tristate.False))
                 {
@@ -825,10 +878,7 @@ namespace Disass65816
             opcount += (byte)(instr.len - 1);
 
             byte op1 = (opcount < 1) ? (byte)0 : pdata[1];
-
-            // Special case JSR (AddrMode.IND16, X)
             byte op2 = (opcount < 2) ? (byte)0 : pdata[2];
-
             byte op3 = (opcount < 3) ? (byte)0 : pdata[3];
 
             instruction = new instruction_t()
@@ -854,9 +904,8 @@ namespace Disass65816
             // For instructions that read or write memory, we need to work out the effective address
             // Note: not needed for stack operations, as S is used directly
             int ea = -1;
-            int immedvalue = -1;
             bool immediate = false;
-            int index = -1;
+            int index;
             switch (instr.mode)
             {
                 case AddrMode.ZP:
@@ -913,6 +962,18 @@ namespace Disass65816
                         if (ea > 0)
                             ea = (ea + regsIn.DB << 16) & 0xFFFFFF;
                     }
+                    break;
+                case AddrMode.IND16:
+                    // 
+                    ea = (op2 << 8) + op1;
+                    ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                    break;
+                case AddrMode.IND1X:
+                    if (regsIn.X >= 0 && regsIn.PB >= 0)
+                    {
+                        ea = ((op2 << 8) + op1 + regsIn.X) & 0xFFFF | regsIn.PB << 16;
+                    }
+                    ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
                     break;
                 case AddrMode.ABS:
                     if (regsIn.DB >= 0)
@@ -989,7 +1050,7 @@ namespace Disass65816
                     }
                     break;
                 case AddrMode.IAL:
-                    // e.g. JMP [$1234] (this is the only one)
+                    // e.g. JMP [$12] (this is the only one)
                     // <opcode> <op1> <op2> <addrlo> <addrhi> <bank>
                     ea = op1 + op2 << 8;
                     ea = regsIn.memory_read24(ea, mem_access_t.MEM_POINTER);
@@ -1002,17 +1063,46 @@ namespace Disass65816
                     }
                     break;
                 case AddrMode.BM:
-                    // e.g. MVN 0, 2
-                    ea = (op2 << 8) + op1;
+                    // do nothing special case in emulate method
                     break;
-                default:
-                    // covers AddrMode.IMM, AddrMode.IMP, AddrMode.IMPA, AddrMode.IND16, AddrMode.IND1X
+                case AddrMode.IMM8:
+                    immediate = true;
+                    ea = op1;
+                    break;
+                case AddrMode.IMMM:
+                    immediate = true;
+                    if (regsIn.MS == Tristate.False)
+                        ea = op1 + op2 <<8;
+                    else if (regsIn.MS == Tristate.True)
+                        ea = op1;
+                    else
+                        ea = -1;
+                    break;
+                case AddrMode.IMMX:
+                    immediate = true;
+                    if (regsIn.XS == Tristate.False)
+                        ea = op1 + op2 << 8;
+                    else if (regsIn.XS == Tristate.True)
+                        ea = op1;
+                    else
+                        ea = -1;
+                    break;
+                case AddrMode.IMPA:
+                case AddrMode.IMP:
+                    // covers AddrMode.IMP, AddrMode.IMPA
                     break;
             }
 
+            var ret = regsIn.Clone();
+            if (instruction.opcount < 0)
+                ret.PC = -1;
+            else
+                ret.PC = (ret.PC + 1 + instruction.opcount) & 0xFFFF;
+
+            operand_t operand = new operand_t { Immediate = immediate, Ea = ea };
             // Execute the instruction specific function
             // (This returns -1 if the result is unknown or invalid)
-            return instr.emulate(regsIn, immediate, immedvalue, ea);
+            return instr.emulate(regsIn, operand, instruction);
 
         }
 
@@ -1025,83 +1115,87 @@ namespace Disass65816
         // ====================================================================
 
         // Push Effective Absolute Address
-        static IEnumerable<Registers> op_PEA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PEA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // always pushes a 16-bit value
-            ret.push16(ea);
+            ret.push16(operand.Ea);
             return new Registers [] { ret } ;
         }
 
         // Push Effective Relative Address
-        static IEnumerable<Registers> op_PER(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PER(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // always pushes a 16-bit value
-            ret.push16(ea);
+            ret.push16(operand.Ea);
             return new Registers[] { ret };
         }
 
         // Push Effective Indirect Address
-        static IEnumerable<Registers> op_PEI(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PEI(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // always pushes a 16-bit value
-            ret.push16(operand);
+            ret.push16(operand.Ea);
             return new Registers[] { ret };
         }
 
         // Push Data Bank Register
-        static IEnumerable<Registers> op_PHB(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHB(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.push8(ret.DB);
             return new Registers[] { ret };
         }
 
         // Push Program Bank Register
-        static IEnumerable<Registers> op_PHK(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHK(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.push8(ret.PB);
             return new Registers[] { ret };
         }
 
         // Push Direct Page Register
-        static IEnumerable<Registers> op_PHD(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHD(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.push16(ret.DP);
             return new Registers[] { ret };
         }
 
         // Pull Data Bank Register
-        static IEnumerable<Registers> op_PLB(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLB(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.DB = ret.pop8();
             ret.set_NZ8(ret.DB);
             return new Registers[] { ret };
         }
         
         // Pull Direct Page Register
-        static IEnumerable<Registers> op_PLD(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLD(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.DP = ret.pop16();
             ret.set_NZ16(ret.DP);
             return new [] { ret };
         }
 
-        static void op_MV(Registers regs, int data, int sba, int dba, int dir)
+        static void op_MV(Registers regs, int sba, int dba, int dir)
         {
+
+            int C = -1;
+            int data;
             // operand is the data byte (from the bus read)
             // ea = (op2 << 8) + op1 == (srcbank << 8) + dstbank;
             do
             {
+                data = -1;
                 if (regs.X >= 0)
                 {
-                    regs.memory_read((sba << 16) + regs.X, mem_access_t.MEM_DATA);
+                    data = regs.memory_read((sba << 16) + regs.X, mem_access_t.MEM_DATA);
                 }
                 if (regs.Y >= 0)
                 {
@@ -1109,7 +1203,7 @@ namespace Disass65816
                 }
                 if (regs.A >= 0 && regs.B >= 0)
                 {
-                    int C = (((regs.B << 8) | regs.A) - 1) & 0xffff;
+                    C = (((regs.B << 8) | regs.A) - 1) & 0xffff;
                     regs.A = C & 0xff;
                     regs.B = (C >> 8) & 0xff;
                     if (regs.X >= 0)
@@ -1120,10 +1214,6 @@ namespace Disass65816
                     {
                         regs.Y = (regs.Y + dir) & 0xffff;
                     }
-                    if (regs.PC >= 0 && C != 0xffff)
-                    {
-                        regs.PC -= 3;
-                    }
                 }
                 else
                 {
@@ -1131,31 +1221,32 @@ namespace Disass65816
                     regs.B = -1;
                     regs.X = -1;
                     regs.Y = -1;
-                    regs.PC = -1;
                 }
                 // Set the Data Bank to the destination bank
                 regs.DB = dba;
-            }
+            } while (C > 0 && C != 0xFFFF);
         }
 
         // Block Move (Decrementing)
-        static IEnumerable<Registers> op_MVP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_MVP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            return op_MV(em, operand, (ea >> 8) & 0xff, ea & 0xff, -1);
+            
+            op_MV(ret, instr.op1, instr.op2, -1);
+            return new[] { ret };
         }
 
         // Block Move (Incrementing)
-        static IEnumerable<Registers> op_MVN(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_MVN(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            return op_MV(em, operand, (ea >> 8) & 0xff, ea & 0xff, 1);
+            
+            op_MV(ret, instr.op1, instr.op2, 1);
+            return new[] { ret };
         }
 
         // Transfer Transfer ret.C accumulator to Direct Page register
-        static IEnumerable<Registers> op_TCD(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TCD(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Always a 16-bit transfer
             if (ret.B >= 0 && ret.A >= 0)
             {
@@ -1171,18 +1262,18 @@ namespace Disass65816
         }
 
         // Transfer Transfer ret.C accumulator to Stack pointer
-        static IEnumerable<Registers> op_TCS(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TCS(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.SH = ret.B;
             ret.SL = ret.A;
             return new [] { ret };
         }
 
         // Transfer Transfer Direct Page register to ret.C accumulator
-        static IEnumerable<Registers> op_TDC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TDC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Always a 16-bit transfer
             if (ret.DP >= 0)
             {
@@ -1200,9 +1291,9 @@ namespace Disass65816
         }
 
         // Transfer Transfer Stack pointer to ret.C accumulator
-        static IEnumerable<Registers> op_TSC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TSC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Always a 16-bit transfer
             ret.A = ret.SL;
             ret.B = ret.SH;
@@ -1217,9 +1308,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TXY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Variable size transfer controlled by ret.XS
             if (ret.X >= 0)
             {
@@ -1234,9 +1325,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TYX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TYX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Variable size transfer controlled by ret.XS
             if (ret.Y >= 0)
             {
@@ -1252,9 +1343,9 @@ namespace Disass65816
         }
 
         // Exchange ret.A and ret.B
-        static IEnumerable<Registers> op_XBA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_XBA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int tmp = ret.A;
             ret.A = ret.B;
             ret.B = tmp;
@@ -1270,19 +1361,19 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_XCE(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_XCE(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             Tristate tmp = ret.C;
             ret.C = ret.E;
             ret.E = tmp;
-            if (tmp < 0)
+            if (tmp == Tristate.Unknown)
             {
                 ret.MS = Tristate.Unknown;
                 ret.XS = Tristate.Unknown;
                 ret.E = Tristate.Unknown;
             }
-            else if (tmp > 0)
+            else if (tmp == Tristate.True)
             {
                 ret.emulation_mode_on();
             }
@@ -1293,80 +1384,91 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static void repsep(em65816 em, int operand, Tristate val)
+        static void repsep(Registers regs, int operand, Tristate val)
         {
             if ((operand & 0x80) != 0)
             {
-                ret.N = val;
+                regs.N = val;
             }
             if ((operand & 0x40) != 0)
             {
-                ret.V = val;
+                regs.V = val;
             }
-            if (ret.E == 0)
+            if (regs.E == Tristate.False)
             {
                 if ((operand & 0x20) != 0)
                 {
-                    ret.MS = val;
+                    regs.MS = val;
                 }
                 if ((operand & 0x10) != 0)
                 {
-                    ret.XS = val;
+                    regs.XS = val;
                 }
             }
             if ((operand & 0x08) != 0)
             {
-                ret.D = val;
+                regs.D = val;
             }
             if ((operand & 0x04) != 0)
             {
-                ret.I = val;
+                regs.I = val;
             }
             if ((operand & 0x02) != 0)
             {
-                ret.Z = val;
+                regs.Z = val;
             }
             if ((operand & 0x01) != 0)
             {
-                ret.C = val;
+                regs.C = val;
             }
         }
 
         // Reset/Set Processor Status Bits
-        static IEnumerable<Registers> op_REP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_REP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            repsep(em, operand, Tristate.False);
+            
+            repsep(ret, operand.Ea, Tristate.False);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_SEP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            repsep(em, operand, Tristate.False);
+            
+            repsep(ret, operand.Ea, Tristate.False);
             return new [] { ret };
         }
 
         // Jump to Subroutine Long
-        static IEnumerable<Registers> op_JSL(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_JSL(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            // JAddrMode.SR: the operand is the data ret.pushed to the stack (PB, PCH, PCL)
-            ret.push8(operand >> 16); // PB
-            ret.push16(operand);      // ret.PC
+            
+            ret.push8(ret.PB); 
+            ret.push16(ret.PC);
+
+            if (operand.Ea >=0 )
+            {
+                ret.PC = operand.Ea & 0xFFFF;
+                ret.PB = (operand.Ea & 0xFF0000) >> 16;
+            } else
+            {
+                ret.PC = -1;
+                ret.PB = -1;
+            }
+
             return new [] { ret };
         }
 
         // Return from Subroutine Long
-        static IEnumerable<Registers> op_RTL(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_RTL(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // RTL: the operand is the data pulled from the stack (PCL, PCH, PB)
-            ret.pop16(operand);      // ret.PC
-            ret.pop8(operand >> 16); // PB
-                                    // The +1 is handled elsewhere
-            ret.PC = operand & 0xffff;
-            ret.PB = (operand >> 16) & 0xff;
+            ret.PC = ret.pop16();
+            ret.PB = ret.pop8();
+
+            if (ret.PC >= 0)
+                ret.PC = (ret.PC + 1 ) & 0xFFFF;
+
             return new [] { ret };
         }
 
@@ -1374,11 +1476,13 @@ namespace Disass65816
         // 65816/6502 instructions
         // ====================================================================
 
-        static IEnumerable<Registers> op_ADC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ADC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+
+            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+
             int acc = ret.get_accumulator();
-            if (acc >= 0 && ret.C >= 0)
+            if (acc >= 0 && ret.C != Tristate.Unknown && ret.D != Tristate.Unknown && val >= 0)
             {
                 int tmp = 0;
                 if (ret.D == Tristate.True)
@@ -1388,7 +1492,7 @@ namespace Disass65816
                     for (int bit = 0; bit < (ret.MS == Tristate.True ? 8 : 16); bit += 4)
                     {
                         int an = (acc >> bit) & 0xF;
-                        int bn = (operand >> bit) & 0xF;
+                        int bn = (val >> bit) & 0xF;
                         int rn = an + bn + (ret.C == Tristate.True ? 1 : 0);
                         ret.V = FromBool(((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) == 0);
                         ret.C = 0;
@@ -1403,18 +1507,18 @@ namespace Disass65816
                 else
                 {
                     // Normal mode ADC
-                    tmp = acc + operand + (ret.C == Tristate.True ? 1 : 0); ;
+                    tmp = acc + val + (ret.C == Tristate.True ? 1 : 0); ;
                     if (ret.MS > 0)
                     {
                         // 8-bit mode
                         ret.C = FromBool(((tmp >> 8) & 1) != 0);
-                        ret.V = FromBool(((acc ^ operand) & 0x80) == 0 && ((acc ^ tmp) & 0x80) != 0);
+                        ret.V = FromBool(((acc ^ val) & 0x80) == 0 && ((acc ^ tmp) & 0x80) != 0);
                     }
                     else
                     {
                         // 16-bit mode
                         ret.C = FromBool(((tmp >> 16) & 1) != 0);
-                        ret.V = FromBool(((acc ^ operand) & 0x8000) == 0 && ((acc ^ tmp) & 0x8000) != 0);
+                        ret.V = FromBool(((acc ^ val) & 0x8000) == 0 && ((acc ^ tmp) & 0x8000) != 0);
                     }
                 }
                 if (ret.MS > 0)
@@ -1439,22 +1543,30 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_AND(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_AND(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+
+            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
             {
-                ret.A = ret.A & (operand & 0xff);
+                if (val >= 0)
+                    ret.A = ret.A & (val & 0xff);
+                else
+                    ret.A = -1;
             }
             // ret.B is updated only of the size is 16
             if (ret.B >= 0)
             {
-                if (ret.MS == 0)
+                if (ret.MS == Tristate.False)
                 {
-                    ret.B = ret.B & (operand >> 8);
+                    if (val >= 0)
+                        ret.B = ret.B & (val >> 8);
+                    else
+                        ret.B = -1;
                 }
-                else if (ret.MS < 0)
+                else if (ret.MS == Tristate.Unknown)
                 {
                     ret.B = -1;
                 }
@@ -1464,9 +1576,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ASLA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ASLA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+
             // Compute the new carry
             if (ret.MS > 0 && ret.A >= 0)
             {
@@ -1509,22 +1621,23 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ASL(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ASL(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+
             int tmp;
-            if (ret.MS > 0)
+            if (ret.MS > Tristate.True && val >= 0)
             {
                 // 8-bit mode
-                ret.C = FromBool(((operand >> 7) & 1) != 0);
-                tmp = (operand << 1) & 0xff;
+                ret.C = FromBool(((val >> 7) & 1) != 0);
+                tmp = (val << 1) & 0xff;
                 ret.set_NZ8(tmp);
             }
-            else if (ret.MS == 0)
+            else if (ret.MS == Tristate.False && val >= 0)
             {
                 // 16-bit mode
-                ret.C = FromBool(((operand >> 15) & 1) != 0);
-                tmp = (operand << 1) & 0xffff;
+                ret.C = FromBool(((val >> 15) & 1) != 0);
+                tmp = (val << 1) & 0xffff;
                 ret.set_NZ16(tmp);
             }
             else
@@ -1534,156 +1647,103 @@ namespace Disass65816
                 tmp = -1;
                 ret.set_NZ_unknown();
             }
-            return tmp;
+
+            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BCC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BCC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.C >= 0)
-            {
-                if (ret.C == branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.C = 1 - branch_taken;
-            }
-            return new [] { ret };
+            if (ret.C == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.C == Tristate.False)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BCS(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BCS(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.C >= 0)
-            {
-                if (ret.C != branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.C = branch_taken;
-            }
-            return new [] { ret };
+            if (ret.C == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.C == Tristate.True)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BNE(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BNE(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.Z >= 0)
-            {
-                if (ret.Z == branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.Z = 1 - branch_taken;
-            }
-            return new [] { ret };
+
+            if (ret.Z == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.Z == Tristate.False)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BEQ(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BEQ(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.Z >= 0)
-            {
-                if (ret.Z != branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.Z = branch_taken;
-            }
-            return new [] { ret };
+            if (ret.Z == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.Z == Tristate.True)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BPL(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BPL(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.N >= 0)
-            {
-                if (ret.N == branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.N = 1 - branch_taken;
-            }
-            return new [] { ret };
+
+            if (ret.N == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.N == Tristate.False)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BMI(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BMI(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.N >= 0)
-            {
-                if (ret.N != branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.N = branch_taken;
-            }
-            return new [] { ret };
+
+            if (ret.N == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.N == Tristate.True)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BVC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BVC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.V >= 0)
-            {
-                if (ret.V == branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.V = 1 - branch_taken;
-            }
-            return new [] { ret };
+
+            if (ret.V == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.V == Tristate.False)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BVS(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BVS(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
-            Tristate branch_taken = operand < 0 ? Tristate.Unknown : operand > 0 ? Tristate.True : Tristate.False;
-            if (ret.V >= 0)
-            {
-                if (ret.V != branch_taken)
-                {
-                    ret.failflag = true;
-                }
-            }
-            else
-            {
-                ret.V = branch_taken;
-            }
-            return new [] { ret };
+
+            if (ret.V == Tristate.Unknown)
+                ret.PC = -1;
+            else if (ret.V == Tristate.True)
+                ret.PC = operand.Ea;
+
+            return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BIT_IMM(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BIT_IMM(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
+            HEREREREREREs
+
+
             int acc = ret.get_accumulator();
             if (operand == 0)
             {
@@ -1702,9 +1762,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_BIT(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BIT(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.MS > 0)
             {
                 // 8-bit mode
@@ -1727,37 +1787,37 @@ namespace Disass65816
             return op_BIT_IMM(em, operand, ea);
         }
 
-        static IEnumerable<Registers> op_CLC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CLC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.C = 0;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLD(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CLD(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.D = 0;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLI(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CLI(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.I = 0;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLV(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CLV(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.V = 0;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CMP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CMP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int acc = ret.get_accumulator();
             if (acc >= 0)
             {
@@ -1772,9 +1832,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CPX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CPX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.X >= 0)
             {
                 int tmp = ret.X - operand;
@@ -1788,9 +1848,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CPY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_CPY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.Y >= 0)
             {
                 int tmp = ret.Y - operand;
@@ -1804,9 +1864,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DECA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_DECA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Compute the new ret.A
             if (ret.A >= 0)
             {
@@ -1833,9 +1893,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DEC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_DEC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int tmp = -1;
             if (ret.MS > 0)
             {
@@ -1856,9 +1916,9 @@ namespace Disass65816
             return tmp;
         }
 
-        static IEnumerable<Registers> op_DEX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_DEX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.X >= 0)
             {
                 if (ret.XS > 0)
@@ -1887,9 +1947,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DEY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_DEY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.Y >= 0)
             {
                 if (ret.XS > 0)
@@ -1918,9 +1978,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_EOR(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_EOR(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
             {
@@ -1943,9 +2003,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INCA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_INCA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Compute the new ret.A
             if (ret.A >= 0)
             {
@@ -1972,9 +2032,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_INC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int tmp = -1;
             if (ret.MS > 0)
             {
@@ -1995,9 +2055,9 @@ namespace Disass65816
             return tmp;
         }
 
-        static IEnumerable<Registers> op_INX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_INX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.X >= 0)
             {
                 if (ret.XS > 0)
@@ -2026,9 +2086,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_INY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.Y >= 0)
             {
                 if (ret.XS > 0)
@@ -2057,17 +2117,17 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_JSR(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_JSR(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // JAddrMode.SR: the operand is the data ret.pushed to the stack (PCH, PCL)
             ret.push16(operand);  // ret.PC
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_LDA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.A = operand & 0xff;
             if (ret.MS == 0)
             {
@@ -2077,25 +2137,25 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_LDX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.X = operand;
             ret.set_NZ_XS(ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_LDY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.Y = operand;
             ret.set_NZ_XS(ret.Y);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LSRA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_LSRA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Compute the new carry
             if (ret.A >= 0)
             {
@@ -2132,9 +2192,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LSR(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_LSR(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int tmp;
             ret.C = FromBool((operand & 1) != 0);
             if (ret.MS > 0)
@@ -2158,9 +2218,9 @@ namespace Disass65816
             return tmp;
         }
 
-        static IEnumerable<Registers> op_ORA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ORA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
             {
@@ -2183,42 +2243,42 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.pushMS(operand);
             op_STA(em, operand, -1);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.push8(operand);
             ret.check_FLAGS(operand);
             ret.set_FLAGS(operand);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.pushXS(operand);
             op_STX(em, operand, -1);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PHY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.pushXS(operand);
             op_STY(em, operand, -1);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.A = operand & 0xff;
             if (ret.MS < 0)
             {
@@ -2233,35 +2293,35 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.set_FLAGS(operand);
             ret.pop8(operand);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.X = operand;
             ret.set_NZ_XS(ret.X);
             ret.popXS(operand);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_PLY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.Y = operand;
             ret.set_NZ_XS(ret.Y);
             ret.popXS(operand);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROLA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ROLA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Save the old carry
             Tristate oldC = ret.C;
             // Compute the new carry
@@ -2313,9 +2373,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROL(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ROL(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             Tristate oldC = ret.C;
             int tmp;
             if (ret.MS == Tristate.True && oldC != Tristate.Unknown)
@@ -2341,9 +2401,9 @@ namespace Disass65816
             return tmp;
         }
 
-        static IEnumerable<Registers> op_RORA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_RORA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // Save the old carry
             Tristate oldC = ret.C;
             // Compute the new carry
@@ -2383,9 +2443,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROR(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_ROR(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             Tristate oldC = ret.C;
             int tmp;
             ret.C = FromBool((operand & 1) != 0);
@@ -2410,9 +2470,9 @@ namespace Disass65816
             return tmp;
         }
 
-        static IEnumerable<Registers> op_RTS(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_RTS(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // RTS: the operand is the data pulled from the stack (PCL, PCH)
             ret.pop8(operand);
             ret.pop8(operand >> 8);
@@ -2421,9 +2481,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_RTI(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_RTI(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             // RTI: the operand is the data pulled from the stack (P, PCL, PCH, PBR)
             ret.set_FLAGS(operand);
             ret.pop8(operand);
@@ -2436,9 +2496,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SBC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_SBC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int acc = ret.get_accumulator();
             if (acc >= 0 && ret.C != Tristate.Unknown && ret.MS != Tristate.Unknown)
             {
@@ -2501,30 +2561,30 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEC(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_SEC(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.C = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SED(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_SED(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.D = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEI(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_SEI(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.I = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_STA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_STA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int oplo = operand & 0xff;
             int ophi = (operand >> 8) & 0xff;
             // Always write ret.A
@@ -2555,9 +2615,9 @@ namespace Disass65816
             return operand;
         }
 
-        static IEnumerable<Registers> op_STX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_STX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.X >= 0)
             {
                 if (operand != ret.X)
@@ -2569,9 +2629,9 @@ namespace Disass65816
             return operand;
         }
 
-        static IEnumerable<Registers> op_STY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_STY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.Y >= 0)
             {
                 if (operand != ret.Y)
@@ -2583,9 +2643,9 @@ namespace Disass65816
             return operand;
         }
 
-        static IEnumerable<Registers> op_STZ(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_STZ(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (operand != 0)
             {
                 ret.failflag = true;
@@ -2594,9 +2654,9 @@ namespace Disass65816
         }
 
 
-        static IEnumerable<Registers> op_TSB(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TSB(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int acc = ret.get_accumulator();
             if (acc >= 0)
             {
@@ -2610,9 +2670,9 @@ namespace Disass65816
             }
         }
 
-        static IEnumerable<Registers> op_TRB(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TRB(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             int acc = ret.get_accumulator();
             if (acc >= 0)
             {
@@ -2697,37 +2757,37 @@ namespace Disass65816
             }
         }
 
-        static IEnumerable<Registers> op_TAX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TAX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             transfer_88_16(em, ret.B, ret.A, ref ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TAY(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TAY(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             transfer_88_16(em, ret.B, ret.A, ref ret.Y);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TSX(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TSX(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             transfer_88_16(em, ret.SH, ret.SL, ref ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TXA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             transfer_16_88(em, ret.X, ref ret.B, ref ret.A);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXS(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TXS(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             if (ret.X >= 0)
             {
                 ret.SH = (ret.X >> 8) & 0xff;
@@ -2746,16 +2806,16 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TYA(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_TYA(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             transfer_16_88(em, ret.Y, ref ret.B, ref ret.A);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_BRK(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_BRK(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.I = Tristate.True;
             ret.D = Tristate.True;
             if (ret.E == Tristate.Unknown)
@@ -2769,9 +2829,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_COP(Registers regsIn, bool immediate, operand_t operand, ea_t ea)
+        static IEnumerable<Registers> op_COP(Registers ret, operand_t operand, instruction_t instr)
         {
-            var ret = regsIn.Clone();
+            
             ret.I = Tristate.True;
             ret.D = Tristate.True;
             if (ret.E == Tristate.Unknown)
@@ -2791,16 +2851,16 @@ namespace Disass65816
 
 
         static InstrType[] instr_table = {
-   /* 00 */   new InstrType ( "BRK",    AddrMode.IMM   , 7, 0, OpType.OTHER,    op_BRK),
+   /* 00 */   new InstrType ( "BRK",    AddrMode.IMM8  , 7, 0, OpType.OTHER,    op_BRK),
    /* 01 */   new InstrType ( "ORA",    AddrMode.INDX  , 6, 0, OpType.READOP,   op_ORA),
-   /* 02 */   new InstrType ( "COP",    AddrMode.IMM   , 7, 1, OpType.OTHER,    op_COP),
+   /* 02 */   new InstrType ( "COP",    AddrMode.IMM8  , 7, 1, OpType.OTHER,    op_COP),
    /* 03 */   new InstrType ( "ORA",    AddrMode.SR    , 4, 1, OpType.READOP,   op_ORA),
    /* 04 */   new InstrType ( "TSB",    AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_TSB),
    /* 05 */   new InstrType ( "ORA",    AddrMode.ZP    , 3, 0, OpType.READOP,   op_ORA),
    /* 06 */   new InstrType ( "ASL",    AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_ASL),
    /* 07 */   new InstrType ( "ORA",    AddrMode.IDL   , 6, 1, OpType.READOP,   op_ORA),
    /* 08 */   new InstrType ( "PHP",    AddrMode.IMP   , 3, 0, OpType.OTHER,    op_PHP),
-   /* 09 */   new InstrType ( "ORA",    AddrMode.IMM   , 2, 0, OpType.OTHER,    op_ORA),
+   /* 09 */   new InstrType ( "ORA",    AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_ORA),
    /* 0A */   new InstrType ( "ASL",    AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_ASLA),
    /* 0B */   new InstrType ( "PHD",    AddrMode.IMP   , 4, 1, OpType.OTHER,    op_PHD),
    /* 0C */   new InstrType ( "TSB",    AddrMode.ABS   , 6, 0, OpType.RMWOP,    op_TSB),
@@ -2832,7 +2892,7 @@ namespace Disass65816
    /* 26 */   new InstrType( "ROL", AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_ROL),
    /* 27 */   new InstrType( "AND", AddrMode.IDL   , 6, 1, OpType.READOP,   op_AND),
    /* 28 */   new InstrType( "PLP", AddrMode.IMP   , 4, 0, OpType.OTHER,    op_PLP),
-   /* 29 */   new InstrType( "AND", AddrMode.IMM   , 2, 0, OpType.OTHER,    op_AND),
+   /* 29 */   new InstrType( "AND", AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_AND),
    /* 2A */   new InstrType( "ROL", AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_ROLA),
    /* 2B */   new InstrType( "PLD", AddrMode.IMP   , 5, 1, OpType.OTHER,    op_PLD),
    /* 2C */   new InstrType( "BIT", AddrMode.ABS   , 4, 0, OpType.READOP,   op_BIT),
@@ -2857,14 +2917,14 @@ namespace Disass65816
    /* 3F */   new InstrType( "AND", AddrMode.ALX   , 5, 1, OpType.READOP,   op_AND),
    /* 40 */   new InstrType( "RTI", AddrMode.IMP   , 6, 0, OpType.OTHER,    op_RTI),
    /* 41 */   new InstrType( "EOR", AddrMode.INDX  , 6, 0, OpType.READOP,   op_EOR),
-   /* 42 */   new InstrType( "WDM", AddrMode.IMM   , 2, 1, OpType.OTHER,    null),
+   /* 42 */   new InstrType( "WDM", AddrMode.IMM8  , 2, 1, OpType.OTHER,    null),
    /* 43 */   new InstrType( "EOR", AddrMode.SR    , 4, 1, OpType.READOP,   op_EOR),
    /* 44 */   new InstrType( "MVP", AddrMode.BM    , 7, 1, OpType.OTHER,    op_MVP),
    /* 45 */   new InstrType( "EOR", AddrMode.ZP    , 3, 0, OpType.READOP,   op_EOR),
    /* 46 */   new InstrType( "LSR", AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_LSR),
    /* 47 */   new InstrType( "EOR", AddrMode.IDL   , 6, 1, OpType.READOP,   op_EOR),
    /* 48 */   new InstrType( "PHA", AddrMode.IMP   , 3, 0, OpType.OTHER,    op_PHA),
-   /* 49 */   new InstrType( "EOR", AddrMode.IMM   , 2, 0, OpType.OTHER,    op_EOR),
+   /* 49 */   new InstrType( "EOR", AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_EOR),
    /* 4A */   new InstrType( "LSR", AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_LSRA),
    /* 4B */   new InstrType( "PHK", AddrMode.IMP   , 3, 1, OpType.OTHER,    op_PHK),
    /* 4C */   new InstrType( "JMP", AddrMode.ABS   , 3, 0, OpType.OTHER,    null),
@@ -2896,7 +2956,7 @@ namespace Disass65816
    /* 66 */   new InstrType(  "ROR",    AddrMode.ZP    , 5, 0, OpType.RMWOP,    op_ROR),
    /* 67 */   new InstrType(  "ADC",    AddrMode.IDL   , 6, 1, OpType.READOP,   op_ADC),
    /* 68 */   new InstrType(  "PLA",    AddrMode.IMP   , 4, 0, OpType.OTHER,    op_PLA),
-   /* 69 */   new InstrType(  "ADC",    AddrMode.IMM   , 2, 0, OpType.OTHER,    op_ADC),
+   /* 69 */   new InstrType(  "ADC",    AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_ADC),
    /* 6A */   new InstrType(  "ROR",    AddrMode.IMPA  , 2, 0, OpType.OTHER,    op_RORA),
    /* 6B */   new InstrType(  "RTL",    AddrMode.IMP   , 6, 1, OpType.OTHER,    op_RTL),
    /* 6C */   new InstrType(  "JMP",    AddrMode.IND16 , 5, 0, OpType.OTHER,    null),
@@ -2928,7 +2988,7 @@ namespace Disass65816
    /* 86 */   new InstrType(  "STX",    AddrMode.ZP    , 3, 0, OpType.WRITEOP,  op_STX),
    /* 87 */   new InstrType(  "STA" ,   AddrMode.IDL   , 6, 1, OpType.WRITEOP,  op_STA),
    /* 88 */   new InstrType(  "DEY",    AddrMode.IMP   , 2, 0, OpType.OTHER,    op_DEY),
-   /* 89 */   new InstrType(  "BIT",    AddrMode.IMM   , 2, 0, OpType.OTHER,    op_BIT_IMM),
+   /* 89 */   new InstrType(  "BIT",    AddrMode.IMMM  , 2, 0, OpType.OTHER,    op_BIT_IMM),
    /* 8A */   new InstrType(  "TXA", AddrMode.IMP   , 2, 0, OpType.OTHER, op_TXA),
    /* 8B */   new InstrType(  "PHB", AddrMode.IMP   , 3, 1, OpType.OTHER, op_PHB),
    /* 8C */   new InstrType(  "STY", AddrMode.ABS   , 4, 0, OpType.WRITEOP, op_STY),
@@ -2951,16 +3011,16 @@ namespace Disass65816
     /* 9D */   new InstrType(  "STA", AddrMode.ABSX  , 5, 0, OpType.WRITEOP, op_STA),
    /* 9E */   new InstrType(  "STZ", AddrMode.ABSX  , 5, 0, OpType.WRITEOP, op_STZ),
    /* 9F */   new InstrType(  "STA", AddrMode.ALX   , 5, 1, OpType.WRITEOP, op_STA),
-   /* A0 */   new InstrType(  "LDY", AddrMode.IMM   , 2, 0, OpType.OTHER, op_LDY),
+   /* A0 */   new InstrType(  "LDY", AddrMode.IMMX  , 2, 0, OpType.OTHER, op_LDY),
    /* A1 */   new InstrType(  "LDA", AddrMode.INDX  , 6, 0, OpType.READOP, op_LDA),
-   /* A2 */   new InstrType(  "LDX", AddrMode.IMM   , 2, 0, OpType.OTHER, op_LDX),
+   /* A2 */   new InstrType(  "LDX", AddrMode.IMMX  , 2, 0, OpType.OTHER, op_LDX),
    /* A3 */   new InstrType(  "LDA", AddrMode.SR    , 4, 1, OpType.READOP, op_LDA),
    /* A4 */   new InstrType(  "LDY", AddrMode.ZP    , 3, 0, OpType.READOP, op_LDY),
    /* A5 */   new InstrType(  "LDA", AddrMode.ZP    , 3, 0, OpType.READOP, op_LDA),
    /* A6 */   new InstrType(  "LDX", AddrMode.ZP    , 3, 0, OpType.READOP, op_LDX),
    /* A7 */   new InstrType(  "LDA", AddrMode.IDL   , 6, 1, OpType.READOP, op_LDA),
    /* A8 */   new InstrType(  "TAY", AddrMode.IMP   , 2, 0, OpType.OTHER, op_TAY),
-   /* A9 */   new InstrType(  "LDA", AddrMode.IMM   , 2, 0, OpType.OTHER, op_LDA),
+   /* A9 */   new InstrType(  "LDA", AddrMode.IMMM  , 2, 0, OpType.OTHER, op_LDA),
    /* AA */   new InstrType(  "TAX", AddrMode.IMP   , 2, 0, OpType.OTHER, op_TAX),
    /* AB */   new InstrType(  "PLB", AddrMode.IMP   , 4, 1, OpType.OTHER, op_PLB),
    /* AC */   new InstrType(  "LDY", AddrMode.ABS   , 4, 0, OpType.READOP, op_LDY),
@@ -2983,16 +3043,16 @@ namespace Disass65816
     /* BD */   new InstrType(  "LDA", AddrMode.ABSX  , 4, 0, OpType.READOP, op_LDA),
    /* BE */   new InstrType(  "LDX", AddrMode.ABSY  , 4, 0, OpType.READOP, op_LDX),
    /* BF */   new InstrType(  "LDA", AddrMode.ALX   , 5, 1, OpType.READOP, op_LDA),
-   /* C0 */   new InstrType(  "CPY", AddrMode.IMM   , 2, 0, OpType.OTHER, op_CPY),
+   /* C0 */   new InstrType(  "CPY", AddrMode.IMMX  , 2, 0, OpType.OTHER, op_CPY),
    /* C1 */   new InstrType(  "CMP", AddrMode.INDX  , 6, 0, OpType.READOP, op_CMP),
-   /* C2 */   new InstrType(  "REP", AddrMode.IMM   , 3, 1, OpType.OTHER, op_REP),
+   /* C2 */   new InstrType(  "REP", AddrMode.IMM8  , 3, 1, OpType.OTHER, op_REP),
    /* C3 */   new InstrType(  "CMP", AddrMode.SR    , 4, 1, OpType.READOP, op_CMP),
    /* C4 */   new InstrType(  "CPY", AddrMode.ZP    , 3, 0, OpType.READOP, op_CPY),
    /* C5 */   new InstrType(  "CMP", AddrMode.ZP    , 3, 0, OpType.READOP, op_CMP),
    /* C6 */   new InstrType(  "DEC", AddrMode.ZP    , 5, 0, OpType.RMWOP, op_DEC),
    /* C7 */   new InstrType(  "CMP", AddrMode.IDL   , 6, 1, OpType.READOP, op_CMP),
    /* C8 */   new InstrType(  "INY", AddrMode.IMP   , 2, 0, OpType.OTHER, op_INY),
-   /* C9 */   new InstrType(  "CMP", AddrMode.IMM   , 2, 0, OpType.OTHER, op_CMP),
+   /* C9 */   new InstrType(  "CMP", AddrMode.IMMM  , 2, 0, OpType.OTHER, op_CMP),
    /* CA */   new InstrType(  "DEX", AddrMode.IMP   , 2, 0, OpType.OTHER, op_DEX),
    /* CB */   new InstrType(  "WAI", AddrMode.IMP   , 1, 1, OpType.OTHER,    null),        // WD65C02=3
    /* CC */   new InstrType(  "CPY", AddrMode.ABS   , 4, 0, OpType.READOP, op_CPY),
@@ -3015,16 +3075,16 @@ namespace Disass65816
    /* DD */   new InstrType(  "CMP", AddrMode.ABSX  , 4, 0, OpType.READOP, op_CMP),
    /* DE */   new InstrType(  "DEC", AddrMode.ABSX  , 7, 0, OpType.RMWOP, op_DEC),
    /* DF */   new InstrType(  "CMP", AddrMode.ALX   , 5, 1, OpType.READOP, op_CMP),
-   /* E0 */   new InstrType(  "CPX", AddrMode.IMM   , 2, 0, OpType.OTHER, op_CPX),
+   /* E0 */   new InstrType(  "CPX", AddrMode.IMMX  , 2, 0, OpType.OTHER, op_CPX),
    /* E1 */   new InstrType(  "SBC", AddrMode.INDX  , 6, 0, OpType.READOP, op_SBC),
-   /* E2 */   new InstrType(  "SEP", AddrMode.IMM   , 3, 1, OpType.OTHER, op_SEP),
+   /* E2 */   new InstrType(  "SEP", AddrMode.IMM8  , 3, 1, OpType.OTHER, op_SEP),
    /* E3 */   new InstrType(  "SBC", AddrMode.SR    , 4, 1, OpType.READOP, op_SBC),
    /* E4 */   new InstrType(  "CPX", AddrMode.ZP    , 3, 0, OpType.READOP, op_CPX),
    /* E5 */   new InstrType(  "SBC", AddrMode.ZP    , 3, 0, OpType.READOP, op_SBC),
    /* E6 */   new InstrType(  "INC", AddrMode.ZP    , 5, 0, OpType.RMWOP, op_INC),
    /* E7 */   new InstrType(  "SBC", AddrMode.IDL   , 6, 1, OpType.READOP, op_SBC),
    /* E8 */   new InstrType(  "INX", AddrMode.IMP   , 2, 0, OpType.OTHER, op_INX),
-   /* E9 */   new InstrType(  "SBC", AddrMode.IMM   , 2, 0, OpType.OTHER, op_SBC),
+   /* E9 */   new InstrType(  "SBC", AddrMode.IMMM  , 2, 0, OpType.OTHER, op_SBC),
    /* EA */   new InstrType(  "NOP", AddrMode.IMP   , 2, 0, OpType.OTHER,    null),
    /* EB */   new InstrType(  "XBA", AddrMode.IMP   , 3, 1, OpType.OTHER, op_XBA),
    /* EC */   new InstrType(  "CPX", AddrMode.ABS   , 4, 0, OpType.READOP, op_CPX),
