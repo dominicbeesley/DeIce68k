@@ -188,9 +188,9 @@ All flags = Unknown
 
                         log?.WriteLine();
 
-                        Emulate65816.instruction_t instr;
+                        Emulate65816.InstructionData instr;
                         em.em_65816_emulate(pdata, regs, out instr);
-                        if (instr.pc == regs.PC)
+                        if (instr.PC == regs.PC)
                         {
                             Console.Error.WriteLine($"Stuck at PC={regs.PC:X4} - end of Dormann tests");
                             return -6;
