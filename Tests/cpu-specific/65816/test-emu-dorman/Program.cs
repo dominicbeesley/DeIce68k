@@ -1,4 +1,5 @@
 ﻿using Disass65816;
+using Disass65816.Emulate;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -124,98 +125,112 @@ All flags = Unknown
                     memory[offset++] = buf[i++];
                 }
             }
-
-            em65816 em = new em65816()
+            try
             {
-                memory_write = (ea, val) => { 
-                    memory[ea & 0xFFFF] = val; 
-                    if (logwrites) 
-                        log?.WriteLine($"WR:{ea:X4}<={val:X0}"); 
-                },
-                memory_read = (ea) => { 
-                    var val = memory[ea & 0xFFFF]; 
-                    if (logreads)
-                        log?.WriteLine($"RD:{ea:X4}=>{val:X0}"); 
-                    return val; 
-                }
-            };
-            var regs = new em65816.Registers(em);
-            regs.E = em65816.Tristate.True;
-            regs.XS = em65816.Tristate.True;
-            regs.MS = em65816.Tristate.True;
-            regs.I = em65816.Tristate.True;
-
-
-            regs.PB = 0;
-            regs.PC = 0x400;
-            regs.DB = 0;
-            regs.DP = 0;
-            regs.SH = 1;
-
-            Disass65816.Disass65816 disass = new Disass65816.Disass65816();
-
-            bool done = false;
-            int instructions = 0;
-            byte[] pdata = new byte[4];
-            do
-            {
-                if (regs.PC < 0)
+                Emulate65816 em = new Emulate65816()
                 {
-                    Console.Error.WriteLine($"END: Bad program counter");
-                    return -5;
-                }
-                if (getmem4(regs.PC, pdata)) {
-
-                    using (var ms = new MemoryStream(pdata))
-                    using (var br = new BinaryReader(ms))
+                    memory_write = (ea, val) =>
                     {
-                        log?.Write($"{regs.PC:X4} ");
-
-                        var dis = disass.Decode(br, new Address65816_abs((uint)regs.PC));
-
-                        for (i = 0; i < dis.Length; i++) 
-                            log?.Write($"{pdata[i]:X02} ");
-                        for (i = dis.Length; i < 4; i++)
-                            log?.Write("   ");
-
-                        log?.Write(dis.ToString());
+                        memory[ea & 0xFFFF] = val;
+                        if (logwrites)
+                            log?.WriteLine($"WR:{ea:X4}<={val:X0}");
+                    },
+                    memory_read = (ea) =>
+                    {
+                        var val = memory[ea & 0xFFFF];
+                        if (logreads)
+                            log?.WriteLine($"RD:{ea:X4}=>{val:X0}");
+                        return val;
                     }
+                };
+                IRegsEmu65816 regs = new Emulate65816.Registers(em);
+                regs.E = true;
+                regs.XS = true;
+                regs.MS = true;
+                regs.I = true;
 
+
+                regs.PB = 0;
+                regs.PC = 0x400;
+                regs.DB = 0;
+                regs.DP = 0;
+                regs.SH = 1;
+
+                Disass65816.Disass65816 disass = new Disass65816.Disass65816();
+
+                bool done = false;
+                int instructions = 0;
+                byte[] pdata = new byte[4];
+                do
+                {
+                    if (regs.PC < 0)
+                    {
+                        Console.Error.WriteLine($"END: Bad program counter");
+                        return -5;
+                    }
+                    if (getmem4(regs.PC, pdata))
+                    {
+
+                        using (var ms = new MemoryStream(pdata))
+                        using (var br = new BinaryReader(ms))
+                        {
+                            log?.Write($"{regs.PC:X4} ");
+
+                            var dis = disass.Decode(br, new Address65816_abs((uint)regs.PC));
+
+                            for (i = 0; i < dis.Length; i++)
+                                log?.Write($"{pdata[i]:X02} ");
+                            for (i = dis.Length; i < 4; i++)
+                                log?.Write("   ");
+
+                            log?.Write(dis.ToString());
+                        }
+
+                        log?.WriteLine();
+
+                        Emulate65816.instruction_t instr;
+                        var regsNext = em.em_65816_emulate(pdata, regs, out instr);
+                        var regsN0 = regsNext.FirstOrDefault();
+                        if (regsN0 == null)
+                        {
+                            Console.Error.WriteLine($"Instruction at {regs.PC:X4} failed to emulate");
+                            return -4;
+                        }
+                        if (regsN0.PC == regs.PC)
+                        {
+                            Console.Error.WriteLine($"Stuck at PC={regs.PC:X4} - end of Dormann tests");
+                            return -6;
+                        }
+                        log?.Write(regsN0.ToString());
+
+                        regs = regsN0;
+
+                        instructions++;
+                        //                    if (instructions > 100000000)
+                        //                        done = true;
+                        if ((instructions & 0xFFFFF) == 0)
+                            Console.WriteLine(".");
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine($"END: Bad program data at {regs.PC:X4}");
+                        return -3;
+                    }
                     log?.WriteLine();
+                } while (!done);
 
-                    em65816.instruction_t instr;
-                    var regsNext = em.em_65816_emulate(pdata, regs, out instr);
-                    var regsN0 = regsNext.FirstOrDefault();
-                    if (regsN0 == null)
-                    {
-                        Console.Error.WriteLine($"Instruction at {regs.PC:X4} failed to emulate");
-                        return -4;
-                    }
-                    if (regsN0.PC == regs.PC)
-                    {
-                        Console.Error.WriteLine($"Stuck at PC={regs.PC:X4} - end of Dormann tests");
-                        return -6;
-                    }
-                    log?.Write(regsN0.ToString());
 
-                    regs = regsN0;
-
-                    instructions++;
-//                    if (instructions > 100000000)
-//                        done = true;
-                    if ((instructions & 0xFFFFF) == 0)
-                        Console.WriteLine(".");
-                } 
-                else
+                return 0;
+            } finally
+            {
+                if (log != null)
                 {
-                    Console.Error.WriteLine($"END: Bad program data at {regs.PC:X4}");
-                    return -3;
+                    log.Flush();
+                    log.Close();
+                    log.Dispose();
+                    log = null;
                 }
-                log?.WriteLine();
-            } while (!done);
-
-
-            return 0;
+            }
         }
 
     }

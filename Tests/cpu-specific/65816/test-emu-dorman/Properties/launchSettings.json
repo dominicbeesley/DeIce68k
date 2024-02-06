@@ -2,7 +2,7 @@
   "profiles": {
     "TestEmuDormann": {
       "commandName": "Project",
-      "commandLineArgs": "--log c:\\temp\\dormann.log C:\\Users\\Dominic\\Downloads\\6502_functional_test.bin "
+      "commandLineArgs": "--log c:\\temp\\dormann.log -lw -lr C:\\Users\\Dominic\\Downloads\\6502_functional_test.bin "
     }
   }
 }

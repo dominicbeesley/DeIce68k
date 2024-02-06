@@ -18,14 +18,14 @@ using System.Net.Http.Headers;
 using System.Diagnostics;
 
 
-namespace Disass65816
+namespace Disass65816.Emulate
 {
-    public class em65816
+    public class Emulate65816
     {
 
-        public class Registers
+        public class Registers : IRegsEmu65816
         {
-            public em65816 Emulator { get; init; }
+            public Emulate65816 Emulator { get; init; }
 
             // 6502 registers: -1 means unknown
             public int A { get; set; }
@@ -87,7 +87,7 @@ namespace Disass65816
 
             protected char F(char l, Tristate v)
             {
-                return v == Tristate.Unknown ? '?' : v == Tristate.True ? char.ToUpper(l) : char.ToLower(l);
+                return v.IsUnknown ? '?' : v.ToBool(false) ? char.ToUpper(l) : char.ToLower(l);
 
             }
 
@@ -97,7 +97,7 @@ namespace Disass65816
                 return $"A={RF(B)}{RF(A)}, X={RF16(X)}, Y={RF16(Y)}, {F('E', E)} {F('N', N)}{F('V', V)}{F('M', MS)}{F('X', XS)}{F('D', D)}{F('I', I)}{F('Z', Z)}{F('C', C)} S={RF(SH)}{RF(SL)}, PC={RF(PB)}{RF16(PC)}, DB={RF(DB)}, DP={RF16(DP)}";
             }
 
-            public Registers(em65816 emulator)
+            public Registers(Emulate65816 emulator)
             {
                 this.Emulator = emulator;
 
@@ -133,510 +133,15 @@ namespace Disass65816
                 E = other.E;
             }
 
-            public int memory_read(int ea, mem_access_t acctype) => Emulator.memory_read?.Invoke(ea) ?? -1;
-            public void memory_write(int value, int ea, mem_access_t acctype) => Emulator.memory_write?.Invoke(ea, value);
+            public int memory_read(int ea) => Emulator.memory_read?.Invoke(ea) ?? -1;
+            public void memory_write(int value, int ea) => Emulator.memory_write?.Invoke(ea, value);
 
-            public Registers Clone()
+            public IRegsEmu65816 Clone()
             {
                 return new Registers(this);
             }
 
-            public bool compare_FLAGS(int operand)
-            {
-                if (N != Tristate.Unknown && (int)N != ((operand >> 7) & 1)) return true;
-                if (V != Tristate.Unknown && (int)V != ((operand >> 6) & 1)) return true;
-                if (E == Tristate.False && MS >= 0 && (int)MS != ((operand >> 5) & 1)) return true;
-                if (E == Tristate.False && XS >= 0 && (int)XS != ((operand >> 4) & 1)) return true;
-                if (D != Tristate.Unknown && (int)D != ((operand >> 3) & 1)) return true;
-                if (I != Tristate.Unknown && (int)I != ((operand >> 2) & 1)) return true;
-                if (Z != Tristate.Unknown && (int)Z != ((operand >> 1) & 1)) return true;
-                if (C != Tristate.Unknown && (int)C != ((operand >> 0) & 1)) return true;
-                return false;
-            }
-
-            public void set_FLAGS(int operand)
-            {
-                N = (Tristate)((operand >> 7) & 1);
-                V = (Tristate)((operand >> 6) & 1);
-                if (E == Tristate.False)
-                {
-                    MS = (Tristate)((operand >> 5) & 1);
-                    XS = (Tristate)((operand >> 4) & 1);
-                }
-                else
-                {
-                    MS = Tristate.True;
-                    XS = Tristate.True;
-                }
-                D = (Tristate)((operand >> 3) & 1);
-                I = (Tristate)((operand >> 2) & 1);
-                Z = (Tristate)((operand >> 1) & 1);
-                C = (Tristate)((operand >> 0) & 1);
-            }
-
-            public int get_FLAGS()
-            {
-                var ret = 0;
-                if (N == Tristate.Unknown) return -1; else ret |= N == Tristate.True ? 0x80 : 0;
-                if (V == Tristate.Unknown) return -1; else ret |= V == Tristate.True ? 0x40 : 0;
-
-                if (D == Tristate.Unknown) return -1; else ret |= D == Tristate.True ? 0x8 : 0;
-                if (I == Tristate.Unknown) return -1; else ret |= I == Tristate.True ? 0x4 : 0;
-                if (Z == Tristate.Unknown) return -1; else ret |= Z == Tristate.True ? 0x2 : 0;
-                if (C == Tristate.Unknown) return -1; else ret |= C == Tristate.True ? 0x1 : 0;
-
-                if (E == Tristate.False)
-                {
-                    if (MS == Tristate.Unknown) return -1; else ret |= MS == Tristate.True ? 0x20 : 0;
-                    if (XS == Tristate.Unknown) return -1; else ret |= XS == Tristate.True ? 0x10 : 0;
-
-                }
-                else if (E == Tristate.True)
-                    ret |= 0x30;
-                else
-                    ret = -1;
-
-                return ret;
-            }
-
-            public void set_NZ_unknown()
-            {
-                N = Tristate.Unknown;
-                Z = Tristate.Unknown;
-            }
-
-            public void set_NZC_unknown()
-            {
-                N = Tristate.Unknown;
-                Z = Tristate.Unknown;
-                C = Tristate.Unknown;
-            }
-
-            public void set_NVZC_unknown()
-            {
-                N = Tristate.Unknown;
-                V = Tristate.Unknown;
-                Z = Tristate.Unknown;
-                C = Tristate.Unknown;
-            }
-
-            public void set_NZ8(int value)
-            {
-                N = (Tristate)((value >> 7) & 1);
-                Z = (Tristate)((value & 0xff) == 0 ? 1 : 0);
-            }
-
-            public void set_NZ16(int value)
-            {
-                N = (Tristate)((value >> 15) & 1);
-                Z = (Tristate)((value & 0xffff) == 0 ? 1 : 0);
-            }
-
-            public void set_NZ_unknown_width(int value)
-            {
-                // Don't know which bit is the sign bit
-                Tristate s15 = (Tristate)((value >> 15) & 1);
-                Tristate s7 = (Tristate)((value >> 7) & 1);
-                if (s7 == s15)
-                {
-                    // both choices of sign bit are the same
-                    N = s7;
-                }
-                else
-                {
-                    // possible sign bits differ, so N must become undefined
-                    N = Tristate.Unknown;
-                }
-                // Don't know how many bits to check for any ones
-                if ((value & 0xff00) == 0)
-                {
-                    // no high bits set, so base Z on the low bits
-                    Z = FromBool((value & 0xff) == 0);
-                }
-                else
-                {
-                    // some high bits set, so Z must become undefined
-                    Z = Tristate.Unknown;
-                }
-            }
-
-            public void set_NZ_XS(int value)
-            {
-                if (XS < 0)
-                {
-                    set_NZ_unknown_width(value);
-                }
-                else if (XS == 0)
-                {
-                    set_NZ16(value);
-                }
-                else
-                {
-                    set_NZ8(value);
-                }
-            }
-
-            public void set_NZ_MS(int value)
-            {
-                if (MS == Tristate.Unknown)
-                {
-                    set_NZ_unknown_width(value);
-                }
-                else if (MS == Tristate.False)
-                {
-                    set_NZ16(value);
-                }
-                else
-                {
-                    set_NZ8(value);
-                }
-            }
-
-            public void set_NZ_AB(int A, int B)
-            {
-                if (MS == Tristate.True)
-                {
-                    // 8-bit
-                    if (A >= 0)
-                    {
-                        set_NZ8(A);
-                    }
-                    else
-                    {
-                        set_NZ_unknown();
-                    }
-                }
-                else if (MS == Tristate.False)
-                {
-                    // 16-bit
-                    if (A >= 0 && B >= 0)
-                    {
-                        set_NZ16((B << 8) + A);
-                    }
-                    else
-                    {
-                        // TODO: the behaviour when A is known and B is unknown could be improved
-                        set_NZ_unknown();
-                    }
-                }
-                else
-                {
-                    // width unknown
-                    if (A >= 0 && B >= 0)
-                    {
-                        set_NZ_unknown_width((B << 8) + A);
-                    }
-                    else
-                    {
-                        set_NZ_unknown();
-                    }
-                }
-            }
-
-            // ====================================================================
-            // Helper Methods
-            // ====================================================================
-
-            public int memory_read16(int ea, mem_access_t acctype)
-            {
-                if (ea < 0) return -1;
-
-                var l = memory_read(ea, acctype);
-                if (l < 0) return -1;
-
-                var h = memory_read(ea + 1, acctype);
-                if (h < 0) return -1;
-
-                return (l & 0xFF) | ((h & 0xFF) << 8);
-
-            }
-            public void memory_write16(int value, int ea, mem_access_t acctype)
-            {
-                if (ea < 0 || value < 0) return;
-
-                memory_write(value & 0xFF, ea, acctype);
-                memory_write((value & 0xFF00) >> 8, ea, acctype);
-            }
-
-            public int memory_read24(int ea, mem_access_t acctype)
-            {
-                if (ea < 0) return -1;
-
-                var l = memory_read(ea, acctype);
-                if (l < 0) return -1;
-
-                var h = memory_read(ea, acctype);
-                if (h < 0) return -1;
-
-                var b = memory_read(ea, acctype);
-                if (b < 0) return -1;
-
-                return (l & 0xFF) | ((h & 0xFF) << 8) | ((b & 0xFF) << 16);
-
-            }
-
-            public int memory_read_MS(int ea, Tristate size, mem_access_t acctype)
-            {
-                return (size == Tristate.Unknown)?-1:(size == Tristate.True)?memory_read(ea, acctype):memory_read16(ea, acctype);   
-            }
-
-            public void memory_write_MS(int value, int ea, Tristate size, mem_access_t acctype)
-            {
-                if (size == Tristate.False)
-                    //16 bit
-                    memory_write16(value, ea, acctype);
-                else
-                    memory_write(value, ea, acctype);
-            }
-
-
-            // TODO: Stack wrapping im emulation mode should only happen with "old" instructions
-            // e.g. PLB should not wrap
-            // See appendix of 65C816 Opcodes by Bruce Clark
-
-            public int pop8()
-            {
-                // Increment the low byte of SP
-                if (SL >= 0)
-                {
-                    SL = (SL + 1) & 0xff;
-                }
-                // Increment the high byte of SP, in certain cases
-                if (E == Tristate.True)
-                {
-                    // In emulation mode, force SH to 1
-                    SH = 1;
-                }
-                else if (E == 0)
-                {
-                    // In native mode, increment SH if SL has wrapped to 0
-                    if (SH >= 0)
-                    {
-                        if (SL < 0)
-                        {
-                            SH = -1;
-                        }
-                        else if (SL == 0)
-                        {
-                            SH = (SH + 1) & 0xff;
-                        }
-                    }
-                }
-                else
-                {
-                    SH = -1;
-                }
-                // Handle the memory access
-                if (SL >= 0 && SH >= 0)
-                {
-                    var r = memory_read((SH << 8) + SL, mem_access_t.MEM_STACK);
-                    if (r < 0)
-                        return -1;
-                    else
-                        return r & 0xFF;
-                }
-                else
-                    return -1;
-            }
-
-            // TODO: Stack wrapping im emulation mode should only happen with "old" instructions
-            // e.g. PLB should not wrap
-            // See appendix of 65C816 Opcodes by Bruce Clark
-
-            public void push8(int value)
-            {
-                // Handle the memory access
-                if (SL >= 0 && SH >= 0)
-                {
-                    memory_write(value & 0xFF, (SH << 8) + SL, mem_access_t.MEM_STACK);
-                }
-                // Decrement the low byte of SP
-                if (SL >= 0)
-                {
-                    SL = (SL - 1) & 0xff;
-                }
-                // Decrement the high byte of SP, in certain cases
-                if (E == Tristate.True)
-                {
-                    // In emulation mode, force SH to 1
-                    SH = 1;
-                }
-                else if (E == Tristate.False)
-                {
-                    // In native mode, increment SH if SL has wrapped to 0
-                    if (SH >= 0)
-                    {
-                        if (SL < 0)
-                        {
-                            SH = -1;
-                        }
-                        else if (SL == 0xff)
-                        {
-                            SH = (SH - 1) & 0xff;
-                        }
-                    }
-                }
-                else
-                {
-                    SH = -1;
-                }
-            }
-
-            public int pop16()
-            {
-                int l = pop8();
-                int h = pop8();
-
-                if (l >= 0 && h >= 0)
-                    return l + (h  << 8);
-                else
-                    return -1;
-            }
-
-            public void push16(int value)
-            {
-                if (value < 0)
-                {
-                    push8(-1);
-                    push8(-1);
-                }
-                else
-                {
-                    push8(value >> 8);
-                    push8(value);
-                }
-            }
-
-            public int popXS()
-            {
-                if (XS < 0)
-                {
-                    SL = -1;
-                    SH = -1;
-                    return -1;
-                }
-                else if (XS == 0)
-                {
-                    return pop16();
-                }
-                else
-                {
-                    return pop8();
-                }
-            }
-
-            public int popMS()
-            {
-                if (MS == Tristate.Unknown)
-                {
-                    SL = -1;
-                    SH = -1;
-                    return -1;
-                }
-                else if (MS == Tristate.False)
-                {
-                    return pop16();
-                }
-                else
-                {
-                    return pop8();
-                }
-            }
-
-            public void pushXS(int value)
-            {
-                if (XS < 0)
-                {
-                    SL = -1;
-                    SH = -1;
-                }
-                else if (XS == 0)
-                {
-                    push16(value);
-                }
-                else
-                {
-                    push8(value);
-                }
-            }
-
-            public void pushMS(int value)
-            {
-                if (MS == Tristate.Unknown)
-                {
-                    SL = -1;
-                    SH = -1;
-                }
-                else if (MS == Tristate.False)
-                {
-                    push16(value);
-                }
-                else
-                {
-                    push8(value);
-                }
-            }
-
-
-
-            // A set of actions to take if emulation mode enabled
-            public void emulation_mode_on()
-            {
-                MS = Tristate.True;
-                XS = Tristate.True;
-                if (X >= 0)
-                {
-                    X &= 0x00ff;
-                }
-                if (Y >= 0)
-                {
-                    Y &= 0x00ff;
-                }
-                SH = 0x01;
-                E = Tristate.True;
-            }
-
-            // A set of actions to take if emulation mode enabled
-            public void emulation_mode_off()
-            {
-                E = Tristate.False;
-            }
-
-            // Helper to return the variable size accumulator
-            public int get_accumulator()
-            {
-                if (MS == Tristate.True)
-                {
-                    // 8-bit mode
-                    return A;
-                }
-                else if (MS == Tristate.False && A >= 0 && B >= 0)
-                {
-                    // 16-bit mode
-                    return (B << 8) + A;
-                }
-                else
-                {
-                    // unknown width
-                    return -1;
-                }
-            }
-
-
         }
-
-
-        public enum Tristate
-        {
-            Unknown = -1,
-            False = 0,
-            True = 1
-        }
-
-        static Tristate TriNot(Tristate s) { return s == Tristate.Unknown ? Tristate.Unknown : s == Tristate.True ? Tristate.False : Tristate.True; }
-        static Tristate FromBool(bool b) { return b ? Tristate.True : Tristate.False; }
-        static bool ToBool(Tristate t, bool def) => t == Tristate.Unknown ? def : t == Tristate.True ? true : false;
-
 
         public struct instruction_t
         {
@@ -649,19 +154,6 @@ namespace Disass65816
             public byte op3 { get; set; }
             public byte opcount { get; set; }
         }
-
-
-
-        public enum mem_access_t
-        {
-            MEM_INSTR = 0,
-            MEM_POINTER = 1,
-            MEM_DATA = 2,
-            MEM_STACK = 3,
-            MEM_FETCH = 4,
-        }
-
-
 
         public delegate int memory_reader_fn(int address);
         public delegate void memory_writer_fn(int address, int value);
@@ -730,24 +222,24 @@ namespace Disass65816
             public int Ea { get; init; }
             public bool Immediate { get; init; }
 
-            public int GetValue(Registers r, Tristate size, mem_access_t acctype)
+            public int GetValue(IRegsEmu65816 r, Tristate size)
             {
                 if (Immediate)
                     return Ea;
                 else
-                    return r.memory_read_MS(Ea, size, acctype);
+                    return r.memory_read_MS(Ea, size);
             }
 
-            public void SetValue(Registers r, Tristate size, mem_access_t acctype, int value)
+            public void SetValue(IRegsEmu65816 r, Tristate size, int value)
             {
                 if (Immediate)
                     Debug.Assert(false, "Tried to set an immediate");
                 else
-                    r.memory_write_MS(value, Ea, size, acctype);
+                    r.memory_write_MS(value, Ea, size);
             }
         }
 
-        private delegate IEnumerable<Registers> emulate_method(Registers em, operand_t operVal, instruction_t instruction);
+        private delegate IEnumerable<IRegsEmu65816> emulate_method(IRegsEmu65816 em, operand_t operVal, instruction_t instruction);
 
 
         private struct InstrType
@@ -918,7 +410,7 @@ namespace Disass65816
         };
 
 
-        public IEnumerable<Registers> em_65816_emulate(byte[] pdata, Registers regsIn, out instruction_t instruction)
+        public IEnumerable<IRegsEmu65816> em_65816_emulate(byte[] pdata, IRegsEmu65816 regsIn, out instruction_t instruction)
         {
 
             // Unpack the instruction bytes
@@ -994,7 +486,7 @@ namespace Disass65816
                             ea = (regsIn.DP & 0xff00) + (op1 & 0xff);
                         else
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
-                        ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                        ea = regsIn.memory_read16(ea);
                         if (ea > 0)
                             ea = (index + ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
@@ -1007,7 +499,7 @@ namespace Disass65816
                             ea = (regsIn.DP & 0xff00) + ((op1 + index) & 0xff);
                         else
                             ea = (regsIn.DP + op1 + index) & 0xffff; // always bank 0
-                        ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                        ea = regsIn.memory_read16(ea);
                         if (ea > 0)
                             ea = (ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
@@ -1019,7 +511,7 @@ namespace Disass65816
                             ea = (regsIn.DP & 0xff00) + (op1 & 0xff);
                         else
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
-                        ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                        ea = regsIn.memory_read16(ea);
                         if (ea > 0)
                             ea = (ea + (regsIn.DB << 16)) & 0xFFFFFF;
                     }
@@ -1027,14 +519,14 @@ namespace Disass65816
                 case AddrMode.IND16:
                     // 
                     ea = (op2 << 8) + op1;
-                    ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                    ea = regsIn.memory_read16(ea);
                     break;
                 case AddrMode.IND1X:
                     if (regsIn.X >= 0 && regsIn.PB >= 0)
                     {
                         ea = ((op2 << 8) + op1 + regsIn.X) & 0xFFFF | (regsIn.PB << 16);
                     }
-                    ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                    ea = regsIn.memory_read16(ea);
                     break;
                 case AddrMode.ABS:
                     if (regsIn.DB >= 0)
@@ -1070,7 +562,7 @@ namespace Disass65816
                     if (index >= 0 && regsIn.DB >= 0 && regsIn.SL >= 0 && regsIn.SH >= 0)
                     {
                         ea = ((regsIn.SH << 8) + regsIn.SL + op1) & 0xffff;
-                        ea = regsIn.memory_read16(ea, mem_access_t.MEM_POINTER);
+                        ea = regsIn.memory_read16(ea);
                         if (ea >= 0)
                             ea = ((regsIn.DB << 16) + ea + index) & 0xffffff;
                     }
@@ -1083,7 +575,7 @@ namespace Disass65816
                             ea = (regsIn.DP & 0xff00) + (op1 & 0xff);
                         else
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
-                        ea = regsIn.memory_read24(ea, mem_access_t.MEM_POINTER);
+                        ea = regsIn.memory_read24(ea);
                     }
                     break;
                 case AddrMode.IDLY:
@@ -1096,7 +588,7 @@ namespace Disass65816
                             ea = (regsIn.DP & 0xff00) + (op1 & 0xff);
                         else
                             ea = (regsIn.DP + op1) & 0xffff; // always bank 0
-                        ea = (regsIn.memory_read24(ea, mem_access_t.MEM_POINTER) + index) & 0xFFFFFF;
+                        ea = (regsIn.memory_read24(ea) + index) & 0xFFFFFF;
                     }
                     break;
                 case AddrMode.ABL:
@@ -1114,7 +606,7 @@ namespace Disass65816
                     // e.g. JMP [$12] (this is the only one)
                     // <opcode> <op1> <op2> <addrlo> <addrhi> <bank>
                     ea = op1 + (op2 << 8);
-                    ea = regsIn.memory_read24(ea, mem_access_t.MEM_POINTER);
+                    ea = regsIn.memory_read24(ea);
                     break;
                 case AddrMode.BRL:
                     // e.g. PER 1234 or AddrMode.BRL 1234
@@ -1176,67 +668,67 @@ namespace Disass65816
         // ====================================================================
 
         // Push Effective Absolute Address
-        static IEnumerable<Registers> op_PEA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PEA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new Registers [] { ret } ;
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Push Effective Relative Address
-        static IEnumerable<Registers> op_PER(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PER(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Push Effective Indirect Address
-        static IEnumerable<Registers> op_PEI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PEI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Push Data Bank Register
-        static IEnumerable<Registers> op_PHB(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.push8(ret.DB);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Push Program Bank Register
-        static IEnumerable<Registers> op_PHK(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHK(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.push8(ret.PB);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Push Direct Page Register
-        static IEnumerable<Registers> op_PHD(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.push16(ret.DP);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
 
         // Pull Data Bank Register
-        static IEnumerable<Registers> op_PLB(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.DB = ret.pop8();
             ret.set_NZ8(ret.DB);
-            return new Registers[] { ret };
+            return new IRegsEmu65816 [] { ret };
         }
         
         // Pull Direct Page Register
-        static IEnumerable<Registers> op_PLD(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.DP = ret.pop16();
@@ -1244,7 +736,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static void op_MV(Registers regs, int sba, int dba, int dir)
+        static void op_MV(IRegsEmu65816 regs, int sba, int dba, int dir)
         {
 
             int C = -1;
@@ -1256,11 +748,11 @@ namespace Disass65816
                 data = -1;
                 if (regs.X >= 0)
                 {
-                    data = regs.memory_read((sba << 16) + regs.X, mem_access_t.MEM_DATA);
+                    data = regs.memory_read((sba << 16) + regs.X);
                 }
                 if (regs.Y >= 0)
                 {
-                    regs.memory_write(data, (dba << 16) + regs.Y, mem_access_t.MEM_DATA);
+                    regs.memory_write(data, (dba << 16) + regs.Y);
                 }
                 if (regs.A >= 0 && regs.B >= 0)
                 {
@@ -1289,7 +781,7 @@ namespace Disass65816
         }
 
         // Block Move (Decrementing)
-        static IEnumerable<Registers> op_MVP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_MVP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             op_MV(ret, instr.op1, instr.op2, -1);
@@ -1297,7 +789,7 @@ namespace Disass65816
         }
 
         // Block Move (Incrementing)
-        static IEnumerable<Registers> op_MVN(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_MVN(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             op_MV(ret, instr.op1, instr.op2, 1);
@@ -1305,7 +797,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer ret.C accumulator to Direct Page register
-        static IEnumerable<Registers> op_TCD(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TCD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Always a 16-bit transfer
@@ -1323,7 +815,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer ret.C accumulator to Stack pointer
-        static IEnumerable<Registers> op_TCS(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TCS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.SH = ret.B;
@@ -1332,7 +824,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer Direct Page register to ret.C accumulator
-        static IEnumerable<Registers> op_TDC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TDC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Always a 16-bit transfer
@@ -1352,7 +844,7 @@ namespace Disass65816
         }
 
         // Transfer Transfer Stack pointer to ret.C accumulator
-        static IEnumerable<Registers> op_TSC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TSC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Always a 16-bit transfer
@@ -1369,7 +861,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TXY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Variable size transfer controlled by ret.XS
@@ -1386,7 +878,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TYX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TYX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Variable size transfer controlled by ret.XS
@@ -1404,7 +896,7 @@ namespace Disass65816
         }
 
         // Exchange ret.A and ret.B
-        static IEnumerable<Registers> op_XBA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_XBA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             int tmp = ret.A;
@@ -1422,13 +914,13 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_XCE(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_XCE(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             Tristate tmp = ret.C;
             ret.C = ret.E;
             ret.E = tmp;
-            if (tmp == Tristate.Unknown)
+            if (tmp.IsUnknown)
             {
                 ret.MS = Tristate.Unknown;
                 ret.XS = Tristate.Unknown;
@@ -1445,62 +937,24 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static void repsep(Registers regs, int operand, Tristate val)
-        {
-            if ((operand & 0x80) != 0)
-            {
-                regs.N = val;
-            }
-            if ((operand & 0x40) != 0)
-            {
-                regs.V = val;
-            }
-            if (regs.E == Tristate.False)
-            {
-                if ((operand & 0x20) != 0)
-                {
-                    regs.MS = val;
-                }
-                if ((operand & 0x10) != 0)
-                {
-                    regs.XS = val;
-                }
-            }
-            if ((operand & 0x08) != 0)
-            {
-                regs.D = val;
-            }
-            if ((operand & 0x04) != 0)
-            {
-                regs.I = val;
-            }
-            if ((operand & 0x02) != 0)
-            {
-                regs.Z = val;
-            }
-            if ((operand & 0x01) != 0)
-            {
-                regs.C = val;
-            }
-        }
 
         // Reset/Set Processor Status Bits
-        static IEnumerable<Registers> op_REP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_REP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            repsep(ret, operand.Ea, Tristate.False);
+            ret.repsep(operand.Ea, Tristate.False);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_SEP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            repsep(ret, operand.Ea, Tristate.False);
+            ret.repsep(operand.Ea, Tristate.False);
             return new [] { ret };
         }
 
         // Jump to Subroutine Long
-        static IEnumerable<Registers> op_JSL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_JSL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.push8(ret.PB); 
@@ -1520,7 +974,7 @@ namespace Disass65816
         }
 
         // Return from Subroutine Long
-        static IEnumerable<Registers> op_RTL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_RTL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // RTL: the operand is the data pulled from the stack (PCL, PCH, PB)
@@ -1537,13 +991,13 @@ namespace Disass65816
         // 65816/6502 instructions
         // ====================================================================
 
-        static IEnumerable<Registers> op_ADC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ADC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             int acc = ret.get_accumulator();
-            if (acc >= 0 && ret.C != Tristate.Unknown && ret.D != Tristate.Unknown && val >= 0)
+            if (acc >= 0 && !ret.C.IsUnknown && !ret.D.IsUnknown && val >= 0)
             {
                 int tmp = 0;
                 if (ret.D == Tristate.True)
@@ -1555,8 +1009,8 @@ namespace Disass65816
                         int an = (acc >> bit) & 0xF;
                         int bn = (val >> bit) & 0xF;
                         int rn = an + bn + (ret.C == Tristate.True ? 1 : 0);
-                        ret.V = FromBool(((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) == 0);
-                        ret.C = 0;
+                        ret.V = (((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) == 0);
+                        ret.C = false;
                         if (rn >= 10)
                         {
                             rn = (rn - 10) & 0xF;
@@ -1572,14 +1026,14 @@ namespace Disass65816
                     if (ret.MS == Tristate.True)
                     {
                         // 8-bit mode
-                        ret.C = FromBool(((tmp >> 8) & 1) != 0);
-                        ret.V = FromBool(((acc ^ val) & 0x80) == 0 && ((acc ^ tmp) & 0x80) != 0);
+                        ret.C = (((tmp >> 8) & 1) != 0);
+                        ret.V = (((acc ^ val) & 0x80) == 0 && ((acc ^ tmp) & 0x80) != 0);
                     }
                     else
                     {
                         // 16-bit mode
-                        ret.C = FromBool(((tmp >> 16) & 1) != 0);
-                        ret.V = FromBool(((acc ^ val) & 0x8000) == 0 && ((acc ^ tmp) & 0x8000) != 0);
+                        ret.C = (((tmp >> 16) & 1) != 0);
+                        ret.V = (((acc ^ val) & 0x8000) == 0 && ((acc ^ tmp) & 0x8000) != 0);
                     }
                 }
                 if (ret.MS == Tristate.True)
@@ -1593,7 +1047,7 @@ namespace Disass65816
                     ret.A = tmp & 0xff;
                     ret.B = (tmp >> 8) & 0xff;
                 }
-                ret.set_NZ_AB(ret.A, ret.B);
+                ret.set_NZ_AB();
             }
             else
             {
@@ -1604,10 +1058,10 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_AND(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_AND(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
@@ -1627,29 +1081,29 @@ namespace Disass65816
                     else
                         ret.B = -1;
                 }
-                else if (ret.MS == Tristate.Unknown)
+                else if (ret.MS.IsUnknown)
                 {
                     ret.B = -1;
                 }
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ASLA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ASLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
             // Compute the new carry
             if (ret.MS == Tristate.True && ret.A >= 0)
             {
                 // 8-bit mode
-                ret.C = FromBool(((ret.A >> 7) & 1) != 0);
+                ret.C = (((ret.A >> 7) & 1) != 0);
             }
             else if (ret.MS == Tristate.False && ret.B >= 0)
             {
                 // 16-bit mode
-                ret.C = FromBool(((ret.B >> 7) & 1) != 0);
+                ret.C = (((ret.B >> 7) & 1) != 0);
             }
             else
             {
@@ -1668,7 +1122,7 @@ namespace Disass65816
                     ret.B = -1;
                 }
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
@@ -1678,26 +1132,26 @@ namespace Disass65816
                 ret.A = (ret.A << 1) & 0xff;
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ASL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ASL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             int tmp;
             if (ret.MS == Tristate.True && val >= 0)
             {
                 // 8-bit mode
-                ret.C = FromBool(((val >> 7) & 1) != 0);
+                ret.C = ((val >> 7) & 1) != 0;
                 tmp = (val << 1) & 0xff;
                 ret.set_NZ8(tmp);
             }
             else if (ret.MS == Tristate.False && val >= 0)
             {
                 // 16-bit mode
-                ret.C = FromBool(((val >> 15) & 1) != 0);
+                ret.C = ((val >> 15) & 1) != 0;
                 tmp = (val << 1) & 0xffff;
                 ret.set_NZ16(tmp);
             }
@@ -1709,14 +1163,14 @@ namespace Disass65816
                 ret.set_NZ_unknown();
             }
 
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
 
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BCC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BCC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            if (ret.C == Tristate.Unknown)
+            if (ret.C.IsUnknown)
                 ret.PC = -1;
             else if (ret.C == Tristate.False)
                 ret.PC = operand.Ea;
@@ -1724,9 +1178,9 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BCS(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BCS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            if (ret.C == Tristate.Unknown)
+            if (ret.C.IsUnknown)
                 ret.PC = -1;
             else if (ret.C == Tristate.True)
                 ret.PC = operand.Ea;
@@ -1734,10 +1188,10 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BNE(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BNE(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            if (ret.Z == Tristate.Unknown)
+            if (ret.Z.IsUnknown)
                 ret.PC = -1;
             else if (ret.Z == Tristate.False)
                 ret.PC = operand.Ea;
@@ -1745,9 +1199,9 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BEQ(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BEQ(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            if (ret.Z == Tristate.Unknown)
+            if (ret.Z.IsUnknown)
                 ret.PC = -1;
             else if (ret.Z == Tristate.True)
                 ret.PC = operand.Ea;
@@ -1755,10 +1209,10 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BPL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BPL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            if (ret.N == Tristate.Unknown)
+            if (ret.N.IsUnknown)
                 ret.PC = -1;
             else if (ret.N == Tristate.False)
                 ret.PC = operand.Ea;
@@ -1766,10 +1220,10 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BMI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BMI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            if (ret.N == Tristate.Unknown)
+            if (ret.N.IsUnknown)
                 ret.PC = -1;
             else if (ret.N == Tristate.True)
                 ret.PC = operand.Ea;
@@ -1777,10 +1231,10 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BVC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BVC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            if (ret.V == Tristate.Unknown)
+            if (ret.V.IsUnknown)
                 ret.PC = -1;
             else if (ret.V == Tristate.False)
                 ret.PC = operand.Ea;
@@ -1788,10 +1242,10 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BVS(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BVS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            if (ret.V == Tristate.Unknown)
+            if (ret.V.IsUnknown)
                 ret.PC = -1;
             else if (ret.V == Tristate.True)
                 ret.PC = operand.Ea;
@@ -1799,19 +1253,19 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BRA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BRA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = operand.Ea;
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BRL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BRL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = operand.Ea;
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_BIT_IMM(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BIT_IMM(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
             var val = operand.Ea;
@@ -1824,7 +1278,7 @@ namespace Disass65816
             else if (acc >= 0)
             {
                 // both acc and operand will be the correct width
-                ret.Z = FromBool((acc & val) == 0);
+                ret.Z = (acc & val) == 0;
             }
             else
             {
@@ -1833,10 +1287,10 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_BIT(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BIT(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
             int acc = ret.get_accumulator();
             if (val == 0 || acc == 0)
             {
@@ -1846,69 +1300,69 @@ namespace Disass65816
             else if (acc >= 0)
             {
                 // both acc and operand will be the correct width
-                ret.Z = FromBool((acc & val) == 0);
+                ret.Z = (acc & val) == 0;
             }
             else
             {
                 ret.Z = Tristate.Unknown;
             }
 
-            if (ret.MS == Tristate.Unknown || val < 0)
+            if (ret.MS.IsUnknown || val < 0)
             {
                 ret.N = Tristate.Unknown;
                 ret.V = Tristate.Unknown;
             }
             else if (ret.MS == Tristate.True)
             {
-                ret.N = FromBool((val & 0x80) != 0);
-                ret.V = FromBool((val & 0x40) != 0);
+                ret.N = (val & 0x80) != 0;
+                ret.V = (val & 0x40) != 0;
             }
             else if (ret.MS == Tristate.False)
             {
-                ret.N = FromBool((val & 0x8000) != 0);
-                ret.V = FromBool((val & 0x4000) != 0);
+                ret.N = (val & 0x8000) != 0;
+                ret.V = (val & 0x4000) != 0;
             }
 
             return new[] { ret };
 
         }
 
-        static IEnumerable<Registers> op_CLC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CLC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
-            ret.C = 0;
+
+            ret.C = false;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLD(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CLD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            ret.D = 0;
+            ret.D = false;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CLI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            ret.I = 0;
+            ret.I = false;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CLV(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CLV(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            ret.V = 0;
+            ret.V = false;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CMP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CMP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
             int acc = ret.get_accumulator();
             if (acc >= 0 && val >= 0)
             {
                 int tmp = acc - val;
-                ret.C = FromBool(tmp >= 0);
+                ret.C = tmp >= 0;
                 ret.set_NZ_MS(tmp);
             }
             else
@@ -1918,15 +1372,15 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CPX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CPX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.XS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.XS);
 
             if (ret.X >= 0 && val >= 0)
             {
                 int tmp = ret.X - val;
-                ret.C = FromBool(tmp >= 0);
+                ret.C = tmp >= 0;
                 ret.set_NZ_XS(tmp);
             }
             else
@@ -1936,15 +1390,15 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_CPY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_CPY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.XS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.XS);
 
             if (ret.Y >= 0 && val >= 0)
             {
                 int tmp = ret.Y - val;
-                ret.C = FromBool(tmp >= 0);
+                ret.C = tmp >= 0;
                 ret.set_NZ_XS(tmp);
             }
             else
@@ -1954,7 +1408,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DECA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_DECA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Compute the new ret.A
@@ -1974,19 +1428,19 @@ namespace Disass65816
                     ret.B = -1;
                 }
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DEC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_DEC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             int tmp = -1;
             if (ret.MS == Tristate.True)
@@ -2006,12 +1460,12 @@ namespace Disass65816
                 ret.set_NZ_unknown();
             }
 
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
 
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_DEX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_DEX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             if (ret.X >= 0)
@@ -2042,7 +1496,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_DEY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_DEY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             if (ret.Y >= 0)
@@ -2073,9 +1527,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_EOR(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_EOR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
@@ -2089,17 +1543,17 @@ namespace Disass65816
                 {
                     ret.B = ret.B ^ (val >> 8);
                 }
-                else if (ret.MS == Tristate.Unknown)
+                else if (ret.MS.IsUnknown)
                 {
                     ret.B = -1;
                 }
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INCA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_INCA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Compute the new ret.A
@@ -2119,19 +1573,19 @@ namespace Disass65816
                     ret.B = -1;
                 }
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_INC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             int tmp = -1;
             if (ret.MS == Tristate.True)
@@ -2151,11 +1605,11 @@ namespace Disass65816
                 ret.set_NZ_unknown();
             }
 
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_INX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_INX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             if (ret.X >= 0)
@@ -2186,7 +1640,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_INY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_INY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             if (ret.Y >= 0)
@@ -2217,7 +1671,7 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_JSR(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_JSR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
                
             // JAddrMode.SR: the operand is the data ret.pushed to the stack (PCH, PCL)
@@ -2226,9 +1680,9 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_LDA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
             if (val >= 0)
                 ret.A = val & 0xff;
             else
@@ -2240,39 +1694,39 @@ namespace Disass65816
                     ret.B = (val >> 8) & 0xff;
                 else
                     ret.B = -1;
-            } else if (ret.MS == Tristate.Unknown)
+            } else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_LDX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.XS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.XS);
             ret.X = val;
             ret.set_NZ_XS(ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LDY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_LDY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.XS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.XS);
             ret.Y = val;
             ret.set_NZ_XS(ret.Y);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LSRA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_LSRA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Compute the new carry
             if (ret.A >= 0)
             {
-                ret.C = FromBool((ret.A & 1) != 0);
+                ret.C = (ret.A & 1) != 0;
             }
             else
             {
@@ -2296,22 +1750,22 @@ namespace Disass65816
             {
                 ret.B = (ret.B >> 1) & 0xff;
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_LSR(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_LSR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             int tmp;
-            ret.C = FromBool((val & 1) != 0);
+            ret.C = (val & 1) != 0;
             if (ret.MS == Tristate.True)
             {
                 // 8-bit mode
@@ -2330,13 +1784,13 @@ namespace Disass65816
                 tmp = -1;
                 ret.set_NZ_unknown();
             }
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_ORA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ORA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             // ret.A is always updated, regardless of the size
             if (ret.A >= 0)
@@ -2350,71 +1804,71 @@ namespace Disass65816
                 {
                     ret.B = ret.B | (val >> 8);
                 }
-                else if (ret.MS == Tristate.Unknown)
+                else if (ret.MS.IsUnknown)
                 {
                     ret.B = -1;
                 }
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             var acc = ret.get_accumulator();
             ret.pushMS(acc);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {            
             ret.push8(ret.get_FLAGS());
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.pushXS(ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PHY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PHY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.pushXS(ret.Y);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.A = ret.popMS();
             ret.set_NZ_MS(ret.A);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             var tmp = ret.pop8();
             ret.set_FLAGS(tmp);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.X = ret.popXS();
             ret.set_NZ_XS(ret.X);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_PLY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_PLY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.Y = ret.popXS();
             ret.set_NZ_XS(ret.Y);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROLA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ROLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Save the old carry
@@ -2423,12 +1877,12 @@ namespace Disass65816
             if (ret.MS == Tristate.True && ret.A >= 0)
             {
                 // 8-bit mode
-                ret.C = FromBool(((ret.A >> 7) & 1) != 0);
+                ret.C = ((ret.A >> 7) & 1) != 0;
             }
             else if (ret.MS == Tristate.False && ret.B >= 0)
             {
                 // 16-bit mode
-                ret.C = FromBool(((ret.B >> 7) & 1) != 0);
+                ret.C = ((ret.B >> 7) & 1) != 0;
             }
             else
             {
@@ -2447,14 +1901,14 @@ namespace Disass65816
                     ret.B = -1;
                 }
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
             // Compute the new ret.A
             if (ret.A >= 0)
             {
-                if (oldC != Tristate.Unknown)
+                if (!oldC.IsUnknown)
                 {
                     ret.A = ((ret.A << 1) | ((oldC == Tristate.True) ? 1 : 0)) & 0xff;
                 }
@@ -2464,29 +1918,29 @@ namespace Disass65816
                 }
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROL(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ROL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             Tristate oldC = ret.C;
             int tmp;
-            if (ret.MS == Tristate.True && oldC != Tristate.Unknown)
+            if (ret.MS == Tristate.True && !oldC.IsUnknown)
             {
                 // 8-bit mode
-                ret.C = FromBool(((val >> 7) & 1) != 0);
-                tmp = ((val << 1) | (int)oldC) & 0xff;
+                ret.C = ((val >> 7) & 1) != 0;
+                tmp = ((val << 1) | (oldC==true?1:0)) & 0xff;
                 ret.set_NZ8(tmp);
             }
-            else if (ret.MS == Tristate.False && oldC != Tristate.Unknown)
+            else if (ret.MS == Tristate.False && !oldC.IsUnknown)
             {
                 // 16-bit mode
-                ret.C = FromBool(((val >> 15) & 1) != 0);
-                tmp = ((val << 1) | (int)oldC) & 0xffff;
+                ret.C = ((val >> 15) & 1) != 0;
+                tmp = ((val << 1) | (oldC == true ? 1 : 0)) & 0xffff;
                 ret.set_NZ16(tmp);
             }
             else
@@ -2496,25 +1950,25 @@ namespace Disass65816
                 ret.set_NZ_unknown();
             }
 
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_RORA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_RORA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // Save the old carry
             Tristate oldC = ret.C;
             // Compute the new carry
             if (ret.A >= 0)
-                ret.C = FromBool((ret.A & 1) != 0);
+                ret.C = (ret.A & 1) != 0;
             else
                 ret.C = Tristate.Unknown;
 
             // Compute the new ret.A
-            if (ret.MS == Tristate.True && ret.A >= 0 && ret.C != Tristate.Unknown)
+            if (ret.MS == Tristate.True && ret.A >= 0 && !ret.C.IsUnknown)
             {
-                ret.A = ((ret.A >> 1) | ((int)oldC << 7)) & 0xff;
+                ret.A = ((ret.A >> 1) | (oldC == true ? 0x80 : 0)) & 0xff;
             }
             else if (ret.MS == Tristate.False && ret.A >= 0 && ret.B >= 0)
             {
@@ -2525,40 +1979,40 @@ namespace Disass65816
                 ret.A = -1;
             }
             // Compute the new ret.B
-            if (ret.MS == Tristate.False && ret.B >= 0 && oldC != Tristate.Unknown)
+            if (ret.MS == Tristate.False && ret.B >= 0 && !oldC.IsUnknown)
             {
-                ret.B = ((ret.B >> 1) | ((int)oldC << 7)) & 0xff;
+                ret.B = ((ret.B >> 1) | (oldC == true ? 0x80 : 0)) & 0xff;
             }
-            else if (ret.MS == Tristate.Unknown)
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
-            else if (ret.MS == Tristate.False && oldC == Tristate.Unknown)
+            else if (ret.MS == Tristate.False && oldC.IsUnknown)
             {
                 ret.B = -1;
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
-            ret.set_NZ_AB(ret.A, ret.B);
+            ret.set_NZ_AB();
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_ROR(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_ROR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
 
             Tristate oldC = ret.C;
             int tmp;
-            ret.C = FromBool((val & 1) != 0);
+            ret.C = (val & 1) != 0;
             if (ret.MS == Tristate.True)
             {
                 // 8-bit mode
-                tmp = ((val >> 1) | ((int)oldC << 7)) & 0xff;
+                tmp = ((val >> 1) | (oldC == true ? 0x80 : 0)) & 0xff;
                 ret.set_NZ8(tmp);
             }
             else if (ret.MS == Tristate.False)
             {
                 // 16-bit mode
-                tmp = ((val >> 1) | ((int)oldC << 15)) & 0xffff;
+                tmp = ((val >> 1) | (oldC == true ? 0x8000 : 0)) & 0xffff;
                 ret.set_NZ16(tmp);
             }
             else
@@ -2567,11 +2021,11 @@ namespace Disass65816
                 tmp = -1;
                 ret.set_NZ_unknown();
             }
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_RTS(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_RTS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // RTS: the operand is the data pulled from the stack (PCL, PCH)
@@ -2584,13 +2038,13 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_RTI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_RTI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             // RTI: the operand is the data pulled from the stack (P, PCL, PCH, PBR)
             ret.set_FLAGS(ret.pop8());
             ret.PC = ret.pop16();
-            if (ret.E == Tristate.Unknown)
+            if (ret.E.IsUnknown)
             {
                 ret.SH = -1;
                 ret.SL = -1;
@@ -2602,11 +2056,11 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SBC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_SBC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
             int acc = ret.get_accumulator();
-            if (acc >= 0 && ret.C != Tristate.Unknown && ret.MS != Tristate.Unknown)
+            if (acc >= 0 && !ret.C.IsUnknown && !ret.MS.IsUnknown)
             {
                 int tmp = 0;
                 if (ret.D == Tristate.True)
@@ -2617,13 +2071,13 @@ namespace Disass65816
                     {
                         int an = (acc >> bit) & 0xF;
                         int bn = (val >> bit) & 0xF;
-                        int rn = an - bn - (1 - (int)ret.C);
-                        ret.V = FromBool(((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) != 0);
+                        int rn = an - bn - (ret.C == true ? 0 : 1);
+                        ret.V = ((rn ^ an) & 8) != 0 && ((bn ^ an) & 8) != 0;
                         ret.C = Tristate.True;
                         if (rn < 0)
                         {
                             rn = (rn + 10) & 0xF;
-                            ret.C = 0;
+                            ret.C = false;
                         }
                         tmp |= rn << bit;
                     }
@@ -2631,18 +2085,18 @@ namespace Disass65816
                 else
                 {
                     // Normal mode SBC
-                    tmp = acc - val - (1 - (int)ret.C);
+                    tmp = acc - val - (ret.C == true ? 0 : 1);
                     if (ret.MS == Tristate.True)
                     {
                         // 8-bit mode
-                        ret.C = FromBool(((tmp >> 8) & 1) == 0);
-                        ret.V = FromBool(((acc ^ val) & 0x80) != 0 && ((acc ^ tmp) & 0x80) != 0);
+                        ret.C = ((tmp >> 8) & 1) == 0;
+                        ret.V = ((acc ^ val) & 0x80) != 0 && ((acc ^ tmp) & 0x80) != 0;
                     }
                     else
                     {
                         // 16-bit mode
-                        ret.C = FromBool(((tmp >> 16) & 1) == 0);
-                        ret.V = FromBool(((acc ^ val) & 0x8000) != 0 && ((acc ^ tmp) & 0x8000) != 0);
+                        ret.C = ((tmp >> 16) & 1) == 0;
+                        ret.V = ((acc ^ val) & 0x8000) != 0 && ((acc ^ tmp) & 0x8000) != 0;
                     }
                 }
                 if (ret.MS == Tristate.True)
@@ -2656,7 +2110,7 @@ namespace Disass65816
                     ret.A = tmp & 0xff;
                     ret.B = (tmp >> 8) & 0xff;
                 }
-                ret.set_NZ_AB(ret.A, ret.B);
+                ret.set_NZ_AB();
             }
             else
             {
@@ -2667,64 +2121,64 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEC(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_SEC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.C = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SED(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_SED(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.D = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_SEI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_SEI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.I = Tristate.True;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_STA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_STA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
             var acc = ret.get_accumulator();
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, acc);
+            operand.SetValue(ret, ret.MS, acc);
 
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_STX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_STX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            operand.SetValue(ret, ret.XS, mem_access_t.MEM_DATA, ret.X);
+            operand.SetValue(ret, ret.XS, ret.X);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_STY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_STY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            operand.SetValue(ret, ret.XS, mem_access_t.MEM_DATA, ret.Y);
+            operand.SetValue(ret, ret.XS, ret.Y);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_STZ(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_STZ(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, 0);
+            operand.SetValue(ret, ret.MS, 0);
             return new[] { ret };
         }
 
 
-        static IEnumerable<Registers> op_TSB(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TSB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);            
+            var val = operand.GetValue(ret, ret.MS);            
             int acc = ret.get_accumulator();
             int tmp;
             if (acc >= 0)
             {
-                ret.Z = FromBool((acc & val) == 0);
+                ret.Z = (acc & val) == 0;
                 tmp = val | acc;
             }
             else
@@ -2732,18 +2186,18 @@ namespace Disass65816
                 ret.Z = Tristate.Unknown;
                 tmp = -1;
             }
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_TRB(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TRB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS, mem_access_t.MEM_DATA);
+            var val = operand.GetValue(ret, ret.MS);
             int acc = ret.get_accumulator();
             int tmp;
             if (acc >= 0)
             {
-                ret.Z = FromBool((acc & val) == 0);
+                ret.Z = (acc & val) == 0;
                 tmp = val & ~acc;
             }
             else
@@ -2751,12 +2205,12 @@ namespace Disass65816
                 ret.Z = Tristate.Unknown;
                 tmp = -1;
             }
-            operand.SetValue(ret, ret.MS, mem_access_t.MEM_DATA, tmp);
+            operand.SetValue(ret, ret.MS, tmp);
             return new[] { ret };
         }
 
         // This is used to implement: TAX, TAY, TSX
-        static int transfer_88_16(Registers ret, int srchi, int srclo)
+        static int transfer_88_16(IRegsEmu65816 ret, int srchi, int srclo)
         {
             int dst;
             if (srclo >= 0 && srchi >= 0 && ret.XS == Tristate.False)
@@ -2780,7 +2234,7 @@ namespace Disass65816
         }
 
         // This is used to implement: TXret.A, TYret.A
-        static (int, int) transfer_16_88(Registers ret, int src, int defhi)
+        static (int, int) transfer_16_88(IRegsEmu65816 ret, int src, int defhi)
         {
             int dsthi = defhi, dstlo;
             if (ret.MS == Tristate.False)
@@ -2831,35 +2285,35 @@ namespace Disass65816
             return (dsthi, dstlo);
         }
 
-        static IEnumerable<Registers> op_TAX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TAX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
             ret.X = transfer_88_16(ret, ret.B, ret.A);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TAY(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TAY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.Y = transfer_88_16(ret, ret.B, ret.A);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TSX(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TSX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.X = transfer_88_16(ret, ret.SH, ret.SL);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TXA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             (ret.B, ret.A) = transfer_16_88(ret, ret.X, ret.B);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TXS(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TXS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             if (ret.X >= 0)
@@ -2880,23 +2334,23 @@ namespace Disass65816
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_TYA(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_TYA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             (ret.B, ret.A) = transfer_16_88(ret, ret.Y, ret.B);
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_BRK(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_BRK(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
-            if (ret.E == Tristate.Unknown)
+            if (ret.E.IsUnknown)
                 ret.PC = -1;
             else if (ret.E == Tristate.True)
             {
                 ret.push16(ret.PC);
                 ret.push8(ret.get_FLAGS() | 0x30);
-                ret.PC = ret.memory_read16(0xFFFE, mem_access_t.MEM_INSTR);
+                ret.PC = ret.memory_read16(0xFFFE);
             }
             else
             {
@@ -2904,25 +2358,25 @@ namespace Disass65816
                 ret.push16(ret.PC);
                 ret.push8(ret.get_FLAGS() | 0x30);
                 ret.PB = 0;
-                ret.PC = ret.memory_read16(0xFFEE, mem_access_t.MEM_INSTR);
+                ret.PC = ret.memory_read16(0xFFEE);
             }
             ret.I = Tristate.True;
             ret.D = Tristate.False;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_COP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_COP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             
             ret.I = Tristate.True;
             ret.D = Tristate.True;
-            if (ret.E == Tristate.Unknown)
+            if (ret.E.IsUnknown)
                 ret.PC = -1;
             else if (ret.E == Tristate.True)
             {
                 ret.push16(ret.PC);
                 ret.push8(ret.get_FLAGS() | 0x30);
-                ret.PC = ret.memory_read16(0xFFFE, mem_access_t.MEM_INSTR);
+                ret.PC = ret.memory_read16(0xFFFE);
             }
             else
             {
@@ -2930,24 +2384,24 @@ namespace Disass65816
                 ret.push16(ret.PC);
                 ret.push8(ret.get_FLAGS() | 0x30);
                 ret.PB = 0;
-                ret.PC = ret.memory_read16(0xFFEE, mem_access_t.MEM_INSTR);
+                ret.PC = ret.memory_read16(0xFFEE);
             }
             ret.I = Tristate.True;
             ret.D = Tristate.False;
             return new [] { ret };
         }
 
-        static IEnumerable<Registers> op_WDM(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_WDM(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_NOP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_NOP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_JMP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_JMP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             if (operand.Ea < 0)
                 ret.PC = -1;
@@ -2957,7 +2411,7 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_JML(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_JML(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             if (operand.Ea < 0)
             {  ret.PC = -1;
@@ -2970,13 +2424,13 @@ namespace Disass65816
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_STP(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_STP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = instr.pc;
             return new[] { ret };
         }
 
-        static IEnumerable<Registers> op_WAI(Registers ret, operand_t operand, instruction_t instr)
+        static IEnumerable<IRegsEmu65816> op_WAI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = instr.pc;
             return new[] { ret };
