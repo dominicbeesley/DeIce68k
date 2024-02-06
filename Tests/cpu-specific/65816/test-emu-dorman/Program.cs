@@ -189,21 +189,13 @@ All flags = Unknown
                         log?.WriteLine();
 
                         Emulate65816.instruction_t instr;
-                        var regsNext = em.em_65816_emulate(pdata, regs, out instr);
-                        var regsN0 = regsNext.FirstOrDefault();
-                        if (regsN0 == null)
-                        {
-                            Console.Error.WriteLine($"Instruction at {regs.PC:X4} failed to emulate");
-                            return -4;
-                        }
-                        if (regsN0.PC == regs.PC)
+                        em.em_65816_emulate(pdata, regs, out instr);
+                        if (instr.pc == regs.PC)
                         {
                             Console.Error.WriteLine($"Stuck at PC={regs.PC:X4} - end of Dormann tests");
                             return -6;
                         }
-                        log?.Write(regsN0.ToString());
-
-                        regs = regsN0;
+                        log?.Write(regs.ToString());
 
                         instructions++;
                         //                    if (instructions > 100000000)

@@ -625,7 +625,7 @@ namespace Disass65816.Emulate
                 case AddrMode.IMMM:
                     immediate = true;
                     if (regsIn.MS == Tristate.False)
-                        ea = op1 + (op2 <<8);
+                        ea = op1 + (op2 << 8);
                     else if (regsIn.MS == Tristate.True)
                         ea = op1;
                     else
@@ -646,16 +646,15 @@ namespace Disass65816.Emulate
                     break;
             }
 
-            var ret = regsIn.Clone();
             if (instruction.opcount < 0)
-                ret.PC = -1;
+                regsIn.PC = -1;
             else
-                ret.PC = (ret.PC + 1 + instruction.opcount) & 0xFFFF;
+                regsIn.PC = (regsIn.PC + 1 + instruction.opcount) & 0xFFFF;
 
             operand_t operand = new operand_t { Immediate = immediate, Ea = ea };
             // Execute the instruction specific function
             // (This returns -1 if the result is unknown or invalid)
-            return instr.emulate(ret, operand, instruction);
+            return instr.emulate(regsIn, operand, instruction);
 
         }
 
@@ -670,70 +669,71 @@ namespace Disass65816.Emulate
         // Push Effective Absolute Address
         static IEnumerable<IRegsEmu65816> op_PEA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Push Effective Relative Address
         static IEnumerable<IRegsEmu65816> op_PER(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
+
         }
 
         // Push Effective Indirect Address
         static IEnumerable<IRegsEmu65816> op_PEI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // always pushes a 16-bit value
             ret.push16(operand.Ea);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Push Data Bank Register
         static IEnumerable<IRegsEmu65816> op_PHB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.push8(ret.DB);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Push Program Bank Register
         static IEnumerable<IRegsEmu65816> op_PHK(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.push8(ret.PB);
-            return new IRegsEmu65816 [] { ret };
+            return new IRegsEmu65816[] { ret };
         }
 
         // Push Direct Page Register
         static IEnumerable<IRegsEmu65816> op_PHD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.push16(ret.DP);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Pull Data Bank Register
         static IEnumerable<IRegsEmu65816> op_PLB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.DB = ret.pop8();
             ret.set_NZ8(ret.DB);
-            return new IRegsEmu65816 [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
-        
+
         // Pull Direct Page Register
         static IEnumerable<IRegsEmu65816> op_PLD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.DP = ret.pop16();
             ret.set_NZ16(ret.DP);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static void op_MV(IRegsEmu65816 regs, int sba, int dba, int dir)
@@ -783,23 +783,23 @@ namespace Disass65816.Emulate
         // Block Move (Decrementing)
         static IEnumerable<IRegsEmu65816> op_MVP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             op_MV(ret, instr.op1, instr.op2, -1);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Block Move (Incrementing)
         static IEnumerable<IRegsEmu65816> op_MVN(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             op_MV(ret, instr.op1, instr.op2, 1);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Transfer Transfer ret.C accumulator to Direct Page register
         static IEnumerable<IRegsEmu65816> op_TCD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Always a 16-bit transfer
             if (ret.B >= 0 && ret.A >= 0)
             {
@@ -811,22 +811,22 @@ namespace Disass65816.Emulate
                 ret.DP = -1;
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Transfer Transfer ret.C accumulator to Stack pointer
         static IEnumerable<IRegsEmu65816> op_TCS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.SH = ret.B;
             ret.SL = ret.A;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Transfer Transfer Direct Page register to ret.C accumulator
         static IEnumerable<IRegsEmu65816> op_TDC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Always a 16-bit transfer
             if (ret.DP >= 0)
             {
@@ -840,13 +840,13 @@ namespace Disass65816.Emulate
                 ret.B = -1;
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Transfer Transfer Stack pointer to ret.C accumulator
         static IEnumerable<IRegsEmu65816> op_TSC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Always a 16-bit transfer
             ret.A = ret.SL;
             ret.B = ret.SH;
@@ -858,12 +858,12 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TXY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Variable size transfer controlled by ret.XS
             if (ret.X >= 0)
             {
@@ -875,12 +875,12 @@ namespace Disass65816.Emulate
                 ret.Y = -1;
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TYX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Variable size transfer controlled by ret.XS
             if (ret.Y >= 0)
             {
@@ -892,13 +892,13 @@ namespace Disass65816.Emulate
                 ret.X = -1;
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Exchange ret.A and ret.B
         static IEnumerable<IRegsEmu65816> op_XBA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             int tmp = ret.A;
             ret.A = ret.B;
             ret.B = tmp;
@@ -911,12 +911,12 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_XCE(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             Tristate tmp = ret.C;
             ret.C = ret.E;
             ret.E = tmp;
@@ -934,57 +934,58 @@ namespace Disass65816.Emulate
             {
                 ret.emulation_mode_off();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
 
         // Reset/Set Processor Status Bits
         static IEnumerable<IRegsEmu65816> op_REP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.repsep(operand.Ea, Tristate.False);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_SEP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.repsep(operand.Ea, Tristate.False);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Jump to Subroutine Long
         static IEnumerable<IRegsEmu65816> op_JSL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
-            ret.push8(ret.PB); 
+
+            ret.push8(ret.PB);
             ret.push16(ret.PC);
 
-            if (operand.Ea >=0 )
+            if (operand.Ea >= 0)
             {
                 ret.PC = operand.Ea & 0xFFFF;
                 ret.PB = (operand.Ea & 0xFF0000) >> 16;
-            } else
+            }
+            else
             {
                 ret.PC = -1;
                 ret.PB = -1;
             }
 
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // Return from Subroutine Long
         static IEnumerable<IRegsEmu65816> op_RTL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // RTL: the operand is the data pulled from the stack (PCL, PCH, PB)
             ret.PC = ret.pop16();
             ret.PB = ret.pop8();
 
             if (ret.PC >= 0)
-                ret.PC = (ret.PC + 1 ) & 0xFFFF;
+                ret.PC = (ret.PC + 1) & 0xFFFF;
 
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // ====================================================================
@@ -1055,7 +1056,7 @@ namespace Disass65816.Emulate
                 ret.B = -1;
                 ret.set_NVZC_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_AND(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1088,7 +1089,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ASLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1133,7 +1134,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ASL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1165,7 +1166,7 @@ namespace Disass65816.Emulate
 
             operand.SetValue(ret, ret.MS, tmp);
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BCC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1175,7 +1176,7 @@ namespace Disass65816.Emulate
             else if (ret.C == Tristate.False)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BCS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1185,7 +1186,7 @@ namespace Disass65816.Emulate
             else if (ret.C == Tristate.True)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BNE(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1196,7 +1197,7 @@ namespace Disass65816.Emulate
             else if (ret.Z == Tristate.False)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BEQ(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1206,7 +1207,7 @@ namespace Disass65816.Emulate
             else if (ret.Z == Tristate.True)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BPL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1217,7 +1218,7 @@ namespace Disass65816.Emulate
             else if (ret.N == Tristate.False)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BMI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1228,7 +1229,7 @@ namespace Disass65816.Emulate
             else if (ret.N == Tristate.True)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BVC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1239,7 +1240,7 @@ namespace Disass65816.Emulate
             else if (ret.V == Tristate.False)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BVS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1250,19 +1251,19 @@ namespace Disass65816.Emulate
             else if (ret.V == Tristate.True)
                 ret.PC = operand.Ea;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BRA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = operand.Ea;
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BRL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = operand.Ea;
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BIT_IMM(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1284,7 +1285,7 @@ namespace Disass65816.Emulate
             {
                 ret.Z = Tristate.Unknown;
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BIT(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1323,7 +1324,7 @@ namespace Disass65816.Emulate
                 ret.V = (val & 0x4000) != 0;
             }
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
 
         }
 
@@ -1331,28 +1332,28 @@ namespace Disass65816.Emulate
         {
 
             ret.C = false;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CLD(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.D = false;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CLI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.I = false;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CLV(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.V = false;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CMP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1369,7 +1370,7 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZC_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CPX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1387,7 +1388,7 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZC_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_CPY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1405,12 +1406,12 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZC_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_DECA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Compute the new ret.A
             if (ret.A >= 0)
             {
@@ -1434,7 +1435,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_DEC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1462,12 +1463,12 @@ namespace Disass65816.Emulate
 
             operand.SetValue(ret, ret.MS, tmp);
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_DEX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.X >= 0)
             {
                 if (ret.XS == Tristate.True)
@@ -1493,12 +1494,12 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_DEY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.Y >= 0)
             {
                 if (ret.XS == Tristate.True)
@@ -1524,7 +1525,7 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_EOR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1550,12 +1551,12 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_INCA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Compute the new ret.A
             if (ret.A >= 0)
             {
@@ -1579,7 +1580,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_INC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1606,12 +1607,12 @@ namespace Disass65816.Emulate
             }
 
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_INX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.X >= 0)
             {
                 if (ret.XS == Tristate.True)
@@ -1637,12 +1638,12 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_INY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.Y >= 0)
             {
                 if (ret.XS == Tristate.True)
@@ -1668,16 +1669,16 @@ namespace Disass65816.Emulate
             {
                 ret.set_NZ_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_JSR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-               
+
             // JAddrMode.SR: the operand is the data ret.pushed to the stack (PCH, PCL)
-            ret.push16(ret.PC-1);  // ret.PC
+            ret.push16(ret.PC - 1);  // ret.PC
             ret.PC = operand.Ea;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_LDA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1694,12 +1695,13 @@ namespace Disass65816.Emulate
                     ret.B = (val >> 8) & 0xff;
                 else
                     ret.B = -1;
-            } else if (ret.MS.IsUnknown)
+            }
+            else if (ret.MS.IsUnknown)
             {
                 ret.B = -1;
             }
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_LDX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1708,7 +1710,7 @@ namespace Disass65816.Emulate
             var val = operand.GetValue(ret, ret.XS);
             ret.X = val;
             ret.set_NZ_XS(ret.X);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_LDY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1717,12 +1719,12 @@ namespace Disass65816.Emulate
             var val = operand.GetValue(ret, ret.XS);
             ret.Y = val;
             ret.set_NZ_XS(ret.Y);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_LSRA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Compute the new carry
             if (ret.A >= 0)
             {
@@ -1756,7 +1758,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_LSR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1785,7 +1787,7 @@ namespace Disass65816.Emulate
                 ret.set_NZ_unknown();
             }
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ORA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1811,66 +1813,66 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PHA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             var acc = ret.get_accumulator();
             ret.pushMS(acc);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PHP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
-        {            
+        {
             ret.push8(ret.get_FLAGS());
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PHX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.pushXS(ret.X);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PHY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.pushXS(ret.Y);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.A = ret.popMS();
             ret.set_NZ_MS(ret.A);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PLP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             var tmp = ret.pop8();
             ret.set_FLAGS(tmp);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PLX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.X = ret.popXS();
             ret.set_NZ_XS(ret.X);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_PLY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.Y = ret.popXS();
             ret.set_NZ_XS(ret.Y);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ROLA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Save the old carry
             Tristate oldC = ret.C;
             // Compute the new carry
@@ -1919,7 +1921,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ROL(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -1933,7 +1935,7 @@ namespace Disass65816.Emulate
             {
                 // 8-bit mode
                 ret.C = ((val >> 7) & 1) != 0;
-                tmp = ((val << 1) | (oldC==true?1:0)) & 0xff;
+                tmp = ((val << 1) | (oldC == true ? 1 : 0)) & 0xff;
                 ret.set_NZ8(tmp);
             }
             else if (ret.MS == Tristate.False && !oldC.IsUnknown)
@@ -1951,12 +1953,12 @@ namespace Disass65816.Emulate
             }
 
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_RORA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // Save the old carry
             Tristate oldC = ret.C;
             // Compute the new carry
@@ -1993,7 +1995,7 @@ namespace Disass65816.Emulate
             }
             // Updating NZ is complex, depending on the whether ret.A and/or ret.B are unknown
             ret.set_NZ_AB();
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_ROR(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -2022,12 +2024,12 @@ namespace Disass65816.Emulate
                 ret.set_NZ_unknown();
             }
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_RTS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // RTS: the operand is the data pulled from the stack (PCL, PCH)
             var x = ret.pop16();
 
@@ -2035,12 +2037,12 @@ namespace Disass65816.Emulate
                 ret.PC = -1;
             else
                 ret.PC = (x + 1) & 0xFFFF;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_RTI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             // RTI: the operand is the data pulled from the stack (P, PCL, PCH, PBR)
             ret.set_FLAGS(ret.pop8());
             ret.PC = ret.pop16();
@@ -2053,7 +2055,7 @@ namespace Disass65816.Emulate
             {
                 ret.PB = ret.pop8();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_SBC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -2118,28 +2120,28 @@ namespace Disass65816.Emulate
                 ret.B = -1;
                 ret.set_NVZC_unknown();
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_SEC(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.C = Tristate.True;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_SED(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.D = Tristate.True;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_SEI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.I = Tristate.True;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_STA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -2148,32 +2150,32 @@ namespace Disass65816.Emulate
             var acc = ret.get_accumulator();
             operand.SetValue(ret, ret.MS, acc);
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_STX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             operand.SetValue(ret, ret.XS, ret.X);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_STY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             operand.SetValue(ret, ret.XS, ret.Y);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_STZ(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
 
             operand.SetValue(ret, ret.MS, 0);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
 
         static IEnumerable<IRegsEmu65816> op_TSB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            var val = operand.GetValue(ret, ret.MS);            
+            var val = operand.GetValue(ret, ret.MS);
             int acc = ret.get_accumulator();
             int tmp;
             if (acc >= 0)
@@ -2187,7 +2189,7 @@ namespace Disass65816.Emulate
                 tmp = -1;
             }
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TRB(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
@@ -2206,7 +2208,7 @@ namespace Disass65816.Emulate
                 tmp = -1;
             }
             operand.SetValue(ret, ret.MS, tmp);
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         // This is used to implement: TAX, TAY, TSX
@@ -2289,33 +2291,33 @@ namespace Disass65816.Emulate
         {
 
             ret.X = transfer_88_16(ret, ret.B, ret.A);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TAY(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.Y = transfer_88_16(ret, ret.B, ret.A);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TSX(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.X = transfer_88_16(ret, ret.SH, ret.SL);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TXA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             (ret.B, ret.A) = transfer_16_88(ret, ret.X, ret.B);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TXS(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.X >= 0)
             {
                 ret.SH = (ret.X >> 8) & 0xff;
@@ -2331,19 +2333,19 @@ namespace Disass65816.Emulate
             {
                 ret.SH = 0x01;
             }
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_TYA(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             (ret.B, ret.A) = transfer_16_88(ret, ret.Y, ret.B);
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_BRK(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             if (ret.E.IsUnknown)
                 ret.PC = -1;
             else if (ret.E == Tristate.True)
@@ -2362,12 +2364,12 @@ namespace Disass65816.Emulate
             }
             ret.I = Tristate.True;
             ret.D = Tristate.False;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_COP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            
+
             ret.I = Tristate.True;
             ret.D = Tristate.True;
             if (ret.E.IsUnknown)
@@ -2388,52 +2390,55 @@ namespace Disass65816.Emulate
             }
             ret.I = Tristate.True;
             ret.D = Tristate.False;
-            return new [] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_WDM(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_NOP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_JMP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             if (operand.Ea < 0)
                 ret.PC = -1;
-            else 
+            else
                 ret.PC = operand.Ea & 0xFFFF;
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_JML(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             if (operand.Ea < 0)
-            {  ret.PC = -1;
-                ret.PB  = -1;
-            } else {
+            {
+                ret.PC = -1;
+                ret.PB = -1;
+            }
+            else
+            {
                 ret.PB = (operand.Ea >> 16) & 0xFF;
                 ret.PC = (operand.Ea & 0xFFFF);
             }
 
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_STP(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = instr.pc;
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
         static IEnumerable<IRegsEmu65816> op_WAI(IRegsEmu65816 ret, operand_t operand, instruction_t instr)
         {
             ret.PC = instr.pc;
-            return new[] { ret };
+            return Enumerable.Empty<IRegsEmu65816>();
         }
 
 
