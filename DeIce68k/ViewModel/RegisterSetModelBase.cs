@@ -1,5 +1,6 @@
 ﻿using DeIceProtocol;
 using DisassShared;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;

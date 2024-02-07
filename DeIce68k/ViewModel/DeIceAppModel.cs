@@ -455,26 +455,32 @@ namespace DeIce68k.ViewModel
                                 return;
                             }
 
-                        Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
-                        ApplyBreakpoints();
-                        DeIceProto.SendReq(new DeIceFnReqRun());
+                        var rr = Exec_SingleStep();
+                        if (rr != null)
+                        {
+                            Regs.FromDeIceProtocolRegData(rr.RegisterData);
+                            //TODO: Special status instead of BP/TACE here ?
+                            RunFinish(true);
+                            return;
+                        }
                     }
+                    AppendMessage($"ERROR: Unable to Execute Next");
                 }
                 catch (Exception ex)
                 {
-                    AppendMessage($"ERROR:Executing Next\n{ ex.ToString() } ");
+                    AppendMessage($"ERROR:Executing Next\n{ex.ToString()} ");
                     Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
                 }
             },
             o =>
             {
-                return (Regs?.IsStopped ?? false) && (Regs?.CanTrace ?? false);
+                return (Regs?.IsStopped ?? false) && ((Regs?.CanTrace ?? false) || Regs is IRegisterSetPredictNext);
             },
             "Step Next",
             Command_Exception
-            );
-
+            )
+            {
+            };
             CmdCont = new RelayCommand(
                 o =>
                 {
@@ -503,7 +509,7 @@ namespace DeIce68k.ViewModel
                     }
 
                 },
-                o => { return Regs?.IsStopped ?? false; },
+                o => { return (Regs?.IsStopped ?? false) && ((Regs?.CanTrace ?? false) || Regs is IRegisterSetPredictNext); },
                 "Trace To...",
                 Command_Exception
                 );
@@ -829,7 +835,7 @@ namespace DeIce68k.ViewModel
                             // breakpoint hit but it returned false...carry on
                             ReExecCurBreakpoint();
 
-                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore responese: TODO: check?
+                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore response: TODO: check?
                             ApplyBreakpoints();
 
                             DeIceProto.SendReq(new DeIceFnReqRun());
@@ -901,6 +907,41 @@ namespace DeIce68k.ViewModel
         /// when running this contains the list of breakpoints that have actually been sucessfully set
         /// </summary>
         private List<BreakpointModel> _activeBreakpoints = new List<BreakpointModel>();
+
+
+        /// <summary>
+        /// Execute a single instruction
+        /// </summary>
+        /// <returns>The registers after executing the instruction or null if failed to step</returns>
+        protected DeIceFnReplyRun? Exec_SingleStep()
+        {
+            if (Regs.CanTrace)
+            {
+
+                Regs.SetTrace(true);
+                DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+                ApplyBreakpoints();
+                return DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+            }
+            else if (Regs is IRegisterSetPredictNext)
+            {
+                var ir = Regs as IRegisterSetPredictNext;
+                if (ir != null)
+                {
+                    byte[] pdata = new byte[ir.PredictProgramDataSize];
+                    var l = DisassMemBlock.Read(pdata, Regs.PCValue, ir.PredictProgramDataSize);
+                    if (l >= ir.PredictProgramDataSize)
+                    {
+                        var nextPC = ir.PredictNext(pdata);
+
+                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+                        ApplyBreakpoints(nextPC);
+                        return DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+                    }
+                }
+            }
+            return null;
+        }
 
         protected bool ReExecCurBreakpoint()
         {
@@ -978,8 +1019,13 @@ namespace DeIce68k.ViewModel
 
         }
 
-        //TODO: we should skip and mark invalid breakpoints that can't be set (SetBytes returns an unexpectedly low count)
-        public void ApplyBreakpoints()
+
+        /// <summary>
+        /// Apply the breakpoints in <see cref="Breakpoints"/> to the host, if not already applied
+        /// </summary>
+        /// <param name="tempBp">If this is not null this address is also set as a temporary breakpoint</param>
+        /// <exception cref="Exception">An unexpected reply was received from setBytes</exception>
+        public void ApplyBreakpoints(DisassAddressBase? tempBp = null)
         {
             var bpl = DebugHostStatus.BreakPointInstruction.Length;
 
@@ -987,7 +1033,16 @@ namespace DeIce68k.ViewModel
 
             // how many breakpoints we can fit in the buffer
             int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
-            var bp2a = Breakpoints.Where(o => o.Enabled && !_activeBreakpoints.Where(a => a.Address.Equals(o.Address)).Any());
+
+            IEnumerable<BreakpointModel> wantedBreakpoints;
+
+            if (tempBp != null)
+                wantedBreakpoints = new[] {new BreakpointModel(this) { Address = tempBp, Enabled = true }}.Concat(Breakpoints.Where(o => o.Address != tempBp));
+            else
+                wantedBreakpoints = Breakpoints;
+
+            //get any Breakpoints not already applied
+            var bp2a = wantedBreakpoints.Where(o => o.Enabled && !_activeBreakpoints.Where(a => a.Address.Equals(o.Address)).Any());
 
             while (bp2a.Any())
             {
@@ -995,6 +1050,7 @@ namespace DeIce68k.ViewModel
                 var req = Breakpoints2Req(chunk, true);
                 var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
 
+                //TODO: recover more gracefully this will leave some breakpoints set and the host in an inconsistent state?
                 if (ret.Data.Length != chunk.Count())
                     throw new Exception($"Unexpected length returned from SetBytes expected {chunk.Count()} received {ret.Data.Length}");
 
@@ -1019,7 +1075,7 @@ namespace DeIce68k.ViewModel
 
 
             //remove any that are now disabled or no longer in the Breakpoints list
-            List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !Breakpoints.Where(b => b.Address.Equals(a.Address)).Any()).ToList();
+            List<BreakpointModel> rembp = _activeBreakpoints.Where(a => a.Enabled == false || !wantedBreakpoints.Where(b => b.Address.Equals(a.Address)).Any()).ToList();
             UnApplyBreakpoints(rembp);
             rembp.ForEach(a => _activeBreakpoints.Remove(a));
 
@@ -1190,32 +1246,65 @@ namespace DeIce68k.ViewModel
                     byte lastTargetStatus = Regs.TargetStatus;
                     try
                     {
-                        Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
-
-                        ReExecCurBreakpoint();
-
-                        ApplyBreakpoints();
-
-                        while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
+                        if (Regs.CanTrace)
                         {
-                            var rr = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
-                            Regs.FromDeIceProtocolRegData(rr.RegisterData);
-                            if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
+                            Regs.SetTrace(true);
+                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+
+                            ReExecCurBreakpoint();
+
+                            ApplyBreakpoints();
+
+                            while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
                             {
-                                bool cont = false;
-                                DoInvoke(() => cont = RunFinish(true));
-                                if (!cont)
+                                var rr = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
+                                Regs.FromDeIceProtocolRegData(rr.RegisterData);
+                                if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
-                                    break;
+                                    bool cont = false;
+                                    DoInvoke(() => cont = RunFinish(true));
+                                    if (!cont)
+                                    {
+                                        break;
+                                    }
                                 }
+
+                                lastTargetStatus = Regs.TargetStatus;
+                                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+
+                                //TODO: Move invoke inside runfinish where it is needed
+                                DoInvoke(() => RunFinish(false));
+
                             }
+                        } else if (Regs is IRegisterSetPredictNext)
+                        {
+                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
 
-                            lastTargetStatus = Regs.TargetStatus;
-                            Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+                            ReExecCurBreakpoint();
 
-                            //TODO: Move invoke inside runfinish where it is needed
-                            DoInvoke(() => RunFinish(false));
+                            ApplyBreakpoints();
+
+                            while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
+                            {
+                                var rr = Exec_SingleStep();
+                                Regs.FromDeIceProtocolRegData(rr.RegisterData);
+                                if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
+                                {
+                                    bool cont = false;
+                                    DoInvoke(() => cont = RunFinish(true));
+                                    if (!cont)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                lastTargetStatus = Regs.TargetStatus;
+                                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+
+                                //TODO: Move invoke inside runfinish where it is needed
+                                DoInvoke(() => RunFinish(false));
+
+                            }
 
                         }
                     }

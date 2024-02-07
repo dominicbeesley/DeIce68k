@@ -219,6 +219,9 @@ namespace Disass65816.Emulate
             public string fmt { get; init; }
         }
 
+        /// <summary>
+        /// Used to hold partially decoded operand which may be an immediate value or Effective Address
+        /// </summary>
         private struct OperandHolder
         {
             public int Ea { get; init; }

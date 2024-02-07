@@ -238,5 +238,21 @@ namespace DeIce68k.ViewModel
                 i.BreakpointsUpdated();
             }
         }
+
+        public int Read(byte[] buf, DisassAddressBase PCstart, int len)
+        {
+            if (PCstart < BaseAddress)
+                return 0;
+            else
+            {
+                long offs = PCstart - BaseAddress;
+                long ll = Data.LongLength - offs;
+                if (ll > len) ll = len;
+
+                Array.Copy(Data, offs, buf, 0, ll);
+
+                return (int)ll;
+            }
+        }
     }
 }
