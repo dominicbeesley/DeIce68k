@@ -26,6 +26,7 @@ namespace DeIce68k
         public DlgTraceTo(DeIceAppModel context)
         {
             this.Context = context;
+            this.DataContext = context;
             InitializeComponent();
         }
 
