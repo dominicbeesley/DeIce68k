@@ -264,7 +264,7 @@ namespace DeIceProtocol
             {
                 Stopwatch sw = Stopwatch.StartNew();
 
-                while (true && sw.ElapsedMilliseconds < SHORT_TIMEOUT)
+                while (true)
                 {
                     first = _serial.ReadByte(SHORT_TIMEOUT);
                     if (first < DeIceProtoConstants.FN_MIN)
@@ -272,9 +272,9 @@ namespace DeIceProtocol
                     else
                         break;
 
+                    if (sw.ElapsedMilliseconds >= SHORT_TIMEOUT)
+                        throw new TimeoutException();
                 }
-                if (sw.ElapsedMilliseconds >= SHORT_TIMEOUT)
-                    throw new TimeoutException();
             }
             bufptr = 0;
             buf[bufptr++] = first;
