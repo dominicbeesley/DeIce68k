@@ -1440,7 +1440,9 @@ namespace DeIce68k.ViewModel
             {
                 _regs.PropertyChanged += Regs_PropertyChanged;
                 if (!_sampleData)
-                    DeIceProto.SendReq(new DeIceFnReqReadRegs());
+                    Regs.FromDeIceProtocolRegData(
+                        DeIceProto.SendReqExpectReply<DeIceFnReplyReadRegs>(new DeIceFnReqReadRegs()).RegisterData
+                        );
                 RaisePropertyChangedEvent(nameof(Regs));
 
             }
