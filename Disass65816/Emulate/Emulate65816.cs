@@ -428,10 +428,11 @@ namespace Disass65816.Emulate
             byte opcount = 0;
             if (instr.mode == AddrMode.IMMM)
             {
-                if ((instr.m_extra != 0 && regsIn.MS == Tristate.False) || (instr.x_extra != 0 && regsIn.XS == Tristate.False))
-                {
-                    opcount = 1;
-                }
+                if (instr.m_extra != 0 && regsIn.MS == Tristate.False)
+                    opcount++;
+            } else if (instr.mode == AddrMode.IMMX) {
+                 if (instr.x_extra != 0 && regsIn.XS == Tristate.False)
+                    opcount++;
             }
             opcount += (byte)(instr.len - 1);
 
