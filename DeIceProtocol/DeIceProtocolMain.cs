@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -260,7 +261,10 @@ namespace DeIceProtocol
             int bufptr = 0;
             byte lenctr = 0;
             if (!hasFirst)
-                while (true)
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+
+                while (true && sw.ElapsedMilliseconds < SHORT_TIMEOUT)
                 {
                     first = _serial.ReadByte(SHORT_TIMEOUT);
                     if (first < DeIceProtoConstants.FN_MIN)
@@ -269,6 +273,9 @@ namespace DeIceProtocol
                         break;
 
                 }
+                if (sw.ElapsedMilliseconds >= SHORT_TIMEOUT)
+                    throw new TimeoutException();
+            }
             bufptr = 0;
             buf[bufptr++] = first;
             byte ck = first;
