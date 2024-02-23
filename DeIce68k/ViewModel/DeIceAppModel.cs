@@ -1194,7 +1194,7 @@ namespace DeIce68k.ViewModel
         /// <returns>If this is a breakpoint the condition is checked and returned here</returns>
         public bool RunFinish(bool unApplyBreakpoints = true)
         {
-            bool ret = true;
+            bool ret = false;
             try
             {
                 //undo old breakpoints
@@ -1220,7 +1220,7 @@ namespace DeIce68k.ViewModel
 
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
-                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address.Equals(Regs.PCValue)).FirstOrDefault();
+                    BreakpointModel curbp = Breakpoints.Where(b => b.Address.Equals(Regs.PCValue)).FirstOrDefault();
                     if (curbp != null && curbp.ConditionCode != null)
                     {
                         ret = curbp.ConditionCode.Execute();
@@ -1297,7 +1297,7 @@ namespace DeIce68k.ViewModel
                                 {
                                     bool cont = false;
                                     DoInvoke(() => cont = RunFinish(true));
-                                    if (!cont)
+                                    if (cont)
                                     {
                                         break;
                                     }
@@ -1326,7 +1326,7 @@ namespace DeIce68k.ViewModel
                                 {
                                     bool cont = false;
                                     DoInvoke(() => cont = RunFinish(true));
-                                    if (!cont)
+                                    if (cont)
                                     {
                                         break;
                                     }
