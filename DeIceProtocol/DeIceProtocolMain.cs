@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using DossySerialPort;
 
 namespace DeIceProtocol
@@ -66,7 +67,7 @@ namespace DeIceProtocol
         IDossySerial _serial = null;
 
         private Semaphore _runSemaphore = new(1, 1);
-
+        bool _expecting_reply = false;
 
         public DeIceProtocolMain(IDossySerial serial)
         {
@@ -78,7 +79,7 @@ namespace DeIceProtocol
 
         private void _serial_DataReceived(object o, EventArgs e) // object sender, SerialDataReceivedEventArgs e)
         {
-            while (true)
+            while (!_expecting_reply)
             {
                 if (!_runSemaphore.WaitOne(0))
                     return;
@@ -100,13 +101,7 @@ namespace DeIceProtocol
                         }
                         else
                         {
-                            var str = DoOobRead_int(firstbyte);
-                            _runSemaphore.Release();
-                            claimed = false;
-
-                            if (!string.IsNullOrWhiteSpace(str))
-                                RaiseOobData(str);
-                            
+                            DoOobRead_int(firstbyte);                            
                         }
                     }
                     catch (TimeoutException) //timeout
@@ -143,7 +138,7 @@ namespace DeIceProtocol
                 throw new TimeoutException();
             try
             {
-
+                _expecting_reply = true;
                 try
                 {
                     byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
@@ -157,6 +152,7 @@ namespace DeIceProtocol
                 }
                 finally
                 {
+                    _expecting_reply = false;
                     _runSemaphore.Release();
                     if (_serial.Available > 0)
                         _serial_DataReceived(_serial, EventArgs.Empty);
@@ -212,47 +208,83 @@ namespace DeIceProtocol
         }
 
         private readonly static int MAXOOB = 1024;
+        MemoryStream oobms = new MemoryStream();
+        //TODO: dispose oobcs
+        CancellationTokenSource oobcs = new CancellationTokenSource();
 
-        private string DoOobRead_int(byte first)
+        private void DoOobRead_int(byte first)
         {
+            oobcs.Cancel();
             if (first == 0x0D || first == 0x0A)
-                return "";
+                return;
 
-            using (var ms = new MemoryStream())
+            oobms.WriteByte(first);
+
+            var sendStr = () =>
             {
+                var r = Encoding.ASCII.GetString(oobms.ToArray());
+                oobms.SetLength(0);
+                if (r != "")
+                    RaiseOobData(r);
+            };
 
-                ms.WriteByte(first);
-
-                bool finished = false;
-                while (!finished && ms.Length < MAXOOB)
+            while (true)
+            {
+                try
                 {
-                    try
+                    byte b = _serial.PeekByte(SHORT_TIMEOUT);
+                    if (b >= DeIceProtoConstants.FN_MIN || b == DeIceProtoConstants.FN_ERROR)
                     {
-                        byte b = _serial.PeekByte(SHORT_TIMEOUT);
-                        if (b >= DeIceProtoConstants.FN_MIN || b == DeIceProtoConstants.FN_ERROR|| b == 0x0D || b == 0x0A)
-                            finished = true;
-                        else
-                            ms.WriteByte(_serial.ReadByte(SHORT_TIMEOUT));
+                        sendStr();
 
+                        if (_serial.Available > 0)
+                        {
+                            // There's a command pending but it might be an ExpectReply method on another
+                            // thread, yield up for a time to allow the other thread to pick it up
+                            // but try again later in case it is an unsolicited interrupt reply
 
+                            Task.Run(async () =>
+                            {
+                                await Task.Delay(SHORT_TIMEOUT);
+                                _serial_DataReceived(_serial, EventArgs.Empty);
+                            });
+                        }
+                        return;
                     }
-                    catch (TimeoutException)
+                    else
                     {
-                        finished = true;
+                        b = _serial.ReadByte(SHORT_TIMEOUT);
+                        if (b == 0xD || b == 0xA || oobms.Length >= MAXOOB)
+                        {
+                            sendStr();
+                            return;
+                        }
+                        else
+                        {
+                            oobms.WriteByte(b);
+                        }
                     }
                 }
+                catch (TimeoutException)
+                {
+                    if (oobms.Length > 0)
+                        Task.Delay(LONG_TIMEOUT, oobcs.Token).ContinueWith((task) => {
+                            //TODO: semaphore here?
+                            sendStr();
+                        });
 
-                return Encoding.ASCII.GetString(ms.ToArray());
+                    return;
+                }
             }
+
         }
 
         private void RaiseOobData(string data)
         {
+            Task.Run(() => { 
             foreach (var l in data.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries))
-            {
-
                 OobDataReceived?.Invoke(this, new DeIceOobDataReceivedEventArgs(l));
-            }
+            });
         }
 
         private DeIceFnReplyBase DoCommandReadInt(byte first = 0, bool hasFirst = false)
@@ -268,7 +300,7 @@ namespace DeIceProtocol
                 {
                     first = _serial.ReadByte(SHORT_TIMEOUT);
                     if (first < DeIceProtoConstants.FN_MIN)
-                        RaiseOobData(DoOobRead_int(first));
+                        DoOobRead_int(first);
                     else
                         break;
 
@@ -308,7 +340,7 @@ namespace DeIceProtocol
 
         private void RaiseFunctionReceived(DeIceFnReplyBase deIceFnBase)
         {
-            FunctionReceived?.Invoke(this, new DeIceFunctionReceivedEventArgs(deIceFnBase));
+            Task.Run(() => FunctionReceived?.Invoke(this, new DeIceFunctionReceivedEventArgs(deIceFnBase)));
         }
 
 
