@@ -213,34 +213,34 @@ namespace Disass65816
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(",X)")));
+            return OperStr("(z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(",X)")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_ind_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("),Y")));
+            return OperStr("(z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("),Y")));
         }
         IEnumerable<DisRec2OperString_Base> mode_ind_dp(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("(<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(")")));
+            return OperStr("(z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr(")")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_ind_dp(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("[<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("]")));
+            return OperStr("[z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("]")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_ind_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("[<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("],Y")));
+            return OperStr("[z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset).Concat(OperStr("],Y")));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_offs_stack(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
@@ -262,20 +262,20 @@ namespace Disass65816
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset));
+            return OperStr("z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_dpX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",X"));
+            return OperStr("z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",X"));
         }
         IEnumerable<DisRec2OperString_Base> mode_dpY(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len++;
             byte val = br.ReadByte();
-            return OperStr("<").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",Y"));
+            return OperStr("z:").Concat(OperAddr(new Address65816_dp(val), SymbolType.Pointer | SymbolType.Offset)).Concat(OperStr(",Y"));
         }
 
         private delegate IEnumerable<DisRec2OperString_Base> mode_decode(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state);
