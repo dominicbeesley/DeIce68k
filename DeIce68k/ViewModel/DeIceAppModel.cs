@@ -4,6 +4,7 @@ using Disass65816;
 using DisassArm;
 using DisassShared;
 using DossySerialPort;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -954,7 +955,7 @@ namespace DeIce68k.ViewModel
                     if (curbp != null)
                     {
                         //remove the breakpoint from the active list
-                        _activeBreakpoints.Remove(curbp);
+                        _activeBreakpoints.RemoveAll(b => b.Address.Equals(Regs.PCValue));
 
                         //restore the original instruction
                         DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(
@@ -970,18 +971,42 @@ namespace DeIce68k.ViewModel
                         );
 
 
-                        //TODO: how to do when there#s no trace function
+                        if (Regs.CanTrace)
+                        {
+                            // Set Trace mode and execute
+                            bool old = Regs.SetTrace(true);
+                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() });
+                            var regs = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun() { });
+                            Regs.FromDeIceProtocolRegData(regs.RegisterData);
+                            // Restore Trace mode - TODO: What to do if the BP instruction affected the SR traceflag
+                            Regs.SetTrace(old);
+                        }
+                        else
+                        {
+                            var ir = Regs as IRegisterSetPredictNext;
+                            if (ir != null)
+                            {
+                                byte[] pdata = new byte[ir.PredictProgramDataSize];
+                                var l = DisassMemBlock.Read(pdata, Regs.PCValue, ir.PredictProgramDataSize);
+                                if (l >= ir.PredictProgramDataSize)
+                                {
+                                    var nextPC = ir.PredictNext(pdata);
+                                    if (!nextPC.Equals(Regs.PCValue))
+                                    {
+                                        if (!_activeBreakpoints.Where(a => a.Address == nextPC && a.Enabled).Any())
+                                        {
+                                            //set a temp breakpoint
+                                            ApplyBreakpointsInt(new[] { new BreakpointModel(this) { Address = nextPC, Enabled = true } });
+                                        }
+                                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
+                                        Regs.FromDeIceProtocolRegData(
+                                            DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun()).RegisterData
+                                        );
+                                    }
+                                }
+                            }
 
-
-                        // Set Trace mode and execute
-                        bool old = Regs.SetTrace(true);
-                        DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() });
-                        var regs = DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun() { });
-
-                        Regs.FromDeIceProtocolRegData(regs.RegisterData);
-
-                        // Restore Trace mode - TODO: What to do if the BP instruction affected the SR traceflag
-                        Regs.SetTrace(old);
+                        }
 
                         return true;
 
@@ -1019,17 +1044,38 @@ namespace DeIce68k.ViewModel
 
         }
 
+        public DeIceFnReplySetBytes ApplyBreakpointsInt(IList<BreakpointModel> chunk)
+        {
+            var bpl = DebugHostStatus.BreakPointInstruction.Length;
+            var req = Breakpoints2Req(chunk, true);
+            var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
+
+            //TODO: recover more gracefully this will leave some breakpoints set and the host in an inconsistent state?
+            if (ret.Data.Length != chunk.Count())
+                throw new Exception($"Unexpected length returned from SetBytes expected {chunk.Count()} received {ret.Data.Length}");
+
+            for (int i = 0; i < ret.Data.Length / bpl; i++)
+            {
+                var ob = new byte[bpl];
+                Array.Copy(ret.Data, i * bpl, ob, 0, bpl);
+                chunk[i].OldOP = ob;
+            }
+            _activeBreakpoints.AddRange(chunk.Take(ret.Data.Length));
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Apply the breakpoints in <see cref="Breakpoints"/> to the host, if not already applied
         /// </summary>
         /// <param name="tempBp">If this is not null this address is also set as a temporary breakpoint</param>
         /// <exception cref="Exception">An unexpected reply was received from setBytes</exception>
-        public void ApplyBreakpoints(DisassAddressBase? tempBp = null)
+        public void ApplyBreakpoints(DisassAddressBase? tempBp = null, bool reExecCurBP = true)
         {
-            var bpl = DebugHostStatus.BreakPointInstruction.Length;
 
-            ReExecCurBreakpoint();
+            if (reExecCurBP)
+                ReExecCurBreakpoint();
 
             // how many breakpoints we can fit in the buffer
             int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
@@ -1047,20 +1093,7 @@ namespace DeIce68k.ViewModel
             while (bp2a.Any())
             {
                 var chunk = bp2a.Take(MAXBP).ToArray();
-                var req = Breakpoints2Req(chunk, true);
-                var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
-
-                //TODO: recover more gracefully this will leave some breakpoints set and the host in an inconsistent state?
-                if (ret.Data.Length != chunk.Count())
-                    throw new Exception($"Unexpected length returned from SetBytes expected {chunk.Count()} received {ret.Data.Length}");
-
-                for (int i = 0; i < ret.Data.Length / bpl; i++)
-                {
-                    var ob = new byte[bpl];
-                    Array.Copy(ret.Data, i * bpl, ob, 0, bpl);
-                    chunk[i].OldOP = ob;
-                }
-                _activeBreakpoints.AddRange(bp2a.Take(ret.Data.Length));
+                var ret = ApplyBreakpointsInt(chunk);
                 bp2a = bp2a.Skip(ret.Data.Length);
 
                 //if we got fewer back than we sent then it was dodgy memory, skip that in the list and set to disabled.
@@ -1119,6 +1152,8 @@ namespace DeIce68k.ViewModel
 
         public void UnApplyBreakpoints(IEnumerable<BreakpointModel> items)
         {
+            var bpl = DebugHostStatus.BreakPointInstruction.Length;
+
             // how many breakpoints we can fit in the buffer
             int MAXBP = (DebugHostStatus.ComBufSize / 8) - 2;
             while (items.Any())
@@ -1127,7 +1162,6 @@ namespace DeIce68k.ViewModel
                 var req = Breakpoints2Req(chunk, false);
                 var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
 
-                var bpl = DebugHostStatus.BreakPointInstruction.Length;
 
                 for (int i = 0; i < chunk.Length && bpl * i < ret.Data.Length; i++)
                 {
@@ -1186,7 +1220,7 @@ namespace DeIce68k.ViewModel
 
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
-                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address == Regs.PCValue).FirstOrDefault();
+                    BreakpointModel curbp = _activeBreakpoints.Concat(Breakpoints).Where(b => b.Address.Equals(Regs.PCValue)).FirstOrDefault();
                     if (curbp != null && curbp.ConditionCode != null)
                     {
                         ret = curbp.ConditionCode.Execute();
