@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DisassX86
+namespace Disass65816
 {
     public class AddressFactory65816 : IDisassAddressFactory
     {
