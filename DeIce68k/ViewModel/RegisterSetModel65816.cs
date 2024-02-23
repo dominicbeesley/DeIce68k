@@ -2,6 +2,7 @@
 using Disass65816;
 using Disass65816.Emulate;
 using DisassShared;
+using DisassX86;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -159,7 +160,7 @@ namespace DeIce68k.ViewModel
 
         public DisassAddressBase? PredictNext(byte[] programdata)
         {
-            Emulate65816 em = new Emulate65816();
+            Emulate65816 em = new Emulate65816() { memory_read = (addr) => { return Parent.GetByte(new Address65816_far((uint)addr)); } };
             Emulate65816.Registers r = new Emulate65816.Registers(em);
             r.A = (int)(this.A.Data & 0xFF);
             r.B = (int)((this.A.Data & 0xFF00) >> 8);
