@@ -77,6 +77,7 @@ namespace DeIce68k.ViewModel
         public DeIceSymbols Symbols { get; }
 
 
+        //TODO: Dispose
         CancellationTokenSource traceCancelSource = null;
 
 
@@ -571,7 +572,7 @@ namespace DeIce68k.ViewModel
             CmdStop = new RelayCommand(
                 o =>
                 {
-                    if (traceCancelSource is not null)
+                    if (traceCancelSource != null)
                     {
                         traceCancelSource.Cancel();
                         Thread.Sleep(100);
@@ -593,7 +594,7 @@ namespace DeIce68k.ViewModel
                 },
                 o =>
                 {
-                    return Regs?.IsRunning ?? false;
+                    return (Regs?.IsRunning ?? false) || (traceCancelSource != null);
                 },
                 "Stop",
                 Command_Exception
@@ -1285,7 +1286,6 @@ namespace DeIce68k.ViewModel
 
             Task.Run(() =>
             {
-
                 try
                 {
                     byte lastTargetStatus = Regs.TargetStatus;
@@ -1366,6 +1366,7 @@ namespace DeIce68k.ViewModel
                 }
             }).ContinueWith((t) =>
             {
+                traceCancelSource.Dispose();
                 traceCancelSource = null;
             }); ;
         }
