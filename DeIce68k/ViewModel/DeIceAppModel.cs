@@ -1191,10 +1191,10 @@ namespace DeIce68k.ViewModel
         /// <summary>
         /// Run has finished (or initial read regs reply received) update the display, registers should already have been updated
         /// </summary>
-        /// <returns>If this is a breakpoint the condition is checked and returned here</returns>
+        /// <returns>If this is a breakpoint the condition is checked and returned here, otherwise return false</returns>
         public bool RunFinish(bool unApplyBreakpoints = true)
         {
-            bool ret = false;
+            bool ret = Regs.TargetStatus != DeIceProtoConstants.TS_BP;
             try
             {
                 //undo old breakpoints
@@ -1220,11 +1220,22 @@ namespace DeIce68k.ViewModel
 
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
-                    BreakpointModel curbp = Breakpoints.Where(b => b.Address.Equals(Regs.PCValue)).FirstOrDefault();
-                    if (curbp != null && curbp.ConditionCode != null)
+                    foreach (var curbp in Breakpoints.Where(b => b.Address.Equals(Regs.PCValue)))
                     {
-                        ret = curbp.ConditionCode.Execute();
-                        Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret) ? " - skipped" : "")}");
+                        if (curbp != null && curbp.Enabled)
+                        {
+                            if (curbp.ConditionCode != null)
+                            {
+                                if (curbp.ConditionCode.Execute())
+                                    ret = true;
+                                else
+                                    Messages.Add($"Encountered breakpoint at {curbp.Address:X08} [{curbp.SymbolStr ?? ""}] {((!ret) ? " - skipped" : "")}");
+                            }
+                            else
+                            {
+                                ret = true;
+                            }
+                        }
                     }
                 }
 
@@ -1285,8 +1296,6 @@ namespace DeIce68k.ViewModel
                             Regs.SetTrace(true);
                             DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
 
-                            ReExecCurBreakpoint();
-
                             ApplyBreakpoints();
 
                             while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
@@ -1297,7 +1306,7 @@ namespace DeIce68k.ViewModel
                                 {
                                     bool cont = false;
                                     DoInvoke(() => cont = RunFinish(true));
-                                    if (cont)
+                                    if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
                                     }
@@ -1314,8 +1323,6 @@ namespace DeIce68k.ViewModel
                         {
                             DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
 
-                            ReExecCurBreakpoint();
-
                             ApplyBreakpoints();
 
                             while (Regs.PCValue != addr && !cancellationToken.IsCancellationRequested)
@@ -1326,7 +1333,7 @@ namespace DeIce68k.ViewModel
                                 {
                                     bool cont = false;
                                     DoInvoke(() => cont = RunFinish(true));
-                                    if (cont)
+                                    if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
                                     }
