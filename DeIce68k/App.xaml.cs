@@ -15,12 +15,13 @@ namespace DeIce68k
     /// </summary>
     public partial class App : Application
     {
-		private void Application_Startup(object sender, StartupEventArgs e)
+        DossySerialPort.DossySerial serialPort;
+        DeIceAppModel appModel;
+
+        private void Application_Startup(object sender, StartupEventArgs e)
 		{
 
 
-            DeIceAppModel appModel;
-            DossySerialPort.DossySerial serialPort;
 
             // Create the startup window
 
@@ -64,6 +65,7 @@ namespace DeIce68k
                 // Show the window
                 wnd.Show();
 
+                
 
                 foreach (var l in commandFiles)
                     try
@@ -84,5 +86,19 @@ namespace DeIce68k
 
         }
 
+        private void Application_Exit(object sender, ExitEventArgs e)
+        {
+            if (appModel != null)
+            { 
+                appModel.Dispose();
+                appModel = null;
+            }
+
+            if (serialPort != null)
+            {
+                serialPort.Dispose();
+                serialPort = null;
+            }
+        }
     }
 }

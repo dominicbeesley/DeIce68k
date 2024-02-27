@@ -354,11 +354,6 @@ namespace DeIceProtocol
                 if (disposing)
                 {
                     stopBgReadTask();
-                    if (_serial != null)
-                    {
-                        _serial.Dispose();
-                        _serial = null;
-                    }
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer
