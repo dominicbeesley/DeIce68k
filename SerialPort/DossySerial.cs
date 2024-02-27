@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Threading;
@@ -16,8 +17,6 @@ namespace DossySerialPort
         public DossySerial(string portname, int baudrate)
         {
             _port = new SerialPort(portname, baudrate, Parity.None, 8, StopBits.One);
-            _port.DataReceived += (o, e) => { OnDataReceived(); };
-
 
             _port.Open();
 
@@ -26,15 +25,6 @@ namespace DossySerialPort
             _port.RtsEnable = true;
             _port.DtrEnable = true;
         }
-
-        private void OnDataReceived()
-        {
-            if (DataReceived is not null)
-            {
-                DataReceived(this, EventArgs.Empty);
-            }
-        }
-
 
         #region IDossySerial
 
@@ -82,26 +72,32 @@ namespace DossySerialPort
 
         }
 
-        public byte PeekByte(int timeoutms = 0)
+        public int PeekByte()
         {
-            lock(syncObj)
+            lock (syncObj)
             {
                 if (this.peeked)
                 {
                     return peekedbyte;
                 }
             }
-
-            _port.ReadTimeout = timeoutms;
-            int ret = _port.ReadByte();
-            if (ret == -1)
-                throw new EndOfStreamException();
-            lock(syncObj)
+            if (_port.BytesToRead <= 0)
+                return -1;
+            try
             {
-                this.peeked = true;
-                this.peekedbyte = (byte)ret;
+                _port.ReadTimeout = 0;
+                int ret = _port.ReadByte();
+                if (ret == -1)
+                    throw new EndOfStreamException();
+                lock (syncObj)
+                {
+                    this.peeked = true;
+                    this.peekedbyte = (byte)ret;
+                }
+                return (byte)ret;
             }
-            return (byte)ret;
+            catch (Exception ex)
+            { return -1; }
         }
 
         public byte ReadByte(int timeoutms = 0)
@@ -135,7 +131,12 @@ namespace DossySerialPort
             {
                 if (disposing)
                 {
-                    // TODO: dispose managed state (managed objects)
+                    // TODO: dispose managed state (managed objects)                    
+                    if (_port != null)
+                    {
+                        _port.Dispose();
+                        _port = null;
+                    }
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer

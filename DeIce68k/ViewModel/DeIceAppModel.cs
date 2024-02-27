@@ -575,7 +575,6 @@ namespace DeIce68k.ViewModel
                     if (traceCancelSource != null)
                     {
                         traceCancelSource.Cancel();
-                        Thread.Sleep(100);
                     }
                     else
                     {
@@ -793,26 +792,15 @@ namespace DeIce68k.ViewModel
 
             DeIceProto.CommError += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
-                {
-                    AppendMessage($"ERROR:{ e.Exception.ToString() }");
-                })
-                );
+                DoBeginInvoke(() => { AppendMessage($"ERROR:{ e.Exception }"); });
             };
             DeIceProto.OobDataReceived += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
-                {
-                    AppendMessage($"OOB:{ e.Data }");
-                })
-                );
+                DoBeginInvoke(() => { AppendMessage($"OOB:{ e.Data }"); });
             };
             DeIceProto.FunctionReceived += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
+                DoBeginInvoke(() =>
                 {
                     AppendMessage($"FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
 
@@ -850,8 +838,7 @@ namespace DeIce68k.ViewModel
                             Regs.TargetStatus = DeIceProtoConstants.TS_TRACE;
 
                     }
-                })
-                );
+                });
             };
 
             if (hostStatus != null)
@@ -901,6 +888,14 @@ namespace DeIce68k.ViewModel
         {
             if (MainWindow is not null)
                 MainWindow.Dispatcher.Invoke(a);
+            else
+                a.Invoke();
+        }
+
+        void DoBeginInvoke(Action a)
+        {
+            if (MainWindow is not null)
+                MainWindow.Dispatcher.BeginInvoke(a);
             else
                 a.Invoke();
         }

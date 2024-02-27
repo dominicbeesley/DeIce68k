@@ -25,9 +25,9 @@ namespace DeIce68k.SampleData
 
             public event EventHandler DataReceived;
 
-            public byte PeekByte(int timeoutms = 0)
+            public int PeekByte()
             {
-                throw new TimeoutException();
+                return -1;
             }
 
             public int Read(byte[] b, int length, int timeoutms = 0, bool immediate = false)
