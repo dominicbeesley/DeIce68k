@@ -1217,7 +1217,9 @@ namespace DeIce68k.ViewModel
 
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
-                    foreach (var curbp in Breakpoints.Where(b => b.Address.Equals(Regs.PCValue)))
+                    var bps = Breakpoints.Where(b => b.Address.Equals(Regs.PCValue));
+                    //ret = !bps.Any();
+                    foreach (var curbp in bps)
                     {
                         if (curbp != null && curbp.Enabled)
                         {
