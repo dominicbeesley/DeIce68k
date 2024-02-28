@@ -453,7 +453,7 @@ namespace DeIce68k.ViewModel
                         if (Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                             if (ReExecCurBreakpoint())
                             {
-                                RunFinish(true);
+                                RunFinish(true, true);
                                 return;
                             }
 
@@ -462,7 +462,7 @@ namespace DeIce68k.ViewModel
                         {
                             Regs.FromDeIceProtocolRegData(rr.RegisterData);
                             //TODO: Special status instead of BP/TACE here ?
-                            RunFinish(true);
+                            RunFinish(true, true);
                             return;
                         }
                     }
@@ -820,7 +820,7 @@ namespace DeIce68k.ViewModel
                     {
                         Regs.FromDeIceProtocolRegData(x.RegisterData);
 
-                        if (!RunFinish(true))
+                        if (!RunFinish(true, true))
                         {
                             // breakpoint hit but it returned false...carry on
                             ReExecCurBreakpoint();
@@ -855,7 +855,7 @@ namespace DeIce68k.ViewModel
                 DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
                 var r = DeIceProto.SendReqExpectReply<DeIceFnReplyRegsBase>(new DeIceFnReqReadRegs());
                 Regs?.FromDeIceProtocolRegData(r.RegisterData);
-                RunFinish(false);
+                RunFinish(false, true);
                 return true;
             }
             catch (Exception ex)
@@ -1188,8 +1188,9 @@ namespace DeIce68k.ViewModel
         /// <summary>
         /// Run has finished (or initial read regs reply received) update the display, registers should already have been updated
         /// </summary>
+        /// <param name="nobp">If the target stopped at a break point but there is none defined return this</param>
         /// <returns>If this is a breakpoint the condition is checked and returned here, otherwise return false</returns>
-        public bool RunFinish(bool unApplyBreakpoints = true)
+        public bool RunFinish(bool unApplyBreakpoints, bool nobp)
         {
             bool ret = Regs.TargetStatus != DeIceProtoConstants.TS_BP;
             try
@@ -1218,7 +1219,8 @@ namespace DeIce68k.ViewModel
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
                     var bps = Breakpoints.Where(b => b.Address.Equals(Regs.PCValue));
-                    //ret = !bps.Any();
+                    if (!bps.Any())
+                        return nobp;
                     foreach (var curbp in bps)
                     {
                         if (curbp != null && curbp.Enabled)
@@ -1303,7 +1305,7 @@ namespace DeIce68k.ViewModel
                                 if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
                                     bool cont = false;
-                                    DoInvoke(() => cont = RunFinish(true));
+                                    DoInvoke(() => cont = RunFinish(true, false));
                                     if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
@@ -1314,7 +1316,7 @@ namespace DeIce68k.ViewModel
                                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
 
                                 //TODO: Move invoke inside runfinish where it is needed
-                                DoInvoke(() => RunFinish(false));
+                                DoInvoke(() => RunFinish(false, false));
 
                             }
                         } else if (Regs is IRegisterSetPredictNext)
@@ -1330,7 +1332,7 @@ namespace DeIce68k.ViewModel
                                 if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
                                     bool cont = false;
-                                    DoInvoke(() => cont = RunFinish(true));
+                                    DoInvoke(() => cont = RunFinish(true, true));
                                     if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
@@ -1341,7 +1343,7 @@ namespace DeIce68k.ViewModel
                                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
 
                                 //TODO: Move invoke inside runfinish where it is needed
-                                DoInvoke(() => RunFinish(false));
+                                DoInvoke(() => RunFinish(false, true));
 
                             }
 
