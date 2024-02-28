@@ -93,7 +93,7 @@ namespace DeIce68k.ViewModel
             Y.Data = DeIceFnFactory.ReadUShort(deiceData, 5);
             D.Data = DeIceFnFactory.ReadUShort(deiceData, 7);
             S.Data = DeIceFnFactory.ReadUShort(deiceData, 9);
-            E.Data = (uint)(deiceData[11] & 0x01);
+            E.Data = (uint)(deiceData[11] & 0x80);
             B.Data = deiceData[12];
             P.Data = deiceData[13];
             PC.Data = DeIceFnFactory.ReadU24(deiceData, 14) & 0xFFFFFF;
@@ -108,7 +108,7 @@ namespace DeIce68k.ViewModel
             DeIceFnFactory.WriteUShort(ret, 5, Y.Data);
             DeIceFnFactory.WriteUShort(ret, 7, D.Data);
             DeIceFnFactory.WriteUShort(ret, 9, S.Data);
-            ret[11] = (byte)(E.Data != 0 ? 1 : 0);
+            ret[11] = (byte)(E.Data != 0 ? 0x80 : 0);
             ret[12] = (byte)B.Data;
             ret[13] = (byte)P.Data;
             DeIceFnFactory.WriteU24(ret, 14, PC.Data);
