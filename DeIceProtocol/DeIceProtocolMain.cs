@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using DossySerialPort;
 
 namespace DeIceProtocol
@@ -50,7 +52,7 @@ namespace DeIceProtocol
     public delegate void DeIceCommErrorEvent(object sender, DeIceComErrorEventArgs e);
 
 
-    public class DeIceProtocolMain
+    public class DeIceProtocolMain : IDisposable
     {
         const int RESPONSE_TIMEOUT = 100; //how long to wait until a command's response time's out
         const int SHORT_TIMEOUT = 100; // how long to wait for more oob data before showing
@@ -64,64 +66,77 @@ namespace DeIceProtocol
 
         IDossySerial _serial = null;
 
-        private Semaphore _runSemaphore = new(1, 1);
-
+        object _bgReadLock = new object();
+        Task _bgReadTask = null;
+        CancellationTokenSource _bgReadTaskCancel = null;
 
         public DeIceProtocolMain(IDossySerial serial)
         {
-            this._serial = serial;
-
-            _serial.DataReceived += _serial_DataReceived;
+            _serial = serial;
+            startBgReadTask();
 
         }
 
-        private void _serial_DataReceived(object o, EventArgs e) // object sender, SerialDataReceivedEventArgs e)
+        private void startBgReadTask()
         {
-            while (true)
+            lock (_bgReadLock)
             {
-                if (!_runSemaphore.WaitOne(0))
+                if (_bgReadTask != null)
                     return;
-                bool claimed = true;
+                _bgReadTaskCancel = new CancellationTokenSource();
+                var t = _bgReadTaskCancel.Token;
+                _bgReadTask = Task.Run(() =>
+                {
+
+                    while (!_bgReadTaskCancel.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            var firstbyte = _serial.PeekByte();
+                            if (firstbyte < 0)
+                            {
+                                Thread.Sleep(1);
+                            }
+                            else if (firstbyte >= DeIceProtoConstants.FN_MIN || firstbyte == DeIceProtoConstants.FN_ERROR)
+                            {
+                                try
+                                {
+                                    var cmd = DoCommandReadInt();
+                                    RaiseFunctionReceived(cmd);
+                                }
+                                catch (Exception ex)
+                                {
+                                    CommError?.Invoke(this, new DeIceComErrorEventArgs(ex));
+                                }
+                            }
+                            else
+                            {
+                                firstbyte = _serial.ReadByte(SHORT_TIMEOUT); 
+                                DoOobRead_int((byte)firstbyte);
+                            }
+                        } catch (Exception ex) { }
+                    }
+                }, t);
+            }
+        }
+
+        private void stopBgReadTask()
+        {
+            lock (_bgReadLock)
+            {
+                if (_bgReadTask == null)
+                    return;
+                _bgReadTaskCancel?.Cancel();
                 try
                 {
-                    if (_serial.Available <= 0)
-                        return;
-
-                    try
-                    {
-                        byte firstbyte = _serial.ReadByte(SHORT_TIMEOUT);
-                        if (firstbyte >= DeIceProtoConstants.FN_MIN || firstbyte == DeIceProtoConstants.FN_ERROR)
-                        {
-                            var cmd = DoCommandReadInt(firstbyte, true);
-                            _runSemaphore.Release();
-                            claimed = false;
-                            RaiseFunctionReceived(cmd);
-                        }
-                        else
-                        {
-                            var str = DoOobRead_int(firstbyte);
-                            _runSemaphore.Release();
-                            claimed = false;
-
-                            if (!string.IsNullOrWhiteSpace(str))
-                                RaiseOobData(str);
-                            
-                        }
-                    }
-                    catch (TimeoutException) //timeout
-                    {
-                        return;
-                    }
-                    catch (Exception ex)
-                    {
-                        CommError?.Invoke(this, new DeIceComErrorEventArgs(ex));
-                    }
-                }
-                finally
-                {
-                    if (claimed)
-                        _runSemaphore.Release();
-                }
+                    _bgReadTask.Wait();
+                } catch (Exception ex) {
+                    Debug.WriteLine("HERERERER " + ex.ToString());
+                } 
+                _bgReadTask.Dispose();
+                _bgReadTask = null;
+                _bgReadTaskCancel?.Dispose();
+                _bgReadTaskCancel = null;
             }
         }
 
@@ -138,51 +153,29 @@ namespace DeIceProtocol
 
         public T SendReqExpectReply<T>(DeIceFnReqBase fn) where T : DeIceFnReplyBase
         {
-            if (!_runSemaphore.WaitOne(LONG_TIMEOUT))
-                throw new TimeoutException();
+            stopBgReadTask();
             try
             {
-
-                try
-                {
-                    byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
-                    _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
-                    var r = DoCommandReadInt();
-                    if (r is DeIceFnReplyError)
-                        throw new DeIceProtocolException($"Error returned from client, expected a {typeof(T).FullName}, received a {r?.GetType()?.Name ?? null}");
-                    if (r is not T)
-                        throw new DeIceProtocolException($"Unexpected return from client, expected a { typeof(T).FullName }, received a { r?.GetType()?.Name ?? null }");
-                    return (T)r;
-                }
-                finally
-                {
-                    _runSemaphore.Release();
-                    if (_serial.Available > 0)
-                        _serial_DataReceived(_serial, EventArgs.Empty);
-                }
-            } catch (Exception ex)
+                byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
+                _serial.Write(buf, 0, buf.Length, LONG_TIMEOUT);
+                var r = DoCommandReadInt();
+                if (r is DeIceFnReplyError)
+                    throw new DeIceProtocolException($"Error returned from client, expected a {typeof(T).FullName}, received a {r?.GetType()?.Name ?? null}");
+                if (r is not T)
+                    throw new DeIceProtocolException($"Unexpected return from client, expected a {typeof(T).FullName}, received a {r?.GetType()?.Name ?? null}");
+                return (T)r;
+            }
+            finally
             {
-                throw new Exception($"Error executing {fn?.GetType()?.FullName ?? "-null-"} : {ex.Message}", ex);
+                startBgReadTask();
             }
         }
 
         public void SendReq(DeIceFnReqBase fn)
         {
-            if (!_runSemaphore.WaitOne(LONG_TIMEOUT))
-                throw new TimeoutException();
-
-            try
-            {
-                byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
-                        _serial.Write(buf, 0, buf.Length, SHORT_TIMEOUT);
-                        return;
-            }
-            finally
-            {
-                _runSemaphore.Release();
-                if (_serial.Available > 0)
-                    _serial_DataReceived(_serial, EventArgs.Empty);
-            }
+            byte[] buf = DeIceFnFactory.CreateDataFromReq(fn);
+            _serial.Write(buf, 0, buf.Length, SHORT_TIMEOUT);
+            return;
         }
 
         const int READMEMMAX = 32;
@@ -211,47 +204,74 @@ namespace DeIceProtocol
         }
 
         private readonly static int MAXOOB = 1024;
+        MemoryStream oobms = new MemoryStream();
+        //TODO: dispose oobcs
+        CancellationTokenSource oobcs = new CancellationTokenSource();
+        private bool disposedValue;
 
-        private string DoOobRead_int(byte first)
+        private void DoOobRead_int(byte first)
         {
+            oobcs.Cancel();
             if (first == 0x0D || first == 0x0A)
-                return "";
+                return;
 
-            using (var ms = new MemoryStream())
+            oobms.WriteByte(first);
+
+            var sendStr = () =>
             {
+                var r = Encoding.ASCII.GetString(oobms.ToArray());
+                oobms.SetLength(0);
+                if (r != "")
+                    RaiseOobData(r);
+            };
 
-                ms.WriteByte(first);
-
-                bool finished = false;
-                while (!finished && ms.Length < MAXOOB)
+            try
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < SHORT_TIMEOUT)
                 {
-                    try
+                    int b = _serial.PeekByte();
+                    if (b < 0)
                     {
-                        byte b = _serial.PeekByte(SHORT_TIMEOUT);
-                        if (b >= DeIceProtoConstants.FN_MIN || b == DeIceProtoConstants.FN_ERROR|| b == 0x0D || b == 0x0A)
-                            finished = true;
-                        else
-                            ms.WriteByte(_serial.ReadByte(SHORT_TIMEOUT));
-
-
+                        Thread.Sleep(1);
                     }
-                    catch (TimeoutException)
+                    else if (b >= DeIceProtoConstants.FN_MIN || b == DeIceProtoConstants.FN_ERROR)
                     {
-                        finished = true;
+                        sendStr();
+                        return;
+                    }
+                    else
+                    {
+                        b = _serial.ReadByte(SHORT_TIMEOUT);
+                        if (b == 0xD || b == 0xA)
+                        {
+                            sendStr();
+                            return;
+                        }
+                        else
+                        {
+                            oobms.WriteByte((byte)b);
+                            if (oobms.Length >= MAXOOB)
+                            {
+                                sendStr();
+                                return;
+                            }
+                        }
                     }
                 }
-
-                return Encoding.ASCII.GetString(ms.ToArray());
             }
+            catch (TimeoutException)
+            {
+                sendStr();
+                return;
+            }
+
         }
 
         private void RaiseOobData(string data)
         {
             foreach (var l in data.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.TrimEntries))
-            {
-
                 OobDataReceived?.Invoke(this, new DeIceOobDataReceivedEventArgs(l));
-            }
         }
 
         private DeIceFnReplyBase DoCommandReadInt(byte first = 0, bool hasFirst = false)
@@ -260,15 +280,21 @@ namespace DeIceProtocol
             int bufptr = 0;
             byte lenctr = 0;
             if (!hasFirst)
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+
                 while (true)
                 {
                     first = _serial.ReadByte(SHORT_TIMEOUT);
                     if (first < DeIceProtoConstants.FN_MIN)
-                        RaiseOobData(DoOobRead_int(first));
+                        DoOobRead_int(first);
                     else
                         break;
 
+                    if (sw.ElapsedMilliseconds >= SHORT_TIMEOUT)
+                        throw new TimeoutException();
                 }
+            }
             bufptr = 0;
             buf[bufptr++] = first;
             byte ck = first;
@@ -319,6 +345,35 @@ namespace DeIceProtocol
                 }
             }
             catch (Exception) { }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    stopBgReadTask();
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        // ~DeIceProtocolMain()
+        // {
+        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

@@ -55,7 +55,6 @@ namespace DeIce68k.ViewModel.Scripts
         }
 
         MessagesTextWriter _messages;
-        private bool disposedValue;
 
         public DisassAddressBase GetSymbol(string s)
         {

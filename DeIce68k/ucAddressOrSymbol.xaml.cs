@@ -121,7 +121,7 @@ namespace DeIce68k
             try
             {
                 addr = am?.GetDisass().AddressFactory.Parse(s);
-                return true;
+                return addr != null;
             }
             catch (Exception)
             {
