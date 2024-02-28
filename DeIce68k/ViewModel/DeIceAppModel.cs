@@ -1332,7 +1332,7 @@ namespace DeIce68k.ViewModel
                                 if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
                                     bool cont = false;
-                                    DoInvoke(() => cont = RunFinish(true, true));
+                                    DoInvoke(() => cont = RunFinish(true, false));
                                     if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
