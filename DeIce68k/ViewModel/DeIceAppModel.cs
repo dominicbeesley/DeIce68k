@@ -26,7 +26,7 @@ namespace DeIce68k.ViewModel
     /// <summary>
     /// main application model
     /// </summary>
-    public class DeIceAppModel : ObservableObject
+    public class DeIceAppModel : ObservableObject, IDisposable
     {
         private DeIceFnReplyGetStatus _debugHostStatus;
         public DeIceFnReplyGetStatus DebugHostStatus
@@ -453,7 +453,7 @@ namespace DeIce68k.ViewModel
                         if (Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                             if (ReExecCurBreakpoint())
                             {
-                                RunFinish(true);
+                                RunFinish(true, true);
                                 return;
                             }
 
@@ -462,7 +462,7 @@ namespace DeIce68k.ViewModel
                         {
                             Regs.FromDeIceProtocolRegData(rr.RegisterData);
                             //TODO: Special status instead of BP/TACE here ?
-                            RunFinish(true);
+                            RunFinish(true, true);
                             return;
                         }
                     }
@@ -575,7 +575,6 @@ namespace DeIce68k.ViewModel
                     if (traceCancelSource != null)
                     {
                         traceCancelSource.Cancel();
-                        Thread.Sleep(100);
                     }
                     else
                     {
@@ -793,26 +792,15 @@ namespace DeIce68k.ViewModel
 
             DeIceProto.CommError += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
-                {
-                    AppendMessage($"ERROR:{ e.Exception.ToString() }");
-                })
-                );
+                DoBeginInvoke(() => { AppendMessage($"ERROR:{ e.Exception }"); });
             };
             DeIceProto.OobDataReceived += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
-                {
-                    AppendMessage($"OOB:{ e.Data }");
-                })
-                );
+                DoBeginInvoke(() => { AppendMessage($"OOB:{ e.Data }"); });
             };
             DeIceProto.FunctionReceived += (o, e) =>
             {
-                DoInvoke(new Action(
-                delegate
+                DoBeginInvoke(() =>
                 {
                     AppendMessage($"FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
 
@@ -832,7 +820,7 @@ namespace DeIce68k.ViewModel
                     {
                         Regs.FromDeIceProtocolRegData(x.RegisterData);
 
-                        if (!RunFinish(true))
+                        if (!RunFinish(true, true))
                         {
                             // breakpoint hit but it returned false...carry on
                             ReExecCurBreakpoint();
@@ -850,8 +838,7 @@ namespace DeIce68k.ViewModel
                             Regs.TargetStatus = DeIceProtoConstants.TS_TRACE;
 
                     }
-                })
-                );
+                });
             };
 
             if (hostStatus != null)
@@ -868,7 +855,7 @@ namespace DeIce68k.ViewModel
                 DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
                 var r = DeIceProto.SendReqExpectReply<DeIceFnReplyRegsBase>(new DeIceFnReqReadRegs());
                 Regs?.FromDeIceProtocolRegData(r.RegisterData);
-                RunFinish(false);
+                RunFinish(false, true);
                 return true;
             }
             catch (Exception ex)
@@ -905,10 +892,19 @@ namespace DeIce68k.ViewModel
                 a.Invoke();
         }
 
+        void DoBeginInvoke(Action a)
+        {
+            if (MainWindow is not null)
+                MainWindow.Dispatcher.BeginInvoke(a);
+            else
+                a.Invoke();
+        }
+
         /// <summary>
         /// when running this contains the list of breakpoints that have actually been sucessfully set
         /// </summary>
         private List<BreakpointModel> _activeBreakpoints = new List<BreakpointModel>();
+        private bool disposedValue;
 
 
         /// <summary>
@@ -1192,8 +1188,9 @@ namespace DeIce68k.ViewModel
         /// <summary>
         /// Run has finished (or initial read regs reply received) update the display, registers should already have been updated
         /// </summary>
+        /// <param name="nobp">If the target stopped at a break point but there is none defined return this</param>
         /// <returns>If this is a breakpoint the condition is checked and returned here, otherwise return false</returns>
-        public bool RunFinish(bool unApplyBreakpoints = true)
+        public bool RunFinish(bool unApplyBreakpoints, bool nobp)
         {
             bool ret = Regs.TargetStatus != DeIceProtoConstants.TS_BP;
             try
@@ -1221,7 +1218,10 @@ namespace DeIce68k.ViewModel
 
                 if (Regs?.TargetStatus == DeIceProtoConstants.TS_BP)
                 {
-                    foreach (var curbp in Breakpoints.Where(b => b.Address.Equals(Regs.PCValue)))
+                    var bps = Breakpoints.Where(b => b.Address.Equals(Regs.PCValue));
+                    if (!bps.Any())
+                        return nobp;
+                    foreach (var curbp in bps)
                     {
                         if (curbp != null && curbp.Enabled)
                         {
@@ -1305,7 +1305,7 @@ namespace DeIce68k.ViewModel
                                 if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
                                     bool cont = false;
-                                    DoInvoke(() => cont = RunFinish(true));
+                                    DoInvoke(() => cont = RunFinish(true, false));
                                     if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
@@ -1316,7 +1316,7 @@ namespace DeIce68k.ViewModel
                                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
 
                                 //TODO: Move invoke inside runfinish where it is needed
-                                DoInvoke(() => RunFinish(false));
+                                DoInvoke(() => RunFinish(false, false));
 
                             }
                         } else if (Regs is IRegisterSetPredictNext)
@@ -1332,7 +1332,7 @@ namespace DeIce68k.ViewModel
                                 if (Regs.TargetStatus != DeIceProtoConstants.TS_TRACE)
                                 {
                                     bool cont = false;
-                                    DoInvoke(() => cont = RunFinish(true));
+                                    DoInvoke(() => cont = RunFinish(true, true));
                                     if (cont && Regs.TargetStatus == DeIceProtoConstants.TS_BP)
                                     {
                                         break;
@@ -1343,7 +1343,7 @@ namespace DeIce68k.ViewModel
                                 Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
 
                                 //TODO: Move invoke inside runfinish where it is needed
-                                DoInvoke(() => RunFinish(false));
+                                DoInvoke(() => RunFinish(false, true));
 
                             }
 
@@ -1528,6 +1528,39 @@ namespace DeIce68k.ViewModel
                 DisassMemBlock.PC = Regs.PCValue;
             }
 
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    if (_deIceProto != null)
+                    {
+                        _deIceProto.Dispose();
+                        _deIceProto = null;
+                    }
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: set large fields to null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+        // ~DeIceAppModel()
+        // {
+        //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
