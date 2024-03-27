@@ -312,8 +312,10 @@ namespace Disass65816
                 /* random col 4 */
                 0x44 => ("MVP", mode_xyc),
                 0x54 => ("MVN", mode_xyc),
-                0xD4 => ("PEI", mode_ind_a),
+                0xD4 => ("PEI", mode_ind_dp),
                 0xF4 => ("PEA", mode_a),
+                /* random col 9 */
+                0x89 => ("BIT", mode_immMem),
                 /* random col C */
                 0x4C => ("JMP", mode_a),
                 0x5C => ("JML", mode_long_a),
