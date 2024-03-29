@@ -104,6 +104,14 @@ namespace Disass65816
             return OperAddr(new Address65816_abs(addr), SymbolType.Pointer);
         }
 
+        IEnumerable<DisRec2OperString_Base> mode_aj(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
+        {
+            len += 2;
+            UInt32 addr = br.ReadUInt16();
+            return OperAddr(new Address65816_abs(addr, (UInt32)(pc.Canonical >> 16)), SymbolType.Pointer);
+        }
+
+
         IEnumerable<DisRec2OperString_Base> mode_Acc(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             return OperStr("A");
@@ -317,7 +325,7 @@ namespace Disass65816
                 /* random col 9 */
                 0x89 => ("BIT", mode_immMem),
                 /* random col C */
-                0x4C => ("JMP", mode_a),
+                0x4C => ("JMP", mode_aj),
                 0x5C => ("JML", mode_long_a),
                 0x6C => ("JMP", mode_ind_a),
                 0x7C => ("JMP", mode_ind_aX),
@@ -330,7 +338,7 @@ namespace Disass65816
                         //column 0 - randomers
                         0x0 => ("BRK", mode_BRK),
                         0x1 => ("BPL", mode_r),
-                        0x2 => ("JSR", mode_a),
+                        0x2 => ("JSR", mode_aj),
                         0x3 => ("BMI", mode_r),
                         0x4 => ("RTI", null),
                         0x5 => ("BVC", mode_r),
