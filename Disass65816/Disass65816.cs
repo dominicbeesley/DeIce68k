@@ -142,14 +142,14 @@ namespace Disass65816
         IEnumerable<DisRec2OperString_Base> mode_long_a(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 3;
-            UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() >> 16);
+            UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() << 16);
             return OperStr("f:").Concat(OperAddr(new Address65816_far(addr), SymbolType.Pointer));
         }
 
         IEnumerable<DisRec2OperString_Base> mode_long_aX(BinaryReader br, DisassAddressBase pc, ref ushort len, IList<string> hints, DisassState65816 state)
         {
             len += 3;
-            UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() >> 16);
+            UInt32 addr = (UInt32)br.ReadUInt16() + (UInt32)(br.ReadByte() << 16);
             return OperStr("f:").Concat(OperAddr(new Address65816_far(addr), SymbolType.Pointer)).Concat(OperStr(",X"));
         }
 
