@@ -550,12 +550,22 @@ namespace DeIce68k.ViewModel
                                     l.Append("   ");
                                     l2.Append(" ");
                                 }
+                                if (rowoffs>=8)
+                                {
+                                    l.Append(" ");
+                                    l2.Append(" ");
+                                }
                             }
                             l.Append($" {buf[i]:X2}");
                             if (buf[i] > 32 && buf[i] < 128)
                                 l2.Append((char)buf[i]);
                             else
                                 l2.Append(".");
+                            if ((a.Canonical % 16) == 7)
+                            {
+                                l.Append(" ");
+                                l2.Append(" ");
+                            }
                             a = a + 1;
                         }
                         if (l.Length > 0)
