@@ -413,11 +413,12 @@ namespace Disass65816
                             0xD => ("JML", mode_ind_a),
                             _ => throw new Exception($"Unexpected value {opcode:X}")
                         },
-                        8 or 9 => (oprow | opcol) switch
+                        8 or 9 => (opcode) switch
                         {
-                            4 or 5 => ("STY", ((oprow & 1) == 0) ? mode_dp : mode_dpX),
-                            0xC => ("STY", address_mode = mode_a),
-                            0xD => ("STZ", mode_a),
+                            0x84 => ("STY", address_mode = mode_dp),
+                            0x94 => ("STY", mode_dpX),
+                            0x8C => ("STY", mode_a),
+                            0x9C => ("STZ", mode_a),
                             _ => throw new Exception($"Unexpected value {opcode:X}")
                         },
                         0xC or 0xE =>
