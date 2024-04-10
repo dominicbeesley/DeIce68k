@@ -259,6 +259,7 @@ namespace DeIceProtocol
                         }
                     }
                 }
+                sendStr();
             }
             catch (TimeoutException)
             {
