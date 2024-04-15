@@ -1264,7 +1264,12 @@ namespace DeIce68k.ViewModel
         public void DisassembleAt(DisassAddressBase addr)
         {
             //check to see if pc is in the current DisassMemBlock, if not either extend or load new
-            if (DisassMemBlock == null || DisassMemBlock.BaseAddress > addr || DisassMemBlock.EndPoint <= addr + 64)
+            if (
+                DisassMemBlock == null || 
+                DisassMemBlock.BaseAddress > addr || 
+                DisassMemBlock.EndPoint <= addr + 64 ||
+                !DisassMemBlock.Items.Where(i => i.Address == addr).Any()
+                )
             {
                 Int64 block_offset;
                 if (DisassMemBlock != null && (block_offset = addr - DisassMemBlock.EndPoint) > 0 &&  block_offset < 1024)
