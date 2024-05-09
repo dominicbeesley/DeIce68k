@@ -106,6 +106,7 @@ namespace DeIceProtocol
                                 }
                                 catch (Exception ex)
                                 {
+                                    Debug.WriteLine(firstbyte);
                                     CommError?.Invoke(this, new DeIceComErrorEventArgs(ex));
                                 }
                             }

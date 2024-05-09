@@ -83,12 +83,13 @@ namespace DeIce68k
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            var serialPort = (DataContext as DeIceAppModel)?.Serial;
+/*            var serialPort = (DataContext as DeIceAppModel)?.Serial;
             if ( serialPort != null)
             {
                 serialPort.Dispose();
                 serialPort = null;
             }
+*/
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs ee)
