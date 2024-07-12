@@ -408,6 +408,21 @@ namespace DeIce68k.ViewModel
             DisassMemBlock?.BreakpointsUpdated();
         }
 
+        public void TextInputHandler(object sender, TextCompositionEventArgs e)
+        {
+            
+            if (Regs?.IsRunning ?? false)
+            {
+                byte[] ascii = Encoding.ASCII.GetBytes(e.Text);
+
+                byte[] ascilo = ascii.Where(b => b < 128).ToArray();
+
+                this.Serial.Write(ascilo, 0, ascilo.Length);
+            }
+            
+        }
+
+
         public DeIceAppModel(IDossySerial serial, MainWindow mainWindow, bool sampleData = false, DeIceFnReplyGetStatus hostStatus = null)
         {
             this._sampleData = sampleData;

@@ -99,5 +99,9 @@ namespace DeIce68k
 
         }
 
+        private void FrameworkElement_TextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            (DataContext as DeIceAppModel)?.TextInputHandler(sender, e);
+        }
     }
 }

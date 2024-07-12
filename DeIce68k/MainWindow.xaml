@@ -19,6 +19,11 @@
         <viewmodel:TargetStatusByte_ValueConverter x:Key="tsvalconv" />
     </Window.Resources>
 
+    <Window.Style>
+        <Style>
+            <EventSetter Event="Window.TextInput" Handler="FrameworkElement_TextInput" />
+        </Style>
+    </Window.Style>
 
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
@@ -287,7 +292,8 @@
                             Margin="0" Padding="2" 
                             Background="Black" Foreground="#008000" 
                             BorderBrush="Black" FontFamily="Lucida Console" 
-                            FontSize="10"/>
+                            FontSize="10"
+                            IsReadOnly="True"/>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
                 <ListBox.ItemContainerStyle>
