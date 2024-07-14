@@ -48,13 +48,25 @@ namespace DeIce68k
                     i++;
                 }
 
-                if (args.Length < 1)
+                if (args.Length < i + 1)
                 {
                     throw new ArgumentException("Missing COM port argument");
                 }
                 string comport = args[i];
 
-                serialPort = new DossySerialPort.DossySerial(comport, 19200);
+                int baud = 19200;
+                if (args.Length > i + 1)
+                {
+                    try
+                    {
+                        baud = int.Parse(args[i + 1]);
+                    } catch
+                    {
+                        throw new ArgumentException("Bad baud rate");
+                    }
+                }
+
+                serialPort = new DossySerialPort.DossySerial(comport, baud);
 
                 MainWindow wnd = new MainWindow();
 
