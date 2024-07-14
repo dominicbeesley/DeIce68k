@@ -27,42 +27,18 @@ namespace DeIce68k
         public DlgLoadBinary(DeIceAppModel context)
         {
             this.Context = context;
+            this.DataContext = context;
             InitializeComponent();
         }
 
         public DisassAddressBase Address {
             get
             {
-
-                DisassAddressBase ret = null;
-                ISymbol2 sym;
-                try
-                {
-                    if (Context.Symbols.FindByName(txtAddress.Text, out sym))
-                    {
-                        ret = sym.Address;
-                    }
-                    else
-                    {
-                        ret = Context.GetDisass()?.AddressFactory?.Parse(txtAddress.Text);
-                    }
-                }
-                catch (Exception) { }
-                return ret;
+                return ucAddr.Address;
             }
             set
             {
-                if (value != null)
-                {
-                    var sym = Context?.Symbols?.GetByAddress(value, SymbolType.ANY).FirstOrDefault();
-                    if (sym != null)
-                        txtAddress.Text = sym.Name;
-                    else
-                        txtAddress.Text = $"{value:X08}";
-                } else
-                {
-                    txtAddress.Text = "";
-                }
+                ucAddr.Address = value;
             }
         }
 
@@ -71,21 +47,11 @@ namespace DeIce68k
             set => txtFilename.Text = value;
         }
 
+       
         private void ButtonOK_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                DisassAddressBase ret;
-                ISymbol2 sym;
-                if (Context.Symbols.FindByName(txtAddress.Text, out sym))
-                {
-                    ret = sym.Address;
-                }
-                else
-                {
-                    ret = Context.GetDisass().AddressFactory.Parse(txtAddress.Text);
-                }
-            } catch (Exception)
+
+            if (!ucAddr.Valid)
             {
                 MessageBox.Show("No such symbol or bad address", "Bad Address", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
