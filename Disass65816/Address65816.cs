@@ -55,7 +55,7 @@ namespace Disass65816
         }
         public override string ToString()
         {
-            return $"${_address:X6}";
+            return $"{_address:X6}";
         }
 
     }
@@ -111,12 +111,12 @@ namespace Disass65816
         }
         public override string ToString()
         {
-            return $"${_address:X2}";
+            return $"{_address:X2}";
         }
 
         public string ToStringLong()
         {
-            return $"${Canonical:X6}";
+            return $"{Canonical:X6}";
         }
     }
 
@@ -171,12 +171,12 @@ namespace Disass65816
         }
         public override string ToString()
         {
-            return $"${_address:X2}";
+            return $"{_address:X2}";
         }
 
         public string ToStringLong()
         {
-            return $"${Canonical:X6}";
+            return $"{Canonical:X6}";
         }
     }
 
