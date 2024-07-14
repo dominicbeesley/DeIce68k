@@ -179,6 +179,12 @@ namespace DeIce68k.ViewModel
             }
         }
 
+        private DisassAddressBase _dumpMemoryAddr_last = null;
+        public DisassAddressBase DumpMemoryAddr_last
+        {
+            get => _dumpMemoryAddr_last;
+            set => Set(ref _dumpMemoryAddr_last, value);
+        }
 
         private DisassAddressBase _loadBinaryAddr_last = null;
         public DisassAddressBase LoadBinaryAddr_last
@@ -534,7 +540,7 @@ namespace DeIce68k.ViewModel
             CmdDumpMem = new RelayCommand(
                 o =>
                 {
-                    var dlg = new DlgDumpMem(this);
+                    var dlg = new DlgSimpleAddress(this);
                     dlg.Title = "Dump Memory";
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
@@ -639,7 +645,7 @@ namespace DeIce68k.ViewModel
             CmdDisassembleAt = new RelayCommand(
                 o =>
                 {
-                    var dlg = new DlgDumpMem(this);
+                    var dlg = new DlgSimpleAddress(this);
                     dlg.Title = "Disassemble At";
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
@@ -669,7 +675,7 @@ namespace DeIce68k.ViewModel
             CmdBreakpoints_Add = new RelayCommand(
                 o =>
                 {
-                    var dlg = new DlgDumpMem(this);
+                    var dlg = new DlgSimpleAddress(this);
                     dlg.Title = "Add breakpoint at";
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;

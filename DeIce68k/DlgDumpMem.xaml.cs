@@ -19,11 +19,11 @@ namespace DeIce68k
     /// <summary>
     /// Interaction logic for DlgTraceTo.xaml
     /// </summary>
-    public partial class DlgDumpMem : Window
+    public partial class DlgSimpleAddress : Window
     {
         public DeIceAppModel Context { get; }
 
-        public DlgDumpMem(DeIceAppModel context)
+        public DlgSimpleAddress(DeIceAppModel context)
         {
             this.Context = context;
             this.DataContext = context;
