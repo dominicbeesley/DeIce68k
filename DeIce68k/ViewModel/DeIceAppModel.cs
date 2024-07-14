@@ -114,6 +114,7 @@ namespace DeIce68k.ViewModel
         public ICommand CmdStop { get; }
         public ICommand CmdRefresh { get; }
         public ICommand CmdDisassembleAt { get; }
+        public ICommand CmdRunAt { get; }
 
         public ICommand CmdBreakpoints_Add { get; }
         public ICommand CmdBreakpoints_Delete { get; }
@@ -177,6 +178,21 @@ namespace DeIce68k.ViewModel
             {
                 _recentCommandFiles.RemoveAt(_recentCommandFiles.Count - 1);
             }
+        }
+
+        private DisassAddressBase _runFrom_last = null;
+        public DisassAddressBase RunFrom_last
+        {
+            get => _runFrom_last;
+            set => Set(ref _runFrom_last, value);
+        }
+
+
+        private DisassAddressBase _disassembleAt_last = null;
+        public DisassAddressBase DisassembleAt_last
+        {
+            get => _disassembleAt_last;
+            set => Set(ref _disassembleAt_last, value);
         }
 
         private DisassAddressBase _dumpMemoryAddr_last = null;
@@ -542,6 +558,7 @@ namespace DeIce68k.ViewModel
                 {
                     var dlg = new DlgSimpleAddress(this);
                     dlg.Title = "Dump Memory";
+                    dlg.Address = DumpMemoryAddr_last;
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
                     //TODO: use binding and a viewmodel?
@@ -591,6 +608,7 @@ namespace DeIce68k.ViewModel
                         }
                         if (l.Length > 0)
                             Messages.Add($"{l} | {l2}");
+                        DumpMemoryAddr_last = dlg.Address;
                     }
 
                 },
@@ -647,6 +665,7 @@ namespace DeIce68k.ViewModel
                 {
                     var dlg = new DlgSimpleAddress(this);
                     dlg.Title = "Disassemble At";
+                    dlg.Address = DisassembleAt_last;
                     if (MainWindow is not null)
                         dlg.Owner = MainWindow;
 
@@ -660,6 +679,7 @@ namespace DeIce68k.ViewModel
                             var i = MainWindow.ucDisAss.lbLines.Items.OfType<DisassItemOpModel>().Where(x => x.Address.Equals(dlg.Address)).FirstOrDefault();
                             MainWindow.ucDisAss.lbLines.ScrollIntoView(i);
                         }
+                        DisassembleAt_last = dlg.Address;
                     }
 
 
@@ -817,6 +837,26 @@ namespace DeIce68k.ViewModel
                 "Clear Message Log",
                 Command_Exception
             );
+
+            CmdRunAt = new RelayCommand(
+                (o) =>
+                {
+                    var dlg = new DlgSimpleAddress(this);
+                    dlg.Title = "Run From";
+                    dlg.Address = RunFrom_last;
+                    if (MainWindow is not null)
+                        dlg.Owner = MainWindow;
+
+                    if (dlg.ShowDialog() == true) { 
+                        Regs.PCValue = dlg.Address;
+                        DoContinue();
+                    }
+                },
+                (o) => { return Regs?.IsStopped ?? false; },
+                "Trace To Here",
+                Command_Exception
+            );
+
 
 
             _deIceProto = new DeIceProtocolMain(Serial);

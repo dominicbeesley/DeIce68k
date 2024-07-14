@@ -51,6 +51,7 @@
                     <MenuItem Command="{Binding CmdRefresh}" Header="Refresh" />
                     <MenuItem Command="{Binding CmdDumpMem}" Header="Dump Memory" />
                     <MenuItem Command="{Binding CmdDisassembleAt}" Header="Disassemble At..." />
+                    <MenuItem Command="{Binding CmdRunAt}" Header="Run From..." />
                 </MenuItem>
             </Menu>
             <ToolBarTray>

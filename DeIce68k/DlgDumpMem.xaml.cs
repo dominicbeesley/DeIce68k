@@ -30,7 +30,10 @@ namespace DeIce68k
             InitializeComponent();
         }
 
-        public DisassAddressBase Address { get; private set; }
+        public DisassAddressBase Address { 
+            get => ucAddr.Address; 
+            set => ucAddr.Address = value; 
+        }
 
         private void ButtonOK_Click(object sender, RoutedEventArgs e)
         {
@@ -40,7 +43,6 @@ namespace DeIce68k
                 return;
             } else
             {
-                Address = ucAddr.Address;
                 DialogResult = true;
                 Close();
             }
