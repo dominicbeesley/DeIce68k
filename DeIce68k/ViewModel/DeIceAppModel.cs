@@ -848,6 +848,7 @@ namespace DeIce68k.ViewModel
                         dlg.Owner = MainWindow;
 
                     if (dlg.ShowDialog() == true) { 
+                        RunFrom_last = dlg.Address;
                         Regs.PCValue = dlg.Address;
                         DoContinue();
                     }
