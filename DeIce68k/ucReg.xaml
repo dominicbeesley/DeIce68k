@@ -8,16 +8,16 @@
              mc:Ignorable="d"              
              Background="Transparent"
              >
-    <Grid Height="20" Width="135">
+    <Grid Height="20" Width="165">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="30" />
+            <ColumnDefinition Width="60" />
             <ColumnDefinition Width="100" />
         </Grid.ColumnDefinitions>
         <TextBlock 
             Grid.Column="0" 
             Text="{Binding Path=Name}" 
             Name="tbLabel"
-            Style="{StaticResource Retro_TextBlock_Reg_Label}"
+            Style="{StaticResource Retro_TextBlock_Reg_Label}" Width="57"
             />
         <Border                
             Grid.Column="1" 
