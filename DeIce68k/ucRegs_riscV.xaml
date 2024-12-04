@@ -1,0 +1,84 @@
+﻿<UserControl x:Class="DeIce68k.ucRegs_riscV"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:DeIce68k"
+             d:DesignHeight="447.129" d:DesignWidth="325.548"
+             xmlns:sampledata="clr-namespace:DeIce68k.SampleData"             
+             d:DataContext="{x:Static sampledata:DesignTimeSampleData.SampleDataRegisterSetModel_RiscV }"
+             mc:Ignorable="d" 
+             Background="{StaticResource Retro_Brush_BG}"
+             Foreground="{StaticResource Retro_Brush_FG}"
+             >
+    <Grid Width="Auto" Height="Auto" Margin="0,0,0,-56">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="160" />
+            <ColumnDefinition Width="160" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="24" />
+            <RowDefinition Height="40" />
+        </Grid.RowDefinitions>
+
+        <local:ucReg Grid.Column="0" Grid.Row="0" DataContext="{Binding Path=X1}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="0" DataContext="{Binding Path=X2}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="1" DataContext="{Binding Path=X3}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="1" DataContext="{Binding Path=X4}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="2" DataContext="{Binding Path=X5}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="2" DataContext="{Binding Path=X6}" ></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="3" DataContext="{Binding Path=X7}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="3" DataContext="{Binding Path=X8}" ></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="4" DataContext="{Binding Path=X9}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="4" DataContext="{Binding Path=X10}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="5" DataContext="{Binding Path=X11}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="5" DataContext="{Binding Path=X12}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="6" DataContext="{Binding Path=X13}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="6" DataContext="{Binding Path=X14}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="7" DataContext="{Binding Path=X15}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="7" DataContext="{Binding Path=X16}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="8" DataContext="{Binding Path=X17}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="8" DataContext="{Binding Path=X18}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="9" DataContext="{Binding Path=X19}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="9" DataContext="{Binding Path=X20}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="10" DataContext="{Binding Path=X21}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="10" DataContext="{Binding Path=X22}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="11" DataContext="{Binding Path=X23}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="11" DataContext="{Binding Path=X24}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="12" DataContext="{Binding Path=X25}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="12" DataContext="{Binding Path=X26}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="13" DataContext="{Binding Path=X27}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="13" DataContext="{Binding Path=X28}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="14" DataContext="{Binding Path=X29}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="14" DataContext="{Binding Path=X30}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="15" DataContext="{Binding Path=X31}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="15" DataContext="{Binding Path=PC}"></local:ucReg>
+
+        <local:ucReg Grid.Column="1" Grid.Row="16" DataContext="{Binding Path=Q1}"></local:ucReg>
+        <local:ucReg Grid.Column="0" Grid.Row="16" DataContext="{Binding Path=Q2}"></local:ucReg>
+        <local:ucReg Grid.Column="1" Grid.Row="17" DataContext="{Binding Path=Q3}"></local:ucReg>
+
+
+        
+        <local:ucTargetStatus Grid.Column="0" Grid.Row="18" DataContext="{Binding Path=TargetStatus }" />
+        <TextBlock Grid.Column="1" Grid.Row="18" Text="{Binding Path=TargetStatus}" HorizontalAlignment="Right" Padding="0,0,10,0"/>
+
+    </Grid>
+</UserControl>

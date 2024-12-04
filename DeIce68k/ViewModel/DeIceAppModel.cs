@@ -1546,6 +1546,14 @@ namespace DeIce68k.ViewModel
                 _regs = new RegisterSetModelArm2(this);
                 changed = true;
             }
+            else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_RISCV && Regs?.GetType() != typeof(RegisterSetModelRiscV))
+            {
+                if (_regs != null)
+                    _regs.PropertyChanged -= Regs_PropertyChanged;
+
+                _regs = new RegisterSetModelRiscV(this);
+                changed = true;
+            }
             else if (DebugHostStatus.ProcessorType == DeIceProtoConstants.HOST_65816 && Regs?.GetType() != typeof(RegisterSetModel65816))
             {
                 if (_regs != null)
@@ -1578,6 +1586,8 @@ namespace DeIce68k.ViewModel
             //TODO: work out from DebugHostType
             if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_ARM2)
                 return new DisassArm.DisassArm();
+            else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_RISCV)
+                return new DisassRiscV.DisassRiscV();
             else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_68k)
                 return new Disass68k.Disass68k();
             else if (_debugHostStatus?.ProcessorType == DeIceProtoConstants.HOST_x86_186)

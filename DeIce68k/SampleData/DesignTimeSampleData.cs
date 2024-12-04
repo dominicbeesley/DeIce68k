@@ -13,6 +13,7 @@ using DossySerialPort;
 using DisassX86;
 using DisassArm;
 using Disass65816;
+using DisassRiscV;
 
 namespace DeIce68k.SampleData
 {
@@ -86,23 +87,6 @@ namespace DeIce68k.SampleData
                         _app68k.Regs.DisassState
                     );
 
-                    Task.Run(async delegate
-                    {
-                        Random r = new Random();
-                        while (true)
-                        {
-                            await Task.Delay(500);
-                            if (_app68k.Regs != null)
-                            {
-                                byte[] regs = _app68k.Regs.ToDeIceProtcolRegData();
-                                if (regs.Length > 0)
-                                {
-                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
-                                }
-                                _app68k.Regs.FromDeIceProtocolRegData(regs);
-                            }
-                        }
-                    });
                 }
                 return _app68k;
             }
@@ -151,23 +135,6 @@ namespace DeIce68k.SampleData
                         _appx86_16.Regs.DisassState
                     );
 
-                    Task.Run(async delegate
-                    {
-                        Random r = new Random();
-                        while (true)
-                        {
-                            await Task.Delay(500);
-                            if (_appx86_16.Regs != null)
-                            {
-                                byte[] regs = _appx86_16.Regs.ToDeIceProtcolRegData();
-                                if (regs.Length > 0)
-                                {
-                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
-                                }
-                                _appx86_16.Regs.FromDeIceProtocolRegData(regs);
-                            }
-                        }
-                    });
                 }
                 return _appx86_16;
             }
@@ -217,23 +184,6 @@ namespace DeIce68k.SampleData
 
                     );
 
-                    Task.Run(async delegate
-                    {
-                        Random r = new Random();
-                        while (true)
-                        {
-                            await Task.Delay(500);
-                            if (_appx86_386.Regs != null)
-                            {
-                                byte[] regs = _appx86_386.Regs.ToDeIceProtcolRegData();
-                                if (regs.Length > 0)
-                                {
-                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
-                                }
-                                _appx86_386.Regs.FromDeIceProtocolRegData(regs);
-                            }
-                        }
-                    });
                 }
                 return _appx86_386;
             }
@@ -284,27 +234,62 @@ namespace DeIce68k.SampleData
 
                     );
 
-                    Task.Run(async delegate
-                    {
-                        Random r = new Random();
-                        while (true)
-                        {
-                            await Task.Delay(500);
-                            if (_appArm2.Regs != null)
-                            {
-                                byte[] regs = _appArm2.Regs.ToDeIceProtcolRegData();
-                                if (regs.Length > 0)
-                                {
-                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
-                                }
-                                _appArm2.Regs.FromDeIceProtocolRegData(regs);
-                            }
-                        }
-                    });
                 }
                 return _appArm2;
             }
         }
+
+        static DeIceAppModel _appRiscV = null;
+
+        public static DeIceAppModel SampleDeIceAppModel_RiscV
+        {
+            get
+            {
+                if (_appRiscV == null)
+                {
+                    _appRiscV = new DeIceAppModel(new DummySerial(), null, true, new DeIceFnReplyGetStatus(
+                        DeIceProtoConstants.HOST_RISCV, 0xF0,
+                        DeIceTargetOptionFlags.HasFNCall,
+                        0, 0x8000, new byte[] { 0x73, 0x00, 0x01, 0x00 }, "TEST Risc V", 0, 0)
+                        );
+
+                    _appRiscV.Watches.Add(new WatchModel(new AddressRiscV(0), "ZERO", WatchType.X08, null));
+                    _appRiscV.Watches.Add(new WatchModel(new AddressRiscV(16), "sixteen", WatchType.X16, null));
+                    _appRiscV.Watches.Add(new WatchModel(new AddressRiscV(100), "page1", WatchType.X08, new uint[] { 20 }));
+                    IEnumerable<string> errorsR;
+                    _appRiscV.AddBreakpoint(new AddressRiscV(0xDEADBEEF)).ConditionCode = ScriptCompiler.Compile(_appRiscV, "return false;", out errorsR);
+                    _appRiscV.AddBreakpoint(new AddressRiscV(0x0B00B135)).Enabled = false;
+                    _appRiscV.AddBreakpoint(new AddressRiscV(0x00154BE7)).Selected = true;
+                    _appRiscV.AddBreakpoint(new AddressRiscV(0x008D0812));
+                    _appRiscV.Symbols.Add(".excl", new AddressRiscV(0xFC0019B9), SymbolType.Pointer);
+                    _appRiscV.Symbols.Add(".ex", new AddressRiscV(0xFC0019C4), SymbolType.Pointer);
+                    _appRiscV.Symbols.Add(".ex_nokeys", new AddressRiscV(0xFC0019CA), SymbolType.Pointer);
+                    _appRiscV.Symbols.Add("dom_keyb_auto_off", new AddressRiscV(0xFC0019D1), SymbolType.Pointer);
+                    _appRiscV.Symbols.Add("dom_keyb_auto_on", new AddressRiscV(0xFC0019EC), SymbolType.Pointer);
+                    _appRiscV.Symbols.Add("io_SHEILA_SYSVIA_DDRA", new AddressRiscV(0x03FFFE43), SymbolType.Port);
+                    _appRiscV.Symbols.Add("io_SHEILA_SYSVIA_ORA_NH", new AddressRiscV(0x03FFFE4F), SymbolType.Port);
+                    _appRiscV.Symbols.Add("io_SHEILA_SYSVIA_ORB", new AddressRiscV(0x03FFFE40), SymbolType.Port);
+                    _appRiscV.Symbols.Add("io_SHEILA_SYSVIA_IFR", new AddressRiscV(0x03FFFE4D), SymbolType.Port);
+                    _appRiscV.DisassMemBlock = new DisassMemBlock(
+                        _appRiscV,
+                        new AddressRiscV(0xFC0019B9),
+                        new byte[]
+                        {
+                            0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xE8, 0x28, 0x00, 0x1F, 0x5A, 0x5B, 0x58, 0x9D, 0xC3, 0x31, 0xC0, 0xA3, 0x86, 0x00, 0xEB, 0xE8,
+                            0x50, 0xBA, 0x43, 0xFE, 0xB0, 0x7F, 0xEE, 0xBA, 0x4F, 0xFE, 0xB0, 0x0F, 0xEE, 0xBA, 0x40, 0xFE, 0xB0, 0x03, 0xEE, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0x58, 0xC3, 0x50, 0xBA, 0x4D, 0xFE, 0xB0, 0x01, 0xEE, 0xBA, 0x40, 0xFE, 0xB0, 0x0B, 0xEE, 0xBA, 0x43, 0xFE, 0x31, 0xC0, 0xEE, 0x58, 0xC3
+                        },
+                        new DisassRiscV.DisassRiscV(),
+                        _app68k.Regs.DisassState
+
+                    );
+
+
+                   
+                }
+                return _appRiscV;
+            }
+        }
+
 
         static DeIceAppModel _app65816 = null;
 
@@ -354,23 +339,6 @@ namespace DeIce68k.SampleData
                         _app65816.Regs.DisassState
                     );
 
-                    Task.Run(async delegate
-                    {
-                        Random r = new Random();
-                        while (true)
-                        {
-                            await Task.Delay(500);
-                            if (_app65816.Regs != null)
-                            {
-                                byte[] regs = _app65816.Regs.ToDeIceProtcolRegData();
-                                if (regs.Length > 0)
-                                {
-                                    regs[r.Next(regs.Length)] = (byte)r.Next(255);
-                                }
-                                _app65816.Regs.FromDeIceProtocolRegData(regs);
-                            }
-                        }
-                    });
                 }
                 return _app65816;
             }
@@ -384,6 +352,7 @@ namespace DeIce68k.SampleData
         public static RegisterSetModelx86_386 SampleDataRegisterSetModel_x86_386 => (RegisterSetModelx86_386)SampleDeIceAppModel_x86_386.Regs;
         public static RegisterSetModel68k SampleDataRegisterSetModel_68k => (RegisterSetModel68k)SampleDeIceAppModel_68k.Regs;
         public static RegisterSetModelArm2 SampleDataRegisterSetModel_Arm2 => (RegisterSetModelArm2)SampleDeIceAppModel_Arm2.Regs;
+        public static RegisterSetModelRiscV SampleDataRegisterSetModel_RiscV => (RegisterSetModelRiscV)SampleDeIceAppModel_RiscV.Regs;
         public static RegisterSetModel65816 SampleDataRegisterSetModel_65816 => (RegisterSetModel65816)SampleDeIceAppModel_65816.Regs;
 
         public static StatusRegisterBitsModel SampleStatusRegisterBit { get { return SampleDeIceAppModel_68k.Regs.StatusBits.FirstOrDefault(); } }
@@ -397,6 +366,40 @@ namespace DeIce68k.SampleData
         public static ReadOnlyObservableCollection<BreakpointModel> SamplesBreakpoints { get { return SampleDeIceAppModel_68k.Breakpoints; } }
 
         public static List<string> SampleErrors { get { return new List<string>(new[] { "Error 1", "error 2" }); } }
+
+        static void Tickle(this RegisterSetModelBase regs)
+        {
+            Random rnd = new Random();
+
+            try
+            {
+                byte[] bytes = regs.ToDeIceProtcolRegData();
+                bytes[rnd.Next(bytes.Length)] = (byte)rnd.Next(255);
+                regs.FromDeIceProtocolRegData(bytes);
+            }
+            catch (Exception) { }
+        }
+
+
+        static DesignTimeSampleData()
+        {
+
+
+            Task.Run(async delegate
+            {
+                while (true)
+                {
+                    await Task.Delay(500);
+                    _app68k?.Regs?.Tickle();
+                    _appx86_16?.Regs?.Tickle();
+                    _appx86_386?.Regs?.Tickle();
+                    _appArm2?.Regs?.Tickle();
+                    _appRiscV?.Regs?.Tickle();
+                    _app65816?.Regs?.Tickle();
+                }
+            });
+        }
+
 
     }
 }

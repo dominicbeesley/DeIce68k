@@ -33,7 +33,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "cpu-specific", "cpu-specifi
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "65816", "65816", "{89C55C9A-AE4D-4AB0-8081-1B4857C504DB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestEmuDormann", "Tests\cpu-specific\65816\test-emu-dorman\TestEmuDormann.csproj", "{FE8C468C-8C25-40AD-95C5-5CCA253AA7FF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestEmuDormann", "Tests\cpu-specific\65816\test-emu-dorman\TestEmuDormann.csproj", "{FE8C468C-8C25-40AD-95C5-5CCA253AA7FF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DisassRiscV", "DisassRiscV\DisassRiscV.csproj", "{0C6DD9F9-B9A0-4F39-B5D6-5BD1200037B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +91,10 @@ Global
 		{FE8C468C-8C25-40AD-95C5-5CCA253AA7FF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE8C468C-8C25-40AD-95C5-5CCA253AA7FF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE8C468C-8C25-40AD-95C5-5CCA253AA7FF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0C6DD9F9-B9A0-4F39-B5D6-5BD1200037B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0C6DD9F9-B9A0-4F39-B5D6-5BD1200037B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0C6DD9F9-B9A0-4F39-B5D6-5BD1200037B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0C6DD9F9-B9A0-4F39-B5D6-5BD1200037B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

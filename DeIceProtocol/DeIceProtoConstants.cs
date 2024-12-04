@@ -24,6 +24,7 @@
         public const byte HOST_x86_186 = 87;
         public const byte HOST_x86_386 = 89;
         public const byte HOST_ARM2 = 0xA2;
+        public const byte HOST_RISCV = 0x35;
         public const byte HOST_65816 = 16;
     }
 }
