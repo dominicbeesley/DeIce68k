@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Disass65816\Disass65816.csproj" />
     <ProjectReference Include="..\Disass68k\Disass68k.csproj" />
     <ProjectReference Include="..\DisassArm\DisassArm.csproj" />
+    <ProjectReference Include="..\DisassRiscV\DisassRiscV.csproj" />
     <ProjectReference Include="..\DisassShared\DisassShared.csproj" />
     <ProjectReference Include="..\DisassX86\DisassX86.csproj" />
   </ItemGroup>

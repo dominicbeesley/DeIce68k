@@ -1,4 +1,5 @@
-﻿using DisassShared;
+﻿using DisassRiscV;
+using DisassShared;
 using DisassX86;
 using System;
 using System.Collections.Generic;
@@ -51,6 +52,9 @@ namespace TestDisass
                 case "65816":
                     disass = new Disass65816.Disass65816();
                     break;
+                case "RISCV":
+                    disass = new DisassRiscV.DisassRiscV();
+                    break;
                 default:
                     Usage(Console.Error, $"Unknown assembler \"{args[0]}\"", 102);
                     break;
@@ -89,7 +93,7 @@ namespace TestDisass
                             lno++;
                         }
                     } catch (Exception ex) { 
-                        Usage(Console.Error, $"Error reading symbold file \"{symfn}\" at line {lno} : {ex.ToString()}", 105);
+                        Usage(Console.Error, $"Error reading symbol file \"{symfn}\" at line {lno} : {ex.ToString()}", 105);
                     }
                 }
             }

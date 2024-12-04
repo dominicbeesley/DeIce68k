@@ -2,8 +2,12 @@
 using DisassShared;
 using System;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Reflection.Emit;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,471 +25,259 @@ namespace DisassRiscV
 
         public IDisassAddressFactory AddressFactory => _addressFactory;
 
-        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState state = null)
+        private static readonly string[] abiregs = new[]
+        {"zero","ra","sp","gp","tp","t0","t1","t2","s0","s1","a0","a1","a2","a3","a4","a5","a6","a7","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","t3","t4","t5","t6"
+        };
+
+        public DisRec2<UInt32> Decode(BinaryReader br, DisassAddressBase pc, IDisassState? state = null)
         {
 
-            UInt32 opcode = br.ReadUInt32();
-            string cond = DecodeCond(opcode);
+            UInt32 instr = br.ReadUInt32();
 
-            if ((opcode & 0x0E000000) == 0x0A000000)
-                return DecodeBranch(cond, opcode, pc);
-            else if ((opcode & 0x0FC00090) == 0x00000090)
-                return DecodeMul(cond, opcode, pc);
-            else if ((opcode & 0x0C000000) == 0x00000000)
-                return DecodeAlu(cond, opcode, pc);
-            else if ((opcode & 0x0C000000) == 0x04000000)
-                return DecodeLdrStr(cond, opcode, pc);
-            else if ((opcode & 0x0E000000) == 0x08000000)
-                return DecodeLdmStm(cond, opcode, pc);
-            else if ((opcode & 0x0F000000) == 0x0F000000)
-                return DecodeSwi(cond, opcode, pc);
+
+            if ((instr & 0b11) == 0b11)
+            {
+                //32 bits instruction
+                var opcode = instr & 0x7F;
+
+                switch (opcode)
+                {
+                    case 0b0110011:
+                        return new DisRec2<UInt32>
+                        {
+                            Decoded = true,
+                            Length = 4,
+                            Mnemonic = "R."
+                        };
+                    case 0b0010011:
+                    case 0b1100111:
+                    case 0b0000011:
+                        return Decode_I(
+                            (instr & 0xFFF00000) >> 20,
+                            (instr & 0x000F8000) >> 15,
+                            (instr & 0x00007000) >> 12,
+                            (instr & 0x00000F80) >> 7,
+                            opcode);
+                    case 0b0100011:
+                        return Decode_S(
+                            ((instr & 0xFE000000) >> 20) | ((instr & 0x00000F80) >> 7),
+                            (instr & 0x01F00000) >> 20,
+                            (instr & 0x000F8000) >> 15,
+                            (instr & 0x00007000) >> 12,
+                            opcode);
+
+                    case 0b1100011:
+                        return new DisRec2<UInt32>
+                        {
+                            Decoded = true,
+                            Length = 4,
+                            Mnemonic = "B."
+                        };
+                    case 0b1101111:
+                        return Decode_J(
+                            pc,
+                            (
+                                ((instr & 0x80000000) >> 11) | // 20
+                                ((instr & 0x7FE00000) >> 20) | // 10:1
+                                ((instr & 0x00100000) >> 9) | // 11
+                                ((instr & 0x000FF000)) // 19:12
+                            ),
+                            (instr & 0x00000F80) >> 7,
+                            opcode);
+                    case 0b0110111:
+                    case 0b0010111:
+                        return new DisRec2<UInt32>
+                        {
+                            Decoded = true,
+                            Length = 4,
+                            Mnemonic = "U."
+                        };
+                    default:
+                        return new DisRec2<UInt32>
+                        {
+                            Decoded = false,
+                            Length = 4
+                        };
+
+                }
+
+            }
             else
+            {
+                //compressed?
                 return new DisRec2<UInt32>
                 {
                     Decoded = false,
-                    Length = 4
-                };            
-        }
-
-        private static DisRec2<UInt32> DecodeSwi(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-            return new DisRec2<UInt32>
-            {
-                Decoded = true,
-                Mnemonic = $"swi{cond}",
-                Operands = OperNum (opcode & 0xFFFFFF, SymbolType.ServiceCall),
-                Hints = "",
-                Length = 4,
-            };
-
-        }
-
-        private static readonly string[] m_modes = { "da", "ia", "db", "ib"};
-
-        private static DisRec2<UInt32> DecodeLdmStm(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-            int puflag = (int)(opcode & 0x01800000) >> 23;
-            bool sflag = (opcode & 0x00400000) != 0;
-            bool wflag = (opcode & 0x00200000) != 0;
-            bool lflag = (opcode & 0x00100000) != 0;
-            int rnix = (int)(opcode & 0xF0000) >> 16;
-            string Rn = Reg(rnix);
-
-            string op = $"{(lflag ? "ldm" : "stm")}{cond}{m_modes[puflag]}";
-
-            string regs = string.Join(",", 
-                Enumerable.Range(0, 15)
-                .Where(i => (opcode & 1 << i) != 0)
-                .GroupConsecutive()
-                .Select(i => 
-                    (i.Item1 == i.Item2)
-                        ?Reg(i.Item1)
-                        :i.Item2 == i.Item1+1
-                            ?$"{Reg(i.Item1)},{Reg(i.Item2)}"
-                            :$"{Reg(i.Item1)}-{Reg(i.Item2)}"
-                ));
-
-            return new DisRec2<UInt32>
-            {
-                Decoded = true,
-                Mnemonic = op,
-                Operands = OperStr( $"{Rn}{(wflag ? "!" : "")},{{{regs}}}{(sflag ? "^" : "")}" ),
-                Hints = "",
-                Length = 4,
-            };
-
-        }
-        private static DisRec2<UInt32> DecodeLdrStr(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-            bool iflag = (opcode & 0x02000000) != 0;
-            bool pflag = (opcode & 0x01000000) != 0;
-            bool uflag = (opcode & 0x00800000) != 0;
-            bool bflag = (opcode & 0x00400000) != 0;
-            bool wflag = (opcode & 0x00200000) != 0;
-            bool tflag = !pflag && wflag;
-            wflag = wflag & !tflag;
-            bool lflag = (opcode & 0x00100000) != 0;
-            int rnix = (int)(opcode & 0xF0000) >> 16;
-            int rdix = (int)(opcode & 0xF000) >> 12;
-
-            string op = $"{(lflag?"ldr":"str")}";
-            string Rd = Reg(rdix);
-            string Rn = Reg(rnix);
-
-            IEnumerable<DisRec2OperString_Base> mem;
-
-            if (rnix == 15 & !iflag & !wflag & pflag)
-            {
-                DisassAddressBase addr = uflag ? pc + 8 + (opcode & 0xFFF) : pc + 8 - (opcode & 0xFFF);
-                    mem = OperAddr(addr, SymbolType.Pointer);
-            } else
-            {
-                if (!iflag)
-                {
-                    UInt32 offs = opcode & 0xFFF;
-
-                    if (offs == 0)
-                    {
-                        mem = OperStr( $"[{Rn}]" );
-                    } else
-                    {
-                        if (pflag)
-                            mem = OperStr($"[{Rn},#{(uflag ? "" : "-")}{Hex(offs)}]{(wflag?"!":"")}");
-                        else
-                            mem = OperStr($"[{Rn}],#{(uflag ? "" : "-")}{Hex(offs)}");
-                    }
-                } 
-                else
-                {
-                    //illegal check
-                    if ((opcode & 0x10) != 0)
-                        return Undefined;
-
-                    int stix = (int)(opcode & 0x60) >> 5;
-                    int sha = (int)(opcode & 0xF80) >> 7;
-                    string Shi = ShiftDecode(sha, stix);
-                    string Rm = $"{Reg((int)opcode & 0xF)}{(Shi!=null?",":"")}{Shi}";
-                    
-                    if (pflag)
-                        mem = OperStr($"[{Rn},{(uflag ? "" : "-")}{Rm}]{(wflag ? "!" : "")}");
-                    else
-                        mem = OperStr($"[{Rn}],{(uflag ? "" : "-")}{Rm}");
-
-                }
-
+                    Length = 2
+                };
             }
 
-            return new DisRec2<UInt32>
-            {
-                Decoded = true,
-                Mnemonic = $"{op}{cond}{(bflag ? "b" : "")}{(tflag ? "t" : "")}",
-                Operands = OperStr($"{Rd},").Concat(mem),
-                Hints = "",
-                Length = 4,
-            };
 
         }
 
-
-        private static (string, bool, bool) DecodeAluOp(int opix)
+        protected DisRec2<UInt32> Decode_J(DisassAddressBase PC, uint imm, uint rd, uint opcode)
         {
-            switch (opix)
+            string? mne = null;
+            IEnumerable<DisRec2OperString_Base> operands = null;
+
+            if (opcode == 0b1101111)
             {
-                case 0x0:
-                    return ("and", true, true);
-                case 0x1:
-                    return ("eor", true, true);
-                case 0x2:
-                    return ("sub", true, true);
-                case 0x3:
-                    return ("rsb", true, true);
-                case 0x4:
-                    return ("add", true, true);
-                case 0x5:
-                    return ("adc", true, true);
-                case 0x6:
-                    return ("sbc", true, true);
-                case 0x7:
-                    return ("rsc", true, true);
-                case 0x8:
-                    return ("tst", false, true);
-                case 0x9:
-                    return ("teq", false, true);
-                case 0xA:
-                    return ("cmp", false, true);
-                case 0xB:
-                    return ("cmn", false, true);
-                case 0xC:
-                    return ("orr", true, true);
-                case 0xD:
-                    return ("mov", true, false);
-                case 0xE:
-                    return ("bic", true, true);
-                default:
-                    return ("mvn", true, false);
-            }
-        }
-
-        private static DisRec2<UInt32> DecodeAlu(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-
-            int opix = (int)(opcode & 0x01E00000) >> 21;
-            (string op, bool hasRd, bool hasOp1) = DecodeAluOp(opix);
-
-            bool sflag = (opcode & 0x00100000) != 0;
-            string sorp = (sflag ? "s" : "");
-            int rdix = (int)(opcode & 0xF000) >> 12;
-            var Rd = OperStr(Reg(rdix));
-            int rnix = (int)(opcode & 0xF0000) >> 16;
-            var Rn = OperStr(Reg(rnix));
-            IEnumerable<DisRec2OperString_Base> Op2 = null;
-            IEnumerable<DisRec2OperString_Base> Shi = null;
-
-            if (!hasRd)
-            {
-                if (rdix == 15 & sflag)
+                if (rd == 0) 
                 {
-                    sorp = "p";
+                    mne = "j";
+                    operands = new[] { OperAddr(PC + Signed(imm, 20), SymbolType.Pointer) };
                 } else
                 {
-                    sorp = null;
+                    mne = "jal";
                 }
-                Rd = null;
-            }
-            
-
-            if ((opcode & 0x02000000) != 0)
-            {
-                //op2 is immed
-                UInt32 imm = Ror32(opcode & 0xFF, (opcode & 0xF00) >> 7);
-                Op2 = OperStr("#").Concat(OperNum(imm, SymbolType.Immediate));
-
-                //special case for ADR
-                if (rnix == 15 && !sflag && opix == 2)
-                    return new DisRec2<UInt32>
-                    {
-                        Decoded = true,
-                        Mnemonic = $"adr",
-                        Operands = OperAddr(pc + 8 - imm, SymbolType.Pointer),
-                        Hints = "",
-                        Length = 4
-                    };
-                else if (rnix == 15 && !sflag && opix == 4)
-                    return new DisRec2<UInt32>
-                    {
-                        Decoded = true,
-                        Mnemonic = $"adr",
-                        Operands = OperAddr(pc + 8 + imm, SymbolType.Pointer),
-                        Hints = "",
-                        Length = 4
-                    };
-            }
-            else
-            {
-                string Rm = Reg((int)opcode & 0xF);
-                int stix = (int)(opcode & 0x60) >> 5;
-
-                if ((opcode & 0x00000010) != 0)
-                {
-                    if ((opcode & 0x80) != 0)
-                        return Undefined;
-
-                    //shift by reg
-                    string Rs = $"R{(opcode & 0xF00) >> 8}";
-                    Op2 = OperStr($"{Rm}");
-                    string St = ShiftType(stix);
-                    Shi = OperStr($"{St} {Rs}");
-                } 
-                else
-                {
-
-                    if ((opcode & 0x10) != 0)
-                        return Undefined;
-
-                    Op2 = OperStr($"{Rm}");
-
-                    int sha = (int)((opcode & 0xF80) >> 7);
-
-                    Shi = OperStr(ShiftDecode(sha, stix));
-
-                }
-            }
-
-            if (!hasOp1)
-                Rn = null;
-
-
-            return new DisRec2<UInt32>
-            {
-                Decoded = true,
-                Mnemonic = $"{op}{cond}{sorp}",
-                Operands = new [] {Rd,Rn,Op2,Shi}.Where(x => x != null && x.Any()).Intersperse(OperStr(",")).SelectMany(o => o),
-                Hints = "",
-                Length = 4
-            };
-
-
-        }
-
-        private static DisRec2<UInt32> DecodeMul(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-
-            bool sflag = (opcode & 0x00100000) != 0;
-            string sorp = (sflag ? "s" : "");
-            int rdix = (int)(opcode & 0xF0000) >> 16;
-            string Rd = Reg(rdix);
-            string Rn = Reg((int)(opcode & 0xF000) >> 12);
-            string Rs = Reg((int)(opcode & 0xF00) >> 8);
-            string Rm = Reg((int)(opcode & 0xF));
-            bool mla = (opcode & 0x00200000) != 0;
-
-            string op;
-            if (mla)
-            {
-                op = "mla";
-
-            } else
-            {
-                op = "mul";
-                Rn = null;
             }
 
             return new DisRec2<UInt32>
             {
                 Decoded = true,
-                Mnemonic = $"{op}{cond}{sorp}",
-                Operands = OperStr(string.Join(',', new[] { Rd, Rm, Rs, Rn}.Where(x => x != null))),
-                Hints = "",
                 Length = 4,
+                Mnemonic = mne ?? $"J.{opcode:X}",
+                Operands = operands ?? new[] { OperReg(rd), OperStr(", "), OperAddr( PC + Signed(imm,20), SymbolType.Pointer) }
             };
-
         }
 
-        private static string ShiftType(int s)
-        {
-            switch(s)
-            {
-                case 0:
-                    return "lsl";
-                case 1:
-                    return "lsr";
-                case 2:
-                    return "asr";
-                case 3:
-                    return "ror";
-                default:
-                    return "??";
-            }
-        }
 
-        private static string ShiftDecode(int sha, int stix)
+        protected DisRec2<UInt32> Decode_S(uint imm, uint rs2, uint rs1, uint f3, uint opcode)
         {
-            if (sha == 0)
+            string? mne = null;
+            IEnumerable<DisRec2OperString_Base> operands = null;
+            switch (opcode)
             {
-                switch (stix)
-                {
-                    case 1:
-                        return "lsr #32";
-                    case 2:
-                        return "asr #32";
-                    case 3:
-                        return "rrx";
-                    default:
-                        return null;
-                }
+                case 0b0100011:
+                    switch (f3)
+                    {
+                        case 0:mne = "sb"; break;
+                        case 1: mne = "sh"; break;
+                        case 2: mne = "sw"; break;
+                    }
+                    break;
 
             }
-            else
-                return $"{ShiftType(stix)} #{sha}";
-
-        }
-
-        private static UInt32 Ror32(UInt32 val, uint n)
-        {
-            int nn = (int)n;
-            int v2 = (int)val;
-            v2 = (v2 >> nn) | (v2 << 32 - nn);
-            return (UInt32)v2;
-        }
-
-        private static DisRec2<UInt32> DecodeBranch(string cond, UInt32 opcode, DisassAddressBase pc)
-        {
-            DisassAddressBase dest = pc + 8 + ((opcode & 0xFFFFFF) << 2);
-
-            bool lflag = (opcode & 0x01000000) != 0;
 
             return new DisRec2<UInt32>
             {
                 Decoded = true,
-                Mnemonic = $"b{(lflag ? "l" : "")}{cond}",
-                Operands = OperAddr(dest, SymbolType.Pointer),
-                Hints = "",
                 Length = 4,
+                Mnemonic = mne ?? $"S.{opcode:X}[{f3:X}]?",
+                Operands = new[] { OperReg(rs2), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") },
+                Hints = $"{Signed(imm, 12)}"
             };
+
         }
 
-        private static string Reg(int ix)
-        {
-            if (ix == 15)
-                return "pc";
-            else if (ix == 14)
-                return "lr";
-            else
-                return $"r{ix}";
-        }
 
-        private static string Hex(UInt32 x, int digits=0)
+        protected DisRec2<UInt32> Decode_I(uint imm, uint rs1, uint f3, uint rd, uint opcode)
         {
-            if (digits > 0)
+
+            string? mne=null;
+            IEnumerable<DisRec2OperString_Base> operands = null;
+            switch (opcode)
             {
-                return "0x" + x.ToString("X" + digits);
-            } else
-            {
-                if (x < 10)
-                    return x.ToString();
-                else
-                    return "0x" + x.ToString("X");
+                case 0b0010011:
+                    switch (f3)
+                    {
+                        case 0: mne = "addi"; break;
+                        case 4: mne = "xori"; break;
+                        case 6: mne = "ori"; break;
+                        case 7: mne = "andi"; break;
+                        case 1: if ((imm & 0xFE0) == 0) mne = "slli"; imm = imm & 0x1F; break;
+                        case 5:
+                            if ((imm & 0xFE0) == 0) { mne = "srli"; imm = imm & 0x1F; }
+                            else if ((imm & 0xFE0) == 0x400) { mne = "srai"; imm = imm & 0x1F; } 
+                            break;
+                        case 2: mne = "slti"; break;
+                        case 3: mne = "sltiu"; break;
+                    }
+
+
+                    operands = new[] { OperReg(rd), OperStr(", "), OperReg(rs1), OperStr(", "), OperImmS(imm, 12) };
+                    break;
+                case 0b000011:
+                    switch (f3)
+                    {
+                        case 0: mne = "lb"; break;
+                        case 1: mne = "lh"; break;
+                        case 2: mne = "lw"; break;
+                        case 4: mne = "lbu"; break;
+                        case 5: mne = "lhu"; break;
+                    }
+
+                    operands = new[] { OperReg(rd), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
+                    break;
+                case 0b1100111:
+                    switch (f3) { 
+                        case 0:
+                            if (rd == 0 && imm == 0 && rs1 == 1)
+                            {
+                                mne = "ret";
+                            }
+                            else
+                            {
+                                mne = "jalr";
+                                operands = new[] { OperReg(rd), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
+                            }
+                            break;
+                    }
+                    break;
             }
-        }
 
-        private static string DecodeCond(UInt32 opcode)
-        {
-            switch ((opcode & 0xF0000000) >> 28)
+            return new DisRec2<UInt32>
             {
-                case 0x0:
-                    return "eq";
-                case 0x1:
-                    return "ne";
-                case 0x2:
-                    return "cs";
-                case 0x3:
-                    return "cc";
-                case 0x04:
-                    return "mi";
-                case 0x05:
-                    return "pl";
-                case 0x6:
-                    return "vs";
-                case 0x7:
-                    return "vc";
-                case 0x8:
-                    return "hi";
-                case 0x9:
-                    return "ls";
-                case 0xa:
-                    return "ge";
-                case 0xb:
-                    return "lt";
-                case 0xc:
-                    return "gt";
-                case 0xd:
-                    return "le";
-                case 0xe:
-                    return "";
-                case 0xf:
-                    return "nv";
-                default:
-                    return "??";
-            
-            }
+                Decoded = true,
+                Length = 4,
+                Mnemonic = mne ?? $"I.{opcode:X}[{f3:X}]?",
+                Operands = operands ?? new[] { OperReg(rd), OperStr(", "), OperReg(rs1), OperStr(", "), OperImmS(imm, 12) }
+        };
+
         }
 
-        private static IEnumerable<DisRec2OperString_Base> OperNum(UInt32 num, SymbolType type)
+        private static DisRec2OperString_Base OperNum(UInt32 num, SymbolType type)
         {
-            return new[] { new DisRec2OperString_Number { Number = num, SymbolType = type } };
+            return new DisRec2OperString_Number { Number = num, SymbolType = type } ;
         }
-        private static IEnumerable<DisRec2OperString_Base> OperAddr(DisassAddressBase addr, SymbolType type)
+        private static DisRec2OperString_Base OperAddr(DisassAddressBase addr, SymbolType type)
         {
-            return new[] { new DisRec2OperString_Address { Address = addr, SymbolType = type } };
+            return new DisRec2OperString_Address { Address = addr, SymbolType = type };
         }
 
-        private static IEnumerable<DisRec2OperString_Base> OperStr(string str)
+        private static DisRec2OperString_Base OperStr(string str)
         {
-            if (str == null)
-                return null;
+            return new DisRec2OperString_String { Text = str ?? "" } ;
+        }
+
+        private static DisRec2OperString_Base OperReg(uint r)
+        {
+            if (r < abiregs.Length)
+                return new DisRec2OperString_String { Text = abiregs[r] };
             else
-                return new[] { new DisRec2OperString_String { Text = str } };
+                return new DisRec2OperString_String { Text = $"x{r}" };
         }
+
+        private static DisRec2OperString_Base OperImmS(uint i, int bits)
+        {
+
+            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Immediate };
+        }
+
+        private static DisRec2OperString_Base OperOffsS(uint i, int bits)
+        {
+
+            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Offset };
+        }
+
+        private static long Signed(uint i, int nbits)
+        {
+            int sb = 1 << (nbits - 1);
+            uint m = 0xFFFFFFFF << nbits;
+            return (int)(((i & sb) != 0) ? (m | i) : i);
+
+        }
+
     }
 
 }

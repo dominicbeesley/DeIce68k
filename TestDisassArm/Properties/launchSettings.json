@@ -19,6 +19,11 @@
       "commandName": "Project",
       "commandLineArgs": "386 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\386.bin\" 0 \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\dissx86\\build\\386.noi\"",
       "sqlDebugging": true
+    },
+    "RISCV": {
+      "commandName": "Project",
+      "commandLineArgs": "riscV \"C:\\Users\\Dominic\\Documents\\GitHub\\blitter-riscv-code\\build\\roms\\testmos\\testmos.mos\" 0xFFFFC000",
+      "sqlDebugging": true
     }
   }
 }
