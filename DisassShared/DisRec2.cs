@@ -46,10 +46,10 @@ namespace DisassShared
         U16 = 2,
         U32 = 3,
         U64 = 4,
-        S8 = 5,
-        S16 = 6,
-        S32 = 7,
-        S64 = 8,
+        S8 = 9,
+        S16 = 10,
+        S32 = 11,
+        S64 = 12,
         SIGNED = 8,
         M_TYPE = 7
     }
