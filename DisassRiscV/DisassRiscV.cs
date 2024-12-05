@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Numerics;
 using System.Reflection.Emit;
 using System.Runtime.Intrinsics.Arm;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -43,12 +45,13 @@ namespace DisassRiscV
                 switch (opcode)
                 {
                     case 0b0110011:
-                        return new DisRec2<UInt32>
-                        {
-                            Decoded = true,
-                            Length = 4,
-                            Mnemonic = "R."
-                        };
+                        return Decode_R(
+                            (instr & 0xFE000000) >> 25,
+                            (instr & 0x01F00000) >> 20,
+                            (instr & 0x000F8000) >> 15,
+                            (instr & 0x00007000) >> 12,
+                            (instr & 0x00000F80) >> 7,
+                            opcode);
                     case 0b0010011:
                     case 0b1100111:
                     case 0b0000011:
@@ -67,12 +70,18 @@ namespace DisassRiscV
                             opcode);
 
                     case 0b1100011:
-                        return new DisRec2<UInt32>
-                        {
-                            Decoded = true,
-                            Length = 4,
-                            Mnemonic = "B."
-                        };
+                        return Decode_B(
+                            pc,
+                            (
+                                ((instr & 0x80000000) >> 19) | // 12
+                                ((instr & 0x7E000000) >> 20) | // 10:5
+                                ((instr & 0x00000F00) >> 7) | // 4:1
+                                ((instr & 0x00000080) << 4) // 11
+                            ),
+                            (instr & 0x01F00000) >> 20,
+                            (instr & 0x000F8000) >> 15,
+                            (instr & 0x00007000) >> 12,
+                            opcode);
                     case 0b1101111:
                         return Decode_J(
                             pc,
@@ -86,12 +95,11 @@ namespace DisassRiscV
                             opcode);
                     case 0b0110111:
                     case 0b0010111:
-                        return new DisRec2<UInt32>
-                        {
-                            Decoded = true,
-                            Length = 4,
-                            Mnemonic = "U."
-                        };
+                        return Decode_U(
+                            pc, 
+                            (instr & 0xFFFFF000),
+                            (instr & 0x00000F80) >> 7,
+                            opcode);
                     default:
                         return new DisRec2<UInt32>
                         {
@@ -114,6 +122,74 @@ namespace DisassRiscV
 
 
         }
+
+        protected DisRec2<UInt32> Decode_R(uint f7, uint rs2, uint rs1, uint f3, uint rd, uint opcode)
+        {
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = 4,
+                Mnemonic = $"R.{opcode:X}[{f3:X}]{{{f7:X}}}",
+                Operands = new[] { OperReg(rd), OperStr(", "), OperReg(rs1), OperStr(", "), OperReg(rs2) }
+            };
+
+        }
+
+        protected DisRec2<UInt32> Decode_U(DisassAddressBase PC, uint imm, uint rd, uint opcode)
+        {
+            string? mne = null;
+            IEnumerable<DisRec2OperString_Base> operands = null;
+
+            if (opcode == 0b0110111)
+            {
+                mne = "lui";
+            }
+            else if (opcode == 0b0010111)
+            {
+                mne = "auipc";
+                operands = new[] { OperReg(rd), OperStr(", "), OperAddr(PC + Signed(imm, 32), SymbolType.Pointer) };
+            }
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = 4,
+                Mnemonic = mne ?? $"U.{opcode:X}",
+                Operands = operands ?? new[] { OperReg(rd), OperStr(", "), OperImmS(imm,32) },
+                Hints = $"{Signed(imm, 12)}"
+            };
+        }
+
+        protected DisRec2<UInt32> Decode_B(DisassAddressBase PC, uint imm, uint rs2, uint rs1, uint f3, uint opcode)
+        {
+
+            string? mne = null;
+            IEnumerable<DisRec2OperString_Base> operands = null;
+
+            if (opcode == 0b1100011)
+            {
+                //TODO: special mnemonics for zeros
+                switch(f3)
+                {
+                    case 0: mne = "beq"; break;
+                    case 1: mne = "bne"; break;
+                    case 4: mne = "blt"; break;
+                    case 5: mne = "bge"; break;
+                    case 6: mne = "bltu"; break;
+                    case 7: mne = "bgeu"; break;
+                }
+            }
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = 4,
+                Mnemonic = mne ?? $"B.{opcode}[{f3}]",
+                Operands = operands ?? new[] { OperReg(rs1), OperStr(", "), OperReg(rs2), OperStr(", "), OperAddr(PC + Signed(imm, 12), SymbolType.Pointer) },
+                Hints = $"{Signed(imm, 12)}"
+            };
+        }
+
 
         protected DisRec2<UInt32> Decode_J(DisassAddressBase PC, uint imm, uint rd, uint opcode)
         {
@@ -261,13 +337,13 @@ namespace DisassRiscV
         private static DisRec2OperString_Base OperImmS(uint i, int bits)
         {
 
-            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Immediate };
+            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Immediate, Size = DisRec2_NumSize.S32 };
         }
 
         private static DisRec2OperString_Base OperOffsS(uint i, int bits)
         {
 
-            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Offset };
+            return new DisRec2OperString_Number { Number = (ulong)(long)Signed(i, bits), SymbolType = SymbolType.Offset, Size = DisRec2_NumSize.S32 };
         }
 
         private static long Signed(uint i, int nbits)
