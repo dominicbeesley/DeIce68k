@@ -22,7 +22,7 @@
     },
     "RISCV": {
       "commandName": "Project",
-      "commandLineArgs": "riscV \"C:\\Users\\Dominic\\Documents\\GitHub\\blitter-riscv-code\\build\\roms\\testmos\\testmos.mos\" 0xFFFFC000",
+      "commandLineArgs": "riscV \"C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_riscv\\build\\test.bin\" 0xFFFFC000 C:\\Users\\Dominic\\Documents\\GitHub\\DeIce68k\\Tests\\Disassembler\\test_riscv\\build\\test.noi",
       "sqlDebugging": true
     }
   }
