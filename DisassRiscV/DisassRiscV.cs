@@ -457,8 +457,16 @@ namespace DisassRiscV
             {
                 if (rs2 == 0)
                 {
-                    mne = "c.jr";
-                    operands = new[] { OperReg(rdrs1) };
+                    if (rdrs1 == 1)
+                    {
+                        mne = "c.ret";
+                        operands = new DisRec2OperString_Base[] { };
+                    }
+                    else
+                    {
+                        mne = "c.jr";
+                        operands = new[] { OperReg(rdrs1) };
+                    }
                 } else
                 {
                     mne = "c.mv";
