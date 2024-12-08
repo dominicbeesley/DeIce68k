@@ -33,6 +33,8 @@ namespace DisassRiscV
 
         public override bool Equals(DisassAddressBase other)
         {
+            if (other == null)
+                return false;
             return Canonical == other.Canonical;
         }
 

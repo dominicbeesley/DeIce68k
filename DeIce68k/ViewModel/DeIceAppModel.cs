@@ -874,41 +874,49 @@ namespace DeIce68k.ViewModel
             {
                 DoBeginInvoke(() =>
                 {
-                    AppendMessage($"FN:{e.Function.FunctionCode:X02} : { e.Function.GetType().Name }");
-
-                    if (Regs == null)
+                    try
                     {
-                        // Refresh host status
-                        try
+                        AppendMessage($"FN:{e.Function.FunctionCode:X02} : {e.Function.GetType().Name}");
+
+                        if (Regs == null)
                         {
-                            DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
-                        } catch (Exception ex) {
-                            Messages.Add($"Error: Trying to get Host Status:{ex.Message} ");
-                        }
-                    }
-
-                    var x = e.Function as DeIceFnReplyRegsBase;
-                    if (x != null && Regs != null)
-                    {
-                        Regs.FromDeIceProtocolRegData(x.RegisterData);
-
-                        if (!RunFinish(true, true))
-                        {
-                            // breakpoint hit but it returned false...carry on
-                            ReExecCurBreakpoint();
-
-                            DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore response: TODO: check?
-                            ApplyBreakpoints();
-
-                            DeIceProto.SendReq(new DeIceFnReqRun());
-                            Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
-
+                            // Refresh host status
+                            try
+                            {
+                                DebugHostStatus = DeIceProto.SendReqExpectReply<DeIceFnReplyGetStatus>(new DeIceFnReqGetStatus());
+                            }
+                            catch (Exception ex)
+                            {
+                                Messages.Add($"Error: Trying to get Host Status:{ex.Message} ");
+                            }
                         }
 
-                        //this is a horrid bodge for when get stuck it really shouldn't be "running" here!?
-                        if (Regs.TargetStatus == 0)
-                            Regs.TargetStatus = DeIceProtoConstants.TS_TRACE;
+                        var x = e.Function as DeIceFnReplyRegsBase;
+                        if (x != null && Regs != null)
+                        {
+                            Regs.FromDeIceProtocolRegData(x.RegisterData);
 
+                            if (!RunFinish(true, true))
+                            {
+                                // breakpoint hit but it returned false...carry on
+                                ReExecCurBreakpoint();
+
+                                DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); // ignore response: TODO: check?
+                                ApplyBreakpoints();
+
+                                DeIceProto.SendReq(new DeIceFnReqRun());
+                                Regs.TargetStatus = DeIceProtoConstants.TS_RUNNING;
+
+                            }
+
+                            //this is a horrid bodge for when get stuck it really shouldn't be "running" here!?
+                            if (Regs.TargetStatus == 0)
+                                Regs.TargetStatus = DeIceProtoConstants.TS_TRACE;
+
+                        }
+                    } catch (Exception ex)
+                    {
+                        Messages.Add($"Error: Trying to get Host Status:{ex.Message} ");
                     }
                 });
             };

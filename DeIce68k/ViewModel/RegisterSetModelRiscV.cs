@@ -103,7 +103,7 @@ namespace DeIce68k.ViewModel
             X30 = new RegisterModel("x30 t5", RegisterSize.Long, 0);
             X31 = new RegisterModel("x31 t6", RegisterSize.Long, 0);
 
-            PC = new RegisterModel("PC (q0)", RegisterSize.Long, 0);
+            PC = new RegisterModel("PC", RegisterSize.Long, 0);
             Q1 = new RegisterModel("q1 irq_mask", RegisterSize.Long, 0);
             Q2 = new RegisterModel("q2", RegisterSize.Long, 0);
             Q3 = new RegisterModel("q3", RegisterSize.Long, 0);
@@ -159,7 +159,7 @@ namespace DeIce68k.ViewModel
             X29.Data = DeIceFnFactory.ReadULong(deiceData, 0x70);
             X30.Data = DeIceFnFactory.ReadULong(deiceData, 0x74);
             X31.Data = DeIceFnFactory.ReadULong(deiceData, 0x78);
-            PC.Data = DeIceFnFactory.ReadULong(deiceData, 0x7C);
+            PC.Data = DeIceFnFactory.ReadULong(deiceData, 0x7C) & 0xFFFFFFFE;   // discard the compressed flag for now TODO: use for it?
             Q1.Data = DeIceFnFactory.ReadULong(deiceData, 0x80);
             Q2.Data = DeIceFnFactory.ReadULong(deiceData, 0x84);
             Q3.Data = DeIceFnFactory.ReadULong(deiceData, 0x88);
