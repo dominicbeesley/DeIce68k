@@ -61,7 +61,7 @@ namespace DeIce68k.ViewModel
 
         public override DisassAddressBase PCValue
         {
-            get { return new AddressRiscV(PC.Data & 0x0FFFFFFF); }
+            get { return new AddressRiscV(PC.Data); }
             set { PC.Data = (UInt32)value.Canonical; }
         }
 
