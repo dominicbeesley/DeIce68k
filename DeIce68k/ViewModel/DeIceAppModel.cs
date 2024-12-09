@@ -18,6 +18,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Controls.Ribbon;
 using System.Windows.Input;
 using System.Windows.Threading;
 
@@ -1035,17 +1036,18 @@ namespace DeIce68k.ViewModel
                         _activeBreakpoints.RemoveAll(b => b.Address.Equals(Regs.PCValue));
 
                         //restore the original instruction
-                        DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(
-                            new DeIceFnReqSetBytes()
-                            {
-                                Items = curbp.OldOP.Select((b, i) =>
-                                    new DeIceFnReqSetBytes.DeIceSetBytesItem()
-                                    {
-                                        Address = (curbp.Address + i).DeIceAddress, Data = b
-                                    }
-                                ).ToArray()
-                            }
-                        );
+                        if (curbp.OldOP != null)
+                            DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(
+                                new DeIceFnReqSetBytes()
+                                {
+                                    Items = curbp.OldOP.Select((b, i) =>
+                                        new DeIceFnReqSetBytes.DeIceSetBytesItem()
+                                        {
+                                            Address = (curbp.Address + i).DeIceAddress, Data = b
+                                        }
+                                    ).ToArray()
+                                }
+                            );
 
 
                         if (Regs.CanTrace)
@@ -1128,7 +1130,7 @@ namespace DeIce68k.ViewModel
             var ret = DeIceProto.SendReqExpectReply<DeIceFnReplySetBytes>(req);
 
             //TODO: recover more gracefully this will leave some breakpoints set and the host in an inconsistent state?
-            if (ret.Data.Length != chunk.Count())
+            if (ret.Data.Length != chunk.Count()*bpl)
                 throw new Exception($"Unexpected length returned from SetBytes expected {chunk.Count()} received {ret.Data.Length}");
 
             for (int i = 0; i < ret.Data.Length / bpl; i++)
@@ -1138,6 +1140,11 @@ namespace DeIce68k.ViewModel
                 chunk[i].OldOP = ob;
             }
             _activeBreakpoints.AddRange(chunk.Take(ret.Data.Length));
+            //disable breakpoints that didn't get returned
+            for (int i = ret.Data.Length / bpl;i < chunk.Count; i++)
+            {
+                chunk[i].Enabled = false;
+            }
 
             return ret;
         }
@@ -1212,7 +1219,9 @@ namespace DeIce68k.ViewModel
             {
                 return new DeIceFnReqSetBytes()
                 {
-                    Items = breakpoints.Select(
+                    Items = breakpoints
+                    .Where( bp => bp.OldOP != null)
+                    .Select(
                         bp => bp.OldOP.Select( (b, i) =>
                             new DeIceFnReqSetBytes.DeIceSetBytesItem()
                             {
@@ -1259,7 +1268,7 @@ namespace DeIce68k.ViewModel
                     var bbad = items.First();
                     bbad.Enabled = false;
                     Messages.Add($"WARNING: breakpoint at {bbad.Address:X08} could not be reset, code is in an unexpected state. The memory was not writeable!");
-                    items.Skip(1);
+                    items = items.Skip(1);
                 }
 
             }
