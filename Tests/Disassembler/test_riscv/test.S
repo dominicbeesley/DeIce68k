@@ -95,6 +95,12 @@ start:
 		c.j		test_label_forward
 		c.j		start
 
+		li a7,0xAC0001
+		ecall
+		li a7,0x1
+		ecall
+
+
 ////////// LONG
 
 		.option norvc
@@ -199,6 +205,11 @@ test_label_forward2:
 		addi x0,x0,0
 		addi x0,x0,0
 		addi x0,x0,0
+
+		li a7,0xAC0001
+		ecall
+		li a7,0x1
+		ecall
 
 	
 test_label_forward:

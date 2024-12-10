@@ -96,9 +96,10 @@ namespace DisassRiscV
                             (instr & 0x00007000) >> 12,
                             (instr & 0x00000F80) >> 7,
                             opcode);
+                    case 0b0000011:
                     case 0b0010011:
                     case 0b1100111:
-                    case 0b0000011:
+                    case 0b1110011:
                         return Decode_I(
                             (instr & 0xFFF00000) >> 20,
                             (instr & 0x000F8000) >> 15,
@@ -204,7 +205,7 @@ namespace DisassRiscV
                             case 0b000: return Decode_CI(pc, instr);
                             case 0b010: return Decode_CI(pc, instr);
                             case 0b100: return Decode_CR(pc, instr);
-                            case 0b110: return Decode_CS(pc, instr);
+                            case 0b110: return Decode_CSS(pc, instr);
                         }
                         break;
 
@@ -428,16 +429,34 @@ namespace DisassRiscV
                         | (uint)((instr & 0x0020) << 1)
                         ;
             uint rs1_ = (uint)((instr & 0x0380) >> 7);
-            uint rd_ = (uint)((instr & 0x001C) >> 2);
+            uint rs2_ = (uint)((instr & 0x001C) >> 2);
 
             return new DisRec2<UInt32>
             {
                 Decoded = true,
                 Length = 2,
                 Mnemonic = "c.sw",
-                Operands = new[] { OperRegSmall(rd_), OperStr(", "), OperNum(imm, SymbolType.Offset), OperStr("("), OperRegSmall(rs1_), OperStr(")") }
+                Operands = new[] { OperRegSmall(rs1_), OperStr(", "), OperNum(imm, SymbolType.Offset), OperStr("("), OperRegSmall(rs2_), OperStr(")") }
             };
         }
+
+        protected DisRec2<UInt32> Decode_CSS(DisassAddressBase PC, UInt16 instr)
+        {
+            uint imm = (uint)((instr & 0x1E00) >> 7)
+                        | (uint)((instr & 0x0180) >> 1)
+                        ;
+            uint rs2 = (uint)((instr & 0x007C) >> 2);
+
+            return new DisRec2<UInt32>
+            {
+                Decoded = true,
+                Length = 2,
+                Mnemonic = "c.swsp",
+                Operands = new[] { OperReg(rs2), OperStr(", "), OperNum(imm, SymbolType.Offset), OperStr("(sp)") }
+            };
+        }
+
+
         protected DisRec2<UInt32> Decode_CL(DisassAddressBase PC, UInt16 instr)
         {
             uint imm =      (uint)((instr & 0x1C00) >> 7) 
@@ -712,6 +731,22 @@ namespace DisassRiscV
                                     mne = "jalr";
                                     operands = new[] { OperReg(rd), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
                                 }
+                            }
+                            break;
+                    }
+                    break;
+                case 0b1110011:
+                    switch (f3)
+                    {
+                        case 0:
+                            if (imm == 0)
+                            {   mne = "ecall";
+                                operands = new DisRec2OperString_Base[] { };
+                            }
+                            else
+                            {
+                                mne = "ebreak";
+                                operands = new DisRec2OperString_Base[] { };
                             }
                             break;
                     }
