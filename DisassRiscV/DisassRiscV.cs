@@ -20,7 +20,7 @@ using System.Threading.Tasks;
 // 00	110		    CS		c.sw		Store Word 		        sw rs1’, (4 * imm)(rs2’)
 // 01	000		    CI		c.addi		ADD Immediate 		    addi rd, rd, imm
 // 01	000		    CI		c.nop		No OPeration 		    addi x0, x0, 0
-// 01	001		    CJ		c.jal		Jump And Link 		    jal ra, 2*offset
+// 01	001		    CJ		c.j		    Jump 			        jal x0, 2*offset
 // 01	010		    CI		c.li		Load Immediate 		    addi rd, x0, imm
 // 01	011		    CI		c.addi16sp	ADD Imm * 16 to SP 	    addi sp, sp, 16*imm
 // 01	011		    CI		c.lui		Load Upper Imm 		    lui rd, imm
@@ -31,7 +31,7 @@ using System.Threading.Tasks;
 // 01	100 00		CB2		c.srli		Shift Right Logical Imm	srli rd’, rd’, imm
 // 01	100 01		CB2		c.srai		Shift Right Arith Imm 	srai rd’, rd’, imm
 // 01	100 10		CB2		c.andi		AND Imm 		        andi rd’, rd’, imm
-// 01	101		    CJ		c.j		    Jump 			        jal x0, 2*offset
+// 01	101		    CJ		c.jal		Jump And Link 		    jal ra, 2*offset
 // 01	110		    CB		c.beqz		Branch == 0 		    beq rs’, x0, 2*imm
 // 01	111		    CB		c.bnez		Branch != 0 		    bne rs’, x0, 2*imm
 // 10	000		    CI		c.slli		Shift Left Logical Imm 	slli rd, rd, imm
@@ -236,34 +236,47 @@ namespace DisassRiscV
             IEnumerable<DisRec2OperString_Base>? operands = null;
             string mne = null;
 
+            if (op == 0b01)
+            {
+                if (f3 == 0)
+                {
+                    if (rdrs1 == 0)
+                    {
+                        mne = "c.nop";
+                        operands = new DisRec2OperString_Base[] { };
+                    }
+                    else
+                    {
+                        mne = "c.addi";
+                    }
+                }
+                else if (f3 == 2 && rdrs1 != 0)
+                {
+                    mne = "c.li";
+                    operands = new[] { OperReg(rdrs1), OperStr(", "), OperImmS(imm, 6) };
+                }
+                else if (f3 == 3)
+                {
+                    if (rdrs1 == 2)
+                    {
+                        mne = "c.addi16sp";
+                        operands = new[] { OperReg(rdrs1), OperStr(","), OperReg(rdrs1), OperStr(", "), OperImmS(imm << 4, 10) };
+                    }
+                    else
+                    {
+                        mne = "c.lui";
+                        operands = new[] { OperReg(rdrs1), OperStr(", "), OperImmS(imm << 12, 18) };
+                    }
+                }
+            }
+            else
+            {
+                if (f3 == 2 && rdrs1 != 0)
+                {
+                    mne = "c.lwsp";
+                    operands = new[] { OperReg(rdrs1), OperStr(", "), OperImmS(imm, 6), OperStr("(sp)") };
+                }
 
-            if (f3 == 0)
-            {
-                if (rdrs1 == 0)
-                {
-                    mne = "c.nop";
-                    operands = new DisRec2OperString_Base[] { };
-                } else
-                {
-                    mne = "c.addi";
-                }
-            }
-            else if (f3 == 2 && rdrs1 != 0)
-            {
-                mne = "c.li";
-                operands = new[] { OperReg(rdrs1), OperStr(", "), OperImmS(imm, 6) };
-            }
-            else if (f3 == 3)
-            {
-                if (rdrs1 == 2)
-                {
-                    mne = "c.addi16sp";
-                    operands = new[] { OperReg(rdrs1), OperStr(","), OperReg(rdrs1), OperStr(", "), OperImmS(imm << 4, 10) };
-                } else
-                {
-                    mne = "c.lui";
-                    operands = new[] { OperReg(rdrs1), OperStr(", "), OperImmS(imm << 12, 18) };
-                }
             }
 
 
@@ -295,9 +308,9 @@ namespace DisassRiscV
             string? mne = null;
 
             if (f3 == 1)
-                mne = "c.j";
-            else if (f3 == 5)
                 mne = "c.jal";
+            else if (f3 == 5)
+                mne = "c.j";
 
             return new DisRec2<UInt32>
             {
@@ -311,7 +324,7 @@ namespace DisassRiscV
 
         protected DisRec2<UInt32> Decode_CB(DisassAddressBase PC, UInt16 instr)
         {
-            string mne = ((instr & 0x2000) != 0) ? "c.beqz" : "c.bnez";
+            string mne = ((instr & 0x2000) == 0) ? "c.beqz" : "c.bnez";
             uint imm = (uint)(
                     ((instr & 0x1000) >> 4)
                  |  ((instr & 0x0C00) >> 7)
@@ -689,8 +702,16 @@ namespace DisassRiscV
                             }
                             else
                             {
-                                mne = "jalr";
-                                operands = new[] { OperReg(rd), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
+                                if (rd == 0)
+                                {
+                                    mne = "jr";
+                                    operands = new[] { OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
+                                }
+                                else
+                                {
+                                    mne = "jalr";
+                                    operands = new[] { OperReg(rd), OperStr(", "), OperOffsS(imm, 12), OperStr("("), OperReg(rs1), OperStr(")") };
+                                }
                             }
                             break;
                     }

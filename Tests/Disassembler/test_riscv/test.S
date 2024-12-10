@@ -5,6 +5,21 @@ start:
 
 //disassembler test
 
+		.option norvc
+
+		// some branch tests
+		bgt	t0,t2, start
+		bgt	t2,t0, start
+		beqz	t2, start
+		bnez	t2, start
+		bgtz	t2, start
+		bltz	t2, start
+		bgez	t2, start
+		blez	t2, start
+		beq	zero, t2, start
+		bne	zero, t2, start
+
+		.option rvc
 
 		// some branch tests
 		bgt	t0,t2, start
@@ -26,12 +41,14 @@ start:
 		c.mv	a4, a5
 		c.mv	x0, x4
 		c.add	a6, a7
-		c.ebreak
+		ebreak
+		ecall
 
 		//CL
 		c.lw	a4,0(a5)
 		c.lw	a4,0x34(a5)
 		c.lw	a4,0x50(a5)
+		c.lwsp	ra,12(sp)
 
 		//CS
 		c.sw	a4,0(a5)
@@ -80,6 +97,8 @@ start:
 
 ////////// LONG
 
+		.option norvc
+
 		// CR
 
 		add		a3, t0, t2
@@ -88,7 +107,15 @@ start:
 		xor		a3, a4, a5
 		and		a3, a4, a5
 
+		ebreak
+		ecall
 
+
+		bne	a4,a5,start
+
+		jalr a1,34(x0)
+		jalr a1,999(x5)
+		jr 4(x9)
 
 		addi x0,x0,0
 		addi x0,x0,0
