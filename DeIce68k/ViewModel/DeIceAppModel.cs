@@ -521,6 +521,7 @@ namespace DeIce68k.ViewModel
             )
             {
             };
+
             CmdCont = new RelayCommand(
                 o =>
                 {
@@ -1006,7 +1007,7 @@ namespace DeIce68k.ViewModel
             {
                 var ir = Regs as IRegisterSetPredictNext;
                 if (ir != null)
-                {
+                { 
                     byte[] pdata = new byte[ir.PredictProgramDataSize];
                     var l = DisassMemBlock.Read(pdata, Regs.PCValue, ir.PredictProgramDataSize);
                     if (l >= ir.PredictProgramDataSize)

@@ -455,8 +455,6 @@ namespace DeIce68k.ViewModel
 
             }
 
-            Parent.AppendMessage($":PRED:{PCValue.Canonical:X8} -> {ret.Canonical:X8}");
-            Parent.AppendMessage(new System.Diagnostics.StackTrace().ToString());
 
             return ret;
         }

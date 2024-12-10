@@ -25,6 +25,11 @@
         </Style>
     </Window.Style>
 
+    <Window.InputBindings>
+        <KeyBinding Key="F10" Command="{Binding CmdNext }" />
+        <KeyBinding Key="F5" Command="{Binding CmdCont }" />
+    </Window.InputBindings>
+    
     <DockPanel>
         <StackPanel DockPanel.Dock="Top">
             <Menu>
@@ -44,8 +49,8 @@
                     <MenuItem Command="{Binding CmdClearLog}" Header="Clear message log"/>
                 </MenuItem>
                 <MenuItem Header="_Debug">
-                    <MenuItem Command="{Binding CmdNext }" Header="Next" />
-                    <MenuItem Command="{Binding CmdCont }" Header="Continue" />
+                    <MenuItem Command="{Binding CmdNext }" Header="Next" InputGestureText="F10" />
+                    <MenuItem Command="{Binding CmdCont }" Header="Continue"  InputGestureText="F5" />
                     <MenuItem Command="{Binding CmdTraceTo }" Header="Trace To..." />
                     <MenuItem Command="{Binding CmdStop}" Header="STOP" />
                     <MenuItem Command="{Binding CmdRefresh}" Header="Refresh" />
