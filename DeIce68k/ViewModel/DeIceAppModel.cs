@@ -1014,7 +1014,7 @@ namespace DeIce68k.ViewModel
                         var nextPC = ir.PredictNext(pdata);
 
                         DeIceProto.SendReqExpectStatusByte<DeIceFnReplyWriteRegs>(new DeIceFnReqWriteRegs() { RegData = Regs.ToDeIceProtcolRegData() }); //ignore TODO: check?
-                        ApplyBreakpoints(nextPC);
+                        ApplyBreakpoints(nextPC, reExecCurBP: false);
                         return DeIceProto.SendReqExpectReply<DeIceFnReplyRun>(new DeIceFnReqRun());
                     }
                 }
@@ -1086,7 +1086,6 @@ namespace DeIce68k.ViewModel
                             }
 
                         }
-
                         return true;
 
                     }
