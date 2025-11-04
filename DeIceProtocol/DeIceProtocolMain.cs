@@ -54,8 +54,8 @@ namespace DeIceProtocol
 
     public class DeIceProtocolMain : IDisposable
     {
-        const int RESPONSE_TIMEOUT = 100; //how long to wait until a command's response time's out
-        const int SHORT_TIMEOUT = 100; // how long to wait for more oob data before showing
+        const int RESPONSE_TIMEOUT = 1000; //how long to wait until a command's response times out
+        const int SHORT_TIMEOUT = 1000; // how long to wait for more oob data before showing
         const int LONG_TIMEOUT = 2000; // how long to wait for other threads to release
         const int BUF_SIZE = 256;
         const int OOB_MAX = 16384;  //maximum size off OOB block
