@@ -270,6 +270,10 @@ namespace DisassRiscV
                     }
                 }
             }
+            else if (f3 == 0 && op == 0b10 && rdrs1 != 0)
+            {
+                mne = "c.slli";
+            }
             else
             {
                 if (f3 == 2 && rdrs1 != 0)
